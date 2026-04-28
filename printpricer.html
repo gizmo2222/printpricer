@@ -3059,33 +3059,69 @@
       const sliceInfo = await readByRegex(/slice_info\.config$/i);
       if (sliceInfo) {
         const xml = sliceInfo.text;
-        // Match any <filament ...> open tag (self-closing or not). Be lenient
-        // about whitespace and missing trailing slash.
-        const filamentTags = xml.match(/<filament\b[^>]*?>/gi) || [];
-        console.log(`[3MF] slice_info.config: ${filamentTags.length} <filament> tags found at ${sliceInfo.path}`);
-        filamentTags.forEach((tag, idx) => {
-          const g = tag.match(/\bused_g\s*=\s*"([^"]+)"/i);
-          const t = tag.match(/\btype\s*=\s*"([^"]+)"/i);
-          const c = tag.match(/\bcolor\s*=\s*"([^"]+)"/i);
-          if (g) {
-            const grams = parseFloat(g[1]);
-            if (isFinite(grams) && grams > 0) {
-              const name = [t?.[1], c?.[1] && !/^#FFFFFFFF$/i.test(c[1]) ? c[1] : ''].filter(Boolean).join(' ');
-              result.filaments.push({
-                name: name || `Filament ${idx + 1}`,
-                grams: grams.toFixed(2),
-                costPerKg: settings.filamentCost || '',
-              });
+        // slice_info.config has one <plate>...</plate> block per plate. Parse
+        // each plate independently and use the first plate that actually has
+        // data — DO NOT sum across plates, because users print one plate at a
+        // time and summing over-counts time and filament massively.
+        const plates = [];
+        const plateRe = /<plate\b[^>]*>([\s\S]*?)<\/plate>/gi;
+        let pm;
+        while ((pm = plateRe.exec(xml))) {
+          const body = pm[1];
+          const plate = { hours: 0, filaments: [] };
+          const pred = body.match(/key\s*=\s*"prediction"\s+value\s*=\s*"(\d+)"/i);
+          if (pred) plate.hours = parseInt(pred[1]) / 3600;
+          const filTags = body.match(/<filament\b[^>]*?>/gi) || [];
+          filTags.forEach((tag, idx) => {
+            const g = tag.match(/\bused_g\s*=\s*"([^"]+)"/i);
+            const t = tag.match(/\btype\s*=\s*"([^"]+)"/i);
+            const c = tag.match(/\bcolor\s*=\s*"([^"]+)"/i);
+            if (g) {
+              const grams = parseFloat(g[1]);
+              if (isFinite(grams) && grams > 0) {
+                const name = [t?.[1], c?.[1] && !/^#FFFFFFFF$/i.test(c[1]) ? c[1] : ''].filter(Boolean).join(' ');
+                plate.filaments.push({
+                  name: name || `Filament ${idx + 1}`,
+                  grams: grams.toFixed(2),
+                  costPerKg: settings.filamentCost || '',
+                });
+              }
             }
-          }
-        });
-        // Prediction is per-plate. Sum all plates' predictions.
-        const preds = [...xml.matchAll(/key\s*=\s*"prediction"\s+value\s*=\s*"(\d+)"/gi)];
-        if (preds.length) {
-          const totalSec = preds.reduce((s, m) => s + parseInt(m[1]), 0);
-          result.hours = totalSec / 3600;
+          });
+          plates.push(plate);
         }
-        console.log(`[3MF] slice_info parsed → ${result.filaments.length} filaments, ${result.hours.toFixed(2)}h`);
+        // No <plate> wrapper? Treat the whole file as one implicit plate.
+        if (plates.length === 0) {
+          const plate = { hours: 0, filaments: [] };
+          const pred = xml.match(/key\s*=\s*"prediction"\s+value\s*=\s*"(\d+)"/i);
+          if (pred) plate.hours = parseInt(pred[1]) / 3600;
+          const filTags = xml.match(/<filament\b[^>]*?>/gi) || [];
+          filTags.forEach((tag, idx) => {
+            const g = tag.match(/\bused_g\s*=\s*"([^"]+)"/i);
+            const t = tag.match(/\btype\s*=\s*"([^"]+)"/i);
+            const c = tag.match(/\bcolor\s*=\s*"([^"]+)"/i);
+            if (g) {
+              const grams = parseFloat(g[1]);
+              if (isFinite(grams) && grams > 0) {
+                plate.filaments.push({
+                  name: [t?.[1], c?.[1] && !/^#FFFFFFFF$/i.test(c[1]) ? c[1] : ''].filter(Boolean).join(' ') || `Filament ${idx + 1}`,
+                  grams: grams.toFixed(2),
+                  costPerKg: settings.filamentCost || '',
+                });
+              }
+            }
+          });
+          if (plate.hours > 0 || plate.filaments.length > 0) plates.push(plate);
+        }
+
+        const usable = plates.find(p => p.hours > 0 || p.filaments.length > 0);
+        if (usable) {
+          result.hours = usable.hours;
+          result.filaments = usable.filaments;
+        }
+        console.log(`[3MF] slice_info.config: ${plates.length} plate(s); using ` +
+                    `${usable ? '1' : 'none'} → ${result.filaments.length} filaments, ${result.hours.toFixed(2)}h` +
+                    (plates.length > 1 ? ' — multi-plate file: only the first plate with data is used' : ''));
       } else {
         console.log('[3MF] no slice_info.config found in zip');
       }
