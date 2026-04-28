@@ -2737,19 +2737,28 @@
       if (typeof JSZip === 'undefined') throw new Error('Zip library not loaded');
       const zip = await JSZip.loadAsync(file);
       const result = { hours: 0, filaments: [] };
+      const paths = Object.keys(zip.files).filter(p => !zip.files[p].dir);
 
-      const sliceInfo = zip.file('Metadata/slice_info.config') || zip.file('metadata/slice_info.config');
+      // Helper: read a file from the zip by case-insensitive regex on path.
+      async function readByRegex(re) {
+        const path = paths.find(p => re.test(p));
+        return path ? { path, text: await zip.file(path).async('string') } : null;
+      }
+
+      // ---- Strategy 1: Bambu Studio / OrcaSlicer slice_info.config ----
+      // Path varies (Metadata/slice_info.config, sometimes nested), so glob it.
+      const sliceInfo = await readByRegex(/slice_info\.config$/i);
       if (sliceInfo) {
-        const xml = await sliceInfo.async('string');
-        const filamentTags = xml.match(/<filament[^>]*\/?>/g) || [];
+        const xml = sliceInfo.text;
+        const filamentTags = xml.match(/<filament\b[^>]*\/?>/gi) || [];
         filamentTags.forEach(tag => {
-          const g = tag.match(/used_g="([^"]+)"/);
-          const t = tag.match(/type="([^"]+)"/);
-          const c = tag.match(/color="([^"]+)"/);
+          const g = tag.match(/used_g\s*=\s*"([^"]+)"/i);
+          const t = tag.match(/\btype\s*=\s*"([^"]+)"/i);
+          const c = tag.match(/\bcolor\s*=\s*"([^"]+)"/i);
           if (g) {
             const grams = parseFloat(g[1]);
             if (isFinite(grams) && grams > 0) {
-              const name = [t?.[1], c?.[1] && c[1] !== '#FFFFFFFF' ? c[1] : ''].filter(Boolean).join(' ');
+              const name = [t?.[1], c?.[1] && !/^#FFFFFFFF$/i.test(c[1]) ? c[1] : ''].filter(Boolean).join(' ');
               result.filaments.push({
                 name: name || 'Filament',
                 grams: grams.toFixed(2),
@@ -2758,18 +2767,75 @@
             }
           }
         });
-        const pred = xml.match(/key="prediction"\s+value="(\d+)"/);
-        if (pred) result.hours = parseInt(pred[1]) / 3600;
+        // Prediction is per-plate. Sum all plates' predictions.
+        const preds = [...xml.matchAll(/key\s*=\s*"prediction"\s+value\s*=\s*"(\d+)"/gi)];
+        if (preds.length) {
+          const totalSec = preds.reduce((s, m) => s + parseInt(m[1]), 0);
+          result.hours = totalSec / 3600;
+        }
       }
 
-      if (result.hours === 0 || result.filaments.length === 0) {
-        const gcodeName = Object.keys(zip.files).find(n => /\.gcode$/i.test(n));
-        if (gcodeName) {
-          const text = await zip.file(gcodeName).async('string');
+      // ---- Strategy 2: Bambu plate_*.json ----
+      if (result.filaments.length === 0 || result.hours === 0) {
+        const plateJson = await readByRegex(/plate[_-]?\d*\.json$/i);
+        if (plateJson) {
+          try {
+            const data = JSON.parse(plateJson.text);
+            if (!result.hours && data.prediction) result.hours = data.prediction / 3600;
+            if (result.filaments.length === 0 && Array.isArray(data.filament_use_g)) {
+              const types = Array.isArray(data.filament_types) ? data.filament_types : [];
+              const colors = Array.isArray(data.filament_colors) ? data.filament_colors : [];
+              data.filament_use_g.forEach((g, i) => {
+                const grams = parseFloat(g);
+                if (isFinite(grams) && grams > 0) {
+                  const name = [types[i], colors[i]].filter(Boolean).join(' ') || 'Filament';
+                  result.filaments.push({
+                    name,
+                    grams: grams.toFixed(2),
+                    costPerKg: settings.filamentCost || '',
+                  });
+                }
+              });
+            }
+          } catch { /* not JSON we recognize */ }
+        }
+      }
+
+      // ---- Strategy 3: any embedded .gcode (covers PrusaSlicer .gcode.3mf, Orca, etc.) ----
+      if (result.filaments.length === 0 || result.hours === 0) {
+        const gcodePath = paths.find(p => /\.gcode$/i.test(p));
+        if (gcodePath) {
+          const text = await zip.file(gcodePath).async('string');
           const g = parseGcode(text);
           if (!result.hours && g.hours) result.hours = g.hours;
           if (result.filaments.length === 0 && g.filaments.length) result.filaments = g.filaments;
         }
+      }
+
+      // ---- Strategy 4: PrusaSlicer config metadata (project .3mf without gcode) ----
+      if (result.filaments.length === 0 || result.hours === 0) {
+        const ps = await readByRegex(/(Slic3r|PrusaSlicer)[\w.\- ]*\.config$/i);
+        if (ps) {
+          const xml = ps.text;
+          if (!result.hours) {
+            // <metadata key="estimated_printing_time_normal_mode" value="3h 15m"/>
+            const tm = xml.match(/key\s*=\s*"estimated_printing_time(?:_normal_mode)?"\s+value\s*=\s*"([^"]+)"/i);
+            if (tm) result.hours = parseTimeStr(tm[1]);
+          }
+          if (result.filaments.length === 0) {
+            // PrusaSlicer doesn't usually store grams in the project config — leave empty,
+            // user can still pick up time and fill grams manually.
+          }
+        }
+      }
+
+      // ---- Detailed failure ----
+      if (result.filaments.length === 0 && result.hours === 0) {
+        const sample = paths.slice(0, 6).join(', ');
+        throw new Error(
+          `No print data in 3MF. Found ${paths.length} files (${sample}${paths.length > 6 ? '…' : ''}). ` +
+          `If this is a PrusaSlicer project, export as 'G-code 3MF' or '.gcode' instead.`
+        );
       }
 
       return result;
