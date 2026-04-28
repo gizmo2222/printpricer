@@ -732,6 +732,331 @@
     }
     .sheet-footer .scale { color: var(--blueprint); font-weight: 600; }
 
+    /* Spools */
+    .spool-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .spool-toolbar .count {
+      font-family: var(--condensed);
+      font-size: 11px;
+      letter-spacing: 1.6px;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      font-weight: 600;
+    }
+    .spool-toolbar .count strong { color: var(--ink); font-weight: 700; }
+
+    .spool-item {
+      display: grid;
+      grid-template-columns: 38px 1fr auto;
+      gap: 16px;
+      align-items: start;
+      padding: 12px 14px;
+      background: var(--paper);
+      border: 1px solid var(--ink);
+      margin-bottom: 8px;
+      transition: background 0.12s var(--ease-quart);
+    }
+    .spool-item:hover { background: var(--paper-dim); }
+    .spool-item.editing {
+      background: var(--paper-dim);
+      border-color: var(--blueprint);
+      box-shadow: 0 0 0 1px var(--blueprint);
+    }
+    .spool-swatch {
+      width: 38px;
+      height: 38px;
+      border: 1.5px solid var(--ink);
+      position: relative;
+      background: var(--paper-dim);
+    }
+    .spool-swatch::after {
+      content: '';
+      position: absolute;
+      inset: 3px;
+      border: 1px solid rgba(22, 32, 45, 0.25);
+      pointer-events: none;
+    }
+    .spool-info { min-width: 0; }
+    .spool-name {
+      font-family: var(--display);
+      font-weight: 700;
+      font-size: 18px;
+      letter-spacing: 0.5px;
+      color: var(--ink);
+      line-height: 1.1;
+      margin-bottom: 4px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .spool-meta {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--ink-mid);
+      letter-spacing: 0.3px;
+    }
+    .material-badge {
+      display: inline-block;
+      padding: 2px 8px 1px;
+      border: 1px solid var(--blueprint);
+      background: rgba(31, 78, 122, 0.08);
+      color: var(--blueprint);
+      font-family: var(--condensed);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.4px;
+      text-transform: uppercase;
+    }
+    .spool-stock {
+      margin-top: 6px;
+    }
+    .stock-bar {
+      height: 6px;
+      background: var(--paper-dim);
+      border: 1px solid var(--ink-faint);
+      position: relative;
+      overflow: hidden;
+    }
+    .stock-bar .fill {
+      position: absolute;
+      inset: 0 auto 0 0;
+      background: var(--blueprint);
+      transition: width 0.3s var(--ease-quart);
+    }
+    .stock-bar.low .fill { background: var(--rust); }
+    .stock-amount {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--ink-faint);
+      letter-spacing: 0.3px;
+      margin-top: 2px;
+      display: flex;
+      gap: 4px;
+      align-items: baseline;
+    }
+    .stock-amount .low-tag {
+      color: var(--rust);
+      font-family: var(--condensed);
+      font-weight: 700;
+      letter-spacing: 1.4px;
+      text-transform: uppercase;
+      font-size: 9px;
+    }
+    .spool-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      align-items: flex-end;
+    }
+    .spool-cost {
+      font-family: var(--mono);
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--blueprint);
+      letter-spacing: 0.3px;
+    }
+    .spool-cost .unit {
+      color: var(--ink-faint);
+      font-family: var(--condensed);
+      font-size: 9px;
+      letter-spacing: 1.4px;
+      margin-left: 1px;
+    }
+    .spool-actions .actions-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 2px;
+    }
+
+    /* Spool form (inline add/edit) */
+    .spool-form {
+      padding: 16px 18px;
+      background: var(--paper-dim);
+      border: 1.5px solid var(--blueprint);
+      margin-bottom: 14px;
+      position: relative;
+    }
+    .spool-form::before {
+      content: 'EDIT';
+      position: absolute;
+      top: -8px;
+      left: 12px;
+      background: var(--paper);
+      padding: 0 6px;
+      font-family: var(--condensed);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: var(--blueprint);
+    }
+    .spool-form.adding::before { content: 'NEW SPOOL'; }
+    .spool-form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 80px;
+      gap: 16px;
+      margin-bottom: 12px;
+    }
+    .spool-form-row.three { grid-template-columns: 1fr 1fr 1fr; }
+    .spool-form-row .field { margin-bottom: 0; }
+    .color-input-wrap {
+      position: relative;
+    }
+    .color-input-wrap input[type="color"] {
+      width: 100%;
+      height: 36px;
+      padding: 0;
+      border: 1.5px solid var(--ink);
+      background: transparent;
+      cursor: pointer;
+      border-bottom: 1.5px solid var(--ink);
+    }
+    .color-input-wrap input[type="color"]::-webkit-color-swatch-wrapper { padding: 2px; }
+    .color-input-wrap input[type="color"]::-webkit-color-swatch { border: none; }
+
+    /* Spool picker (in filament row) */
+    .pick-spool-btn {
+      background: transparent;
+      border: 1px solid var(--ink-faint);
+      color: var(--ink-mid);
+      font-family: var(--condensed);
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      cursor: pointer;
+      padding: 3px 6px;
+      margin-top: 2px;
+      transition: all 0.12s var(--ease-quart);
+    }
+    .pick-spool-btn:hover { color: var(--paper); background: var(--blueprint); border-color: var(--blueprint); }
+    .filament-row .field-with-pick {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    .filament-row .field-with-pick label { margin-bottom: 4px; }
+    .spool-link-tag {
+      display: inline-block;
+      font-family: var(--condensed);
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 1.4px;
+      text-transform: uppercase;
+      color: var(--blueprint);
+      margin-top: 2px;
+    }
+    .spool-link-tag::before { content: '→ '; }
+
+    /* Spool picker overlay */
+    .picker-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(22, 32, 45, 0.4);
+      z-index: 200;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .picker-overlay.show { display: flex; }
+    .picker-panel {
+      background: var(--paper);
+      border: 1.5px solid var(--ink);
+      box-shadow: 4px 4px 0 var(--paper-shadow);
+      max-width: 460px;
+      width: 100%;
+      max-height: 80vh;
+      overflow-y: auto;
+      padding: 18px 20px;
+    }
+    .picker-panel .picker-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      border-bottom: 1px solid var(--ink);
+      padding-bottom: 8px;
+      margin-bottom: 14px;
+    }
+    .picker-panel .picker-head h3 {
+      font-family: var(--display);
+      font-weight: 700;
+      font-size: 22px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--ink);
+    }
+    .picker-close {
+      background: transparent;
+      border: none;
+      font-family: var(--display);
+      font-size: 22px;
+      font-weight: 700;
+      cursor: pointer;
+      color: var(--ink-mid);
+      line-height: 1;
+      padding: 0;
+    }
+    .picker-close:hover { color: var(--rust); }
+    .picker-list { display: flex; flex-direction: column; gap: 6px; }
+    .picker-item {
+      display: grid;
+      grid-template-columns: 28px 1fr auto;
+      gap: 12px;
+      align-items: center;
+      padding: 8px 10px;
+      background: transparent;
+      border: 1px solid var(--ink-faint);
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.12s var(--ease-quart);
+      width: 100%;
+      font-family: inherit;
+    }
+    .picker-item:hover {
+      background: rgba(31, 78, 122, 0.08);
+      border-color: var(--blueprint);
+    }
+    .picker-item .picker-swatch {
+      width: 28px;
+      height: 28px;
+      border: 1px solid var(--ink);
+    }
+    .picker-item .picker-name {
+      font-family: var(--display);
+      font-weight: 700;
+      font-size: 14px;
+      letter-spacing: 0.5px;
+      color: var(--ink);
+    }
+    .picker-item .picker-meta {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--ink-faint);
+    }
+    .picker-item .picker-cost {
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--blueprint);
+      letter-spacing: 0.3px;
+    }
+    .picker-empty {
+      padding: 20px;
+      text-align: center;
+      font-family: var(--condensed);
+      font-size: 12px;
+      letter-spacing: 1.2px;
+      color: var(--ink-faint);
+    }
+
     /* Responsive */
     @media (max-width: 720px) {
       .page-frame { padding: 18px 16px 60px; }
@@ -745,6 +1070,10 @@
       .layer .layer-num { font-size: 9px; }
       .total-stamp { flex-direction: column; align-items: flex-start; gap: 4px; }
       .total-stamp .value { font-size: 24px; }
+      .spool-form-row, .spool-form-row.three { grid-template-columns: 1fr 1fr; }
+      .spool-item { grid-template-columns: 30px 1fr; }
+      .spool-actions { grid-column: 1 / -1; flex-direction: row; justify-content: space-between; align-items: center; padding-top: 6px; border-top: 1px dotted var(--ink-faint); }
+      .spool-swatch { width: 30px; height: 30px; }
     }
   </style>
 </head>
@@ -772,11 +1101,14 @@
       <button class="layer active" data-pane="calc">
         <span class="layer-num">01</span>Estimate
       </button>
+      <button class="layer" data-pane="spools">
+        <span class="layer-num">02</span>Spools
+      </button>
       <button class="layer" data-pane="settings">
-        <span class="layer-num">02</span>Defaults
+        <span class="layer-num">03</span>Defaults
       </button>
       <button class="layer" data-pane="history">
-        <span class="layer-num">03</span>Archive
+        <span class="layer-num">04</span>Archive
       </button>
     </div>
 
@@ -848,7 +1180,38 @@
       </section>
     </div>
 
-    <!-- LAYER 02 — DEFAULTS -->
+    <!-- LAYER 02 — SPOOLS -->
+    <div class="pane" id="pane-spools">
+      <section class="block">
+        <span class="bl"></span><span class="br"></span>
+        <header class="block-head">
+          <h2 class="block-title">Spool Inventory</h2>
+          <div class="block-detail">Filament library<span class="id">A</span></div>
+        </header>
+
+        <div class="spool-toolbar">
+          <div class="count" id="spool-count">— spools on hand</div>
+          <button class="btn btn-add" id="spool-add-btn">+ New spool</button>
+        </div>
+
+        <div id="spool-form-container"></div>
+        <div id="spools-grid"></div>
+      </section>
+
+      <section class="block">
+        <span class="bl"></span><span class="br"></span>
+        <header class="block-head">
+          <h2 class="block-title">How it links</h2>
+          <div class="block-detail">Reference note<span class="id">B</span></div>
+        </header>
+        <div class="formula" style="font-family: var(--sans); font-size: 13px; line-height: 1.65;">
+          On the Estimate sheet, the <span class="kw">type / color</span> field on each filament row is linked to this inventory: type a name that matches a spool, or use <span class="kw">Pick</span> to choose one. Cost auto-fills.<br><br>
+          When you <span class="kw">Stamp &amp; Archive</span> an estimate, grams used are deducted from the linked spools. Spools below 50&nbsp;g are flagged as low.
+        </div>
+      </section>
+    </div>
+
+    <!-- LAYER 03 — DEFAULTS -->
     <div class="pane" id="pane-settings">
       <section class="block">
         <span class="bl"></span><span class="br"></span>
@@ -938,7 +1301,7 @@
       </section>
     </div>
 
-    <!-- LAYER 03 — ARCHIVE -->
+    <!-- LAYER 04 — ARCHIVE -->
     <div class="pane" id="pane-history">
       <section class="block">
         <span class="bl"></span><span class="br"></span>
@@ -963,6 +1326,18 @@
 
   <div class="toast" id="toast"></div>
 
+  <div class="picker-overlay" id="picker-overlay">
+    <div class="picker-panel">
+      <div class="picker-head">
+        <h3>Pick a Spool</h3>
+        <button class="picker-close" id="picker-close" aria-label="Close">×</button>
+      </div>
+      <div class="picker-list" id="picker-list"></div>
+    </div>
+  </div>
+
+  <datalist id="spool-list"></datalist>
+
   <script>
     // Title-block date
     (function setDate() {
@@ -975,6 +1350,10 @@
 
     const SETTINGS_KEY = 'printpricer:settings';
     const HISTORY_KEY = 'printpricer:history';
+    const SPOOLS_KEY = 'printpricer:spools';
+    const LOW_STOCK_THRESHOLD = 50;
+
+    const MATERIALS = ['PLA', 'PLA+', 'PLA-CF', 'Silk PLA', 'Wood PLA', 'PETG', 'PETG-CF', 'ABS', 'ASA', 'TPU', 'PC', 'Nylon', 'Other'];
 
     // Average printing wattage (W) — typical steady-state, not peak with bed heating.
     const PRINTER_PRESETS = [
@@ -1046,6 +1425,13 @@
     function saveHistory(h) {
       localStorage.setItem(HISTORY_KEY, JSON.stringify(h));
     }
+    function loadSpools() {
+      try { return JSON.parse(localStorage.getItem(SPOOLS_KEY) || '[]'); }
+      catch { return []; }
+    }
+    function saveSpools(s) {
+      localStorage.setItem(SPOOLS_KEY, JSON.stringify(s));
+    }
 
     // ---------- TABS ----------
     document.querySelectorAll('.layer').forEach(tab => {
@@ -1055,6 +1441,7 @@
         tab.classList.add('active');
         document.getElementById('pane-' + tab.dataset.pane).classList.add('active');
         if (tab.dataset.pane === 'history') renderHistory();
+        if (tab.dataset.pane === 'spools') renderSpools();
       });
     });
 
@@ -1064,18 +1451,32 @@
         name: '',
         grams: '',
         costPerKg: settings.filamentCost || '',
+        spoolId: null,
       };
     }
+    function findSpoolByName(name) {
+      if (!name) return null;
+      const target = name.trim().toLowerCase();
+      if (!target) return null;
+      return loadSpools().find(s => s.name.toLowerCase() === target) || null;
+    }
     function renderFilaments() {
+      updateSpoolDatalist();
       const container = document.getElementById('filaments');
       container.innerHTML = '';
       filaments.forEach((f, i) => {
+        const linkedSpool = f.spoolId ? loadSpools().find(s => s.id === f.spoolId) : null;
+        const linkTag = linkedSpool
+          ? `<span class="spool-link-tag">linked: ${escapeHtml(linkedSpool.name)}</span>`
+          : '';
         const row = document.createElement('div');
         row.className = 'filament-row';
         row.innerHTML = `
-          <div class="field">
+          <div class="field field-with-pick">
             ${i === 0 ? '<label>Type / color</label>' : ''}
-            <input type="text" placeholder="PLA black" value="${escapeHtml(f.name)}" data-i="${i}" data-k="name">
+            <input type="text" list="spool-list" placeholder="PLA black" value="${escapeHtml(f.name)}" data-i="${i}" data-k="name">
+            <button type="button" class="pick-spool-btn" data-pick="${i}">Pick from spools</button>
+            ${linkTag}
           </div>
           <div class="field">
             ${i === 0 ? '<label>Grams</label>' : ''}
@@ -1094,8 +1495,21 @@
           const i = +e.target.dataset.i;
           const k = e.target.dataset.k;
           filaments[i][k] = e.target.value;
+          if (k === 'name') {
+            const match = findSpoolByName(e.target.value);
+            if (match) {
+              filaments[i].spoolId = match.id;
+              filaments[i].costPerKg = String(match.costPerKg);
+              renderFilaments();
+            } else {
+              filaments[i].spoolId = null;
+            }
+          }
           recalc();
         });
+      });
+      container.querySelectorAll('[data-pick]').forEach(btn => {
+        btn.addEventListener('click', e => openSpoolPicker(+e.target.dataset.pick));
       });
       container.querySelectorAll('[data-remove]').forEach(btn => {
         btn.addEventListener('click', e => {
@@ -1106,6 +1520,14 @@
           recalc();
         });
       });
+    }
+
+    function updateSpoolDatalist() {
+      const dl = document.getElementById('spool-list');
+      const spools = loadSpools();
+      dl.innerHTML = spools.map(s =>
+        `<option value="${escapeHtml(s.name)}">${escapeHtml(s.material || '')} · $${(+s.costPerKg).toFixed(2)}/kg · ${s.remainingGrams}g left</option>`
+      ).join('');
     }
     document.getElementById('add-filament').addEventListener('click', () => {
       filaments.push(newFilament());
@@ -1245,7 +1667,31 @@
       const h = loadHistory();
       h.unshift(entry);
       saveHistory(h);
-      toast('Stamped & archived', false, 'stamp');
+
+      // Deduct grams from linked spools
+      const spools = loadSpools();
+      let deductedTotal = 0;
+      const newlyLow = [];
+      filaments.forEach(f => {
+        if (!f.spoolId) return;
+        const spool = spools.find(s => s.id === f.spoolId);
+        if (!spool) return;
+        const used = num(f.grams);
+        const wasAbove = spool.remainingGrams >= LOW_STOCK_THRESHOLD;
+        spool.remainingGrams = Math.max(0, +(spool.remainingGrams - used).toFixed(2));
+        deductedTotal += used;
+        if (wasAbove && spool.remainingGrams < LOW_STOCK_THRESHOLD) newlyLow.push(spool.name);
+      });
+      if (deductedTotal > 0) {
+        saveSpools(spools);
+        renderFilaments();
+      }
+
+      if (newlyLow.length) {
+        toast(`Low stock: ${newlyLow.join(', ')}`, true);
+      } else {
+        toast('Stamped & archived', false, 'stamp');
+      }
     });
     document.getElementById('reset-quote').addEventListener('click', () => {
       document.getElementById('print-name').value = '';
@@ -1492,6 +1938,264 @@
     dropzone.addEventListener('drop', e => {
       const f = e.dataTransfer.files[0];
       if (f) handleFile(f);
+    });
+
+    // ---------- SPOOLS ----------
+    let editingSpoolId = null;
+    let isAddingSpool = false;
+
+    function renderSpools() {
+      const container = document.getElementById('spools-grid');
+      const count = document.getElementById('spool-count');
+      const formContainer = document.getElementById('spool-form-container');
+      const spools = loadSpools();
+
+      // Count
+      const total = spools.length;
+      const lowCount = spools.filter(s => s.remainingGrams < LOW_STOCK_THRESHOLD).length;
+      count.innerHTML = total === 0
+        ? 'No spools tracked yet'
+        : `<strong>${total}</strong> spool${total !== 1 ? 's' : ''} on hand` + (lowCount ? ` · <span style="color:var(--rust)">${lowCount} low</span>` : '');
+
+      // Form
+      formContainer.innerHTML = '';
+      if (isAddingSpool || editingSpoolId !== null) {
+        const editing = editingSpoolId !== null ? spools.find(s => s.id === editingSpoolId) : null;
+        formContainer.appendChild(buildSpoolForm(editing));
+      }
+
+      // List
+      container.innerHTML = '';
+      if (spools.length === 0 && !isAddingSpool && editingSpoolId === null) {
+        container.innerHTML = '<div class="empty"><strong>Empty inventory</strong>Add a spool to start tracking what you have on hand. Estimated prints will deduct from these spools when archived.</div>';
+        return;
+      }
+
+      spools.forEach(s => {
+        const pct = s.spoolGrams > 0 ? Math.max(0, Math.min(100, (s.remainingGrams / s.spoolGrams) * 100)) : 0;
+        const isLow = s.remainingGrams < LOW_STOCK_THRESHOLD;
+        const isEditing = s.id === editingSpoolId;
+        const item = document.createElement('div');
+        item.className = 'spool-item' + (isEditing ? ' editing' : '');
+        item.innerHTML = `
+          <div class="spool-swatch" style="background: ${escapeHtml(s.color || '#e7decd')}"></div>
+          <div class="spool-info">
+            <div class="spool-name">${escapeHtml(s.name)}</div>
+            <div class="spool-meta">
+              <span class="material-badge">${escapeHtml(s.material || 'Other')}</span>
+              <span>${s.spoolGrams}g spool</span>
+              ${s.notes ? `<span>· ${escapeHtml(s.notes)}</span>` : ''}
+            </div>
+            <div class="spool-stock">
+              <div class="stock-bar ${isLow ? 'low' : ''}"><div class="fill" style="width: ${pct.toFixed(1)}%"></div></div>
+              <div class="stock-amount">
+                <strong style="color:var(--ink);font-weight:600">${s.remainingGrams}g</strong>
+                <span>/ ${s.spoolGrams}g remaining</span>
+                ${isLow ? '<span class="low-tag">· low</span>' : ''}
+              </div>
+            </div>
+          </div>
+          <div class="spool-actions">
+            <div class="spool-cost">$${(+s.costPerKg).toFixed(2)}<span class="unit">/ kg</span></div>
+            <div class="actions-row">
+              <button class="link-btn" data-edit="${s.id}">Edit</button>
+              <button class="link-btn danger" data-del-spool="${s.id}">Delete</button>
+            </div>
+          </div>
+        `;
+        container.appendChild(item);
+      });
+
+      container.querySelectorAll('[data-edit]').forEach(btn => {
+        btn.addEventListener('click', e => {
+          editingSpoolId = +e.target.dataset.edit;
+          isAddingSpool = false;
+          renderSpools();
+        });
+      });
+      container.querySelectorAll('[data-del-spool]').forEach(btn => {
+        btn.addEventListener('click', e => {
+          const id = +e.target.dataset.delSpool;
+          const sp = loadSpools().find(s => s.id === id);
+          if (!confirm(`Delete spool "${sp?.name || ''}"?`)) return;
+          saveSpools(loadSpools().filter(s => s.id !== id));
+          // Unlink from any current filament rows
+          filaments.forEach(f => { if (f.spoolId === id) f.spoolId = null; });
+          renderSpools();
+          renderFilaments();
+        });
+      });
+    }
+
+    function buildSpoolForm(editing) {
+      const wrap = document.createElement('div');
+      wrap.className = 'spool-form' + (editing ? '' : ' adding');
+      const s = editing || { name: '', material: 'PLA', color: '#222222', costPerKg: settings.filamentCost || '25', spoolGrams: 1000, remainingGrams: 1000, notes: '' };
+      wrap.innerHTML = `
+        <div class="spool-form-row" style="grid-template-columns: 2fr 1fr 60px;">
+          <div class="field">
+            <label>Spool name</label>
+            <input type="text" id="sf-name" placeholder="Polymaker PLA Pro Black" value="${escapeHtml(s.name)}">
+          </div>
+          <div class="field">
+            <label>Material</label>
+            <select class="input" id="sf-material">
+              ${MATERIALS.map(m => `<option ${m === s.material ? 'selected' : ''}>${m}</option>`).join('')}
+            </select>
+          </div>
+          <div class="field">
+            <label>Color</label>
+            <div class="color-input-wrap">
+              <input type="color" id="sf-color" value="${escapeHtml(s.color || '#222222')}">
+            </div>
+          </div>
+        </div>
+        <div class="spool-form-row three">
+          <div class="field">
+            <label>Cost</label>
+            <div class="suffix-wrap">
+              <input type="number" id="sf-cost" min="0" step="0.01" value="${s.costPerKg}">
+              <span class="suffix">$ / kg</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>Spool weight</label>
+            <div class="suffix-wrap">
+              <input type="number" id="sf-spool-grams" min="0" step="1" value="${s.spoolGrams}">
+              <span class="suffix">g</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>Remaining</label>
+            <div class="suffix-wrap">
+              <input type="number" id="sf-remaining" min="0" step="0.1" value="${s.remainingGrams}">
+              <span class="suffix">g</span>
+            </div>
+          </div>
+        </div>
+        <div class="field">
+          <label>Notes</label>
+          <input type="text" id="sf-notes" placeholder="optional — e.g. opened 2026-04, dry box A3" value="${escapeHtml(s.notes || '')}">
+        </div>
+        <div class="btn-row" style="margin-top: 12px;">
+          <button class="btn" id="sf-save">${editing ? 'Save changes' : 'Add spool'}</button>
+          <button class="btn btn-ghost" id="sf-cancel">Cancel</button>
+          ${editing ? `<button class="btn btn-add" id="sf-refill" type="button" style="margin-left:auto">Refill to ${s.spoolGrams}g</button>` : ''}
+        </div>
+      `;
+
+      // Sync spool weight → remaining when adding (only auto-sync when remaining matches old spool weight)
+      const spoolGramsInput = wrap.querySelector('#sf-spool-grams');
+      const remainingInput = wrap.querySelector('#sf-remaining');
+      if (!editing) {
+        spoolGramsInput.addEventListener('input', e => {
+          remainingInput.value = e.target.value;
+        });
+      }
+
+      wrap.querySelector('#sf-cancel').addEventListener('click', () => {
+        editingSpoolId = null;
+        isAddingSpool = false;
+        renderSpools();
+      });
+
+      if (editing) {
+        wrap.querySelector('#sf-refill').addEventListener('click', () => {
+          remainingInput.value = spoolGramsInput.value;
+        });
+      }
+
+      wrap.querySelector('#sf-save').addEventListener('click', () => {
+        const name = wrap.querySelector('#sf-name').value.trim();
+        if (!name) { toast('Spool name required', true); return; }
+        const data = {
+          name,
+          material: wrap.querySelector('#sf-material').value,
+          color: wrap.querySelector('#sf-color').value,
+          costPerKg: +wrap.querySelector('#sf-cost').value || 0,
+          spoolGrams: +wrap.querySelector('#sf-spool-grams').value || 1000,
+          remainingGrams: +wrap.querySelector('#sf-remaining').value || 0,
+          notes: wrap.querySelector('#sf-notes').value.trim(),
+        };
+        const all = loadSpools();
+        if (editing) {
+          const idx = all.findIndex(x => x.id === editing.id);
+          if (idx !== -1) all[idx] = { ...all[idx], ...data };
+          toast('Spool updated');
+        } else {
+          all.push({ id: Date.now(), ...data });
+          toast('Spool added');
+        }
+        saveSpools(all);
+        editingSpoolId = null;
+        isAddingSpool = false;
+        renderSpools();
+        renderFilaments();
+      });
+
+      return wrap;
+    }
+
+    document.getElementById('spool-add-btn').addEventListener('click', () => {
+      if (isAddingSpool) return;
+      isAddingSpool = true;
+      editingSpoolId = null;
+      renderSpools();
+    });
+
+    // ---------- SPOOL PICKER OVERLAY ----------
+    let pickerTargetIndex = null;
+
+    function openSpoolPicker(filamentIndex) {
+      pickerTargetIndex = filamentIndex;
+      const overlay = document.getElementById('picker-overlay');
+      const list = document.getElementById('picker-list');
+      const spools = loadSpools();
+      if (spools.length === 0) {
+        list.innerHTML = '<div class="picker-empty">No spools yet. Add one in the Spools layer first.</div>';
+      } else {
+        list.innerHTML = '';
+        spools.forEach(s => {
+          const isLow = s.remainingGrams < LOW_STOCK_THRESHOLD;
+          const btn = document.createElement('button');
+          btn.className = 'picker-item';
+          btn.type = 'button';
+          btn.innerHTML = `
+            <div class="picker-swatch" style="background:${escapeHtml(s.color || '#e7decd')}"></div>
+            <div>
+              <div class="picker-name">${escapeHtml(s.name)}</div>
+              <div class="picker-meta">${escapeHtml(s.material || 'Other')} · ${s.remainingGrams}g left${isLow ? ' · low' : ''}</div>
+            </div>
+            <div class="picker-cost">$${(+s.costPerKg).toFixed(2)}<span style="font-family:var(--condensed);font-size:9px;color:var(--ink-faint);letter-spacing:1.4px;margin-left:1px">/KG</span></div>
+          `;
+          btn.addEventListener('click', () => selectSpoolForFilament(s.id));
+          list.appendChild(btn);
+        });
+      }
+      overlay.classList.add('show');
+    }
+    function closeSpoolPicker() {
+      pickerTargetIndex = null;
+      document.getElementById('picker-overlay').classList.remove('show');
+    }
+    function selectSpoolForFilament(spoolId) {
+      if (pickerTargetIndex == null) return closeSpoolPicker();
+      const spool = loadSpools().find(s => s.id === spoolId);
+      if (!spool) return closeSpoolPicker();
+      const f = filaments[pickerTargetIndex];
+      f.spoolId = spool.id;
+      f.name = spool.name;
+      f.costPerKg = String(spool.costPerKg);
+      closeSpoolPicker();
+      renderFilaments();
+      recalc();
+    }
+    document.getElementById('picker-close').addEventListener('click', closeSpoolPicker);
+    document.getElementById('picker-overlay').addEventListener('click', e => {
+      if (e.target.id === 'picker-overlay') closeSpoolPicker();
+    });
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') closeSpoolPicker();
     });
 
     // ---------- INIT ----------

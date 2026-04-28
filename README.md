@@ -66,11 +66,32 @@ total       = subtotal + failure + margin
 
 ---
 
-## Tabs
+## Spool inventory
 
-- **Calculate** — drop file, edit values, see live breakdown, save the quote
-- **Settings** — defaults that pre-fill new quotes (printer, electricity, hourly rate, failure %, margin %)
-- **History** — saved quotes; click Load to bring one back into the calculator
+The **Spools** layer is a filament library you maintain — each spool tracks:
+
+- Name (e.g. "Polymaker PLA Pro Black")
+- Material (PLA / PLA+ / PLA-CF / Silk / Wood / PETG / PETG-CF / ABS / ASA / TPU / PC / Nylon / Other)
+- Color (color picker → swatch)
+- Cost per kg
+- Spool weight (defaults to 1000 g)
+- Remaining grams (with low-stock flag below 50 g)
+- Optional notes
+
+It links into the **Estimate** sheet: type a spool name in the type/color field (or click **Pick from spools**) and the cost auto-fills. When you **Stamp & Archive** the estimate, grams used are deducted from each linked spool's remaining stock; spools that drop below 50 g get a low-stock toast.
+
+A **Refill** button on the edit form resets a spool's remaining to its full weight when you load a fresh roll.
+
+---
+
+## Layers
+
+The app has four numbered layers (tabs):
+
+- **01 — Estimate** — drop file, edit values, see live breakdown, stamp & archive the quote
+- **02 — Spools** — filament inventory: track what you have, what's low, what each cost
+- **03 — Defaults** — pre-fill values for new estimates (printer, electricity, hourly rate, failure %, margin %)
+- **04 — Archive** — saved estimates; click Load to bring one back into the calculator
 
 ---
 
