@@ -1663,6 +1663,13 @@
               </div>
             </div>
           </div>
+          <div class="field" style="margin-top: 10px;">
+            <label>Multi-color time overhead — added per extra filament beyond the first (AMS / MMU swap + purge)</label>
+            <div class="suffix-wrap">
+              <input type="number" id="s-est-swap" min="0" max="200" step="1" placeholder="25">
+              <span class="suffix">% / color</span>
+            </div>
+          </div>
         </div>
 
         <div class="btn-row" style="margin-top: 18px;">
@@ -2351,6 +2358,7 @@
       estDensity: '',
       estFillPct: '',
       estGramsPerHour: '',
+      estSwapPct: '',
     };
 
     let settings = loadSettings();
@@ -2544,6 +2552,7 @@
       document.getElementById('s-est-density').value = settings.estDensity || '';
       document.getElementById('s-est-fill').value = settings.estFillPct || '';
       document.getElementById('s-est-gph').value = settings.estGramsPerHour || '';
+      document.getElementById('s-est-swap').value = settings.estSwapPct || '';
     }
 
     (function buildPresets() {
@@ -2578,6 +2587,7 @@
       settings.estDensity = document.getElementById('s-est-density').value;
       settings.estFillPct = document.getElementById('s-est-fill').value;
       settings.estGramsPerHour = document.getElementById('s-est-gph').value;
+      settings.estSwapPct = document.getElementById('s-est-swap').value;
       saveSettingsToStorage();
       filaments.forEach(f => { if (!f.costPerKg) f.costPerKg = settings.filamentCost || ''; });
       renderFilaments();
@@ -2939,7 +2949,15 @@
 
       const volCm3   = totalMm3 / 1000;
       const totalG   = volCm3 * density * (fillPct / 100);
-      const hours    = totalG / gramsPerHour;
+      const baseHours = totalG / gramsPerHour;
+
+      // Multi-color overhead: AMS / MMU prints spend significant time on
+      // tool changes, purges, and prime-tower priming. The base mass /
+      // throughput ignores this. Apply a per-extra-filament percentage.
+      const swapPct = +settings.estSwapPct >= 0 ? +settings.estSwapPct : 25;
+      const numColors = Math.max(1, distinctColors);
+      const overheadFactor = 1 + (swapPct / 100) * (numColors - 1);
+      const hours = baseHours * overheadFactor;
 
       // Try to label colors using filament metadata (Bambu/Orca model_settings.config or project_settings.config)
       const filamentLabels = await readFilamentLabelsFromZip(zip);
@@ -2979,7 +2997,9 @@
       }
 
       console.log(`[3MF estimate] density: ${density} g/cm³, fill: ${fillPct}%, ` +
-                  `throughput: ${gramsPerHour} g/h → ${totalG.toFixed(2)} g total, ${hours.toFixed(2)} h, ` +
+                  `throughput: ${gramsPerHour} g/h, multi-color overhead: ${swapPct}% × ${numColors - 1} ` +
+                  `(factor ${overheadFactor.toFixed(2)}) → ${totalG.toFixed(2)} g total, ` +
+                  `${baseHours.toFixed(2)}h base + overhead = ${hours.toFixed(2)} h, ` +
                   `${filamentRows.length} filament row(s)`);
 
       return {
