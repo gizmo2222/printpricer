@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Print Pricer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0e1116;
+      --bg2: #161b22;
+      --bg3: #1f262f;
+      --border: #2a323d;
+      --accent: #00c2a8;
+      --accent-dim: #008874;
+      --warn: #f0a020;
+      --danger: #e5484d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --mono: 'JetBrains Mono', monospace;
+    }
+    html, body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 15px;
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+    body { padding: 0 0 80px; }
+
+    .header {
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 20px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .header h1 {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+    .header h1 .dot { color: var(--accent); }
+    .header-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+    .tabs {
+      display: flex;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 60px;
+      z-index: 9;
+    }
+    .tab {
+      flex: 1;
+      padding: 12px;
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .pane { display: none; }
+    .pane.active { display: block; }
+
+    .card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .card h2 {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 12px;
+    }
+
+    .field { margin-bottom: 12px; }
+    .field:last-child { margin-bottom: 0; }
+    .field label {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 4px;
+      font-weight: 500;
+    }
+    .input, .field input {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 15px;
+      padding: 10px 12px;
+      transition: border-color 0.15s;
+    }
+    .input:focus, .field input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    .input-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .input-row-3 {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr;
+      gap: 8px;
+    }
+    .suffix-wrap { position: relative; }
+    .suffix {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      font-size: 12px;
+      font-family: var(--mono);
+      pointer-events: none;
+    }
+    .suffix-wrap input { padding-right: 38px; }
+
+    .filament-row {
+      display: grid;
+      grid-template-columns: 1fr 90px 90px 36px;
+      gap: 8px;
+      align-items: end;
+      margin-bottom: 8px;
+    }
+    .filament-row .field { margin-bottom: 0; }
+    .filament-row input { font-size: 14px; padding: 8px 10px; }
+    .icon-btn {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 18px;
+      height: 38px;
+      transition: all 0.15s;
+    }
+    .icon-btn:hover { color: var(--danger); border-color: var(--danger); }
+
+    .btn {
+      background: var(--accent);
+      color: #000;
+      border: none;
+      border-radius: 6px;
+      padding: 10px 16px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn:hover { background: var(--accent-dim); }
+    .btn-ghost {
+      background: transparent;
+      color: var(--accent);
+      border: 1px solid var(--accent);
+    }
+    .btn-ghost:hover { background: var(--accent); color: #000; }
+    .btn-danger {
+      background: transparent;
+      color: var(--danger);
+      border: 1px solid var(--danger);
+    }
+    .btn-danger:hover { background: var(--danger); color: #fff; }
+    .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    .breakdown {
+      font-family: var(--mono);
+      font-size: 14px;
+    }
+    .breakdown-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px dashed var(--border);
+    }
+    .breakdown-row:last-of-type { border-bottom: none; }
+    .breakdown-row .label { color: var(--muted); }
+    .breakdown-row .value { color: var(--text); font-weight: 600; }
+    .breakdown-row.subtotal {
+      border-bottom: 1px solid var(--border);
+      border-top: 1px solid var(--border);
+      margin-top: 4px;
+    }
+    .breakdown-row.subtotal .label,
+    .breakdown-row.subtotal .value { color: var(--text); }
+    .breakdown-row.total {
+      border-bottom: none;
+      padding-top: 12px;
+      font-size: 17px;
+    }
+    .breakdown-row.total .label { color: var(--text); font-weight: 600; }
+    .breakdown-row.total .value { color: var(--accent); font-weight: 700; }
+
+    .empty {
+      text-align: center;
+      color: var(--muted);
+      padding: 40px 20px;
+      font-size: 14px;
+    }
+
+    .history-item {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin-bottom: 8px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+    }
+    .history-name {
+      font-weight: 600;
+      font-size: 15px;
+      margin-bottom: 2px;
+    }
+    .history-meta {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .history-price {
+      font-family: var(--mono);
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--accent);
+      text-align: right;
+    }
+    .history-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 4px;
+    }
+    .link-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-family: inherit;
+      font-size: 11px;
+      cursor: pointer;
+      padding: 0;
+      text-decoration: underline;
+    }
+    .link-btn:hover { color: var(--accent); }
+    .link-btn.danger:hover { color: var(--danger); }
+
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--accent);
+      color: #000;
+      padding: 10px 18px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 14px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+      z-index: 100;
+    }
+    .toast.show { opacity: 1; }
+    .toast.error { background: var(--danger); color: #fff; }
+
+    /* Drop zone */
+    .dropzone {
+      border: 2px dashed var(--border);
+      border-radius: 10px;
+      padding: 18px 14px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      cursor: pointer;
+      background: var(--bg2);
+      margin-bottom: 16px;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .dropzone:hover, .dropzone.drag {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--bg3);
+    }
+    .dropzone strong { color: var(--text); }
+    .dropzone-hint { font-size: 11px; margin-top: 4px; }
+    .dropzone input { display: none; }
+
+    select.input {
+      appearance: none;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path fill='%238b949e' d='M0 0l5 6 5-6z'/></svg>");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 32px;
+    }
+
+    @media (max-width: 520px) {
+      .filament-row { grid-template-columns: 1fr 70px 70px 32px; gap: 6px; }
+      .filament-row input { font-size: 13px; padding: 7px 8px; }
+      .input-row { grid-template-columns: 1fr; }
+      .container { padding: 14px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Print Pricer<span class="dot">.</span></h1>
+    <div class="header-sub">3D print quoting · filament + time + power + margin</div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-pane="calc">Calculate</button>
+    <button class="tab" data-pane="settings">Settings</button>
+    <button class="tab" data-pane="history">History</button>
+  </div>
+
+  <div class="container">
+
+    <!-- CALCULATE PANE -->
+    <div class="pane active" id="pane-calc">
+      <label class="dropzone" id="dropzone">
+        <div><strong>Drop a project file</strong> or click to upload</div>
+        <div class="dropzone-hint">.gcode, .gco, .3mf — auto-fills print time and filament weights</div>
+        <input type="file" id="file-input" accept=".gcode,.gco,.g,.3mf">
+      </label>
+
+      <div class="card">
+        <h2>Print</h2>
+        <div class="field">
+          <label>Name (optional)</label>
+          <input type="text" id="print-name" placeholder="e.g. Articulated dragon">
+        </div>
+        <div class="input-row">
+          <div class="field">
+            <label>Print time — hours</label>
+            <input type="number" id="time-h" min="0" step="1" placeholder="0">
+          </div>
+          <div class="field">
+            <label>Print time — minutes</label>
+            <input type="number" id="time-m" min="0" max="59" step="1" placeholder="0">
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Filaments</h2>
+        <div id="filaments"></div>
+        <button class="btn btn-ghost" id="add-filament" style="margin-top: 8px;">+ Add filament</button>
+      </div>
+
+      <div class="card">
+        <h2>Breakdown</h2>
+        <div class="breakdown" id="breakdown">
+          <div class="breakdown-row"><span class="label">Filament</span><span class="value" id="bd-filament">$0.00</span></div>
+          <div class="breakdown-row"><span class="label">Electricity</span><span class="value" id="bd-power">$0.00</span></div>
+          <div class="breakdown-row"><span class="label">Time (machine/labor)</span><span class="value" id="bd-time">$0.00</span></div>
+          <div class="breakdown-row subtotal"><span class="label">Subtotal</span><span class="value" id="bd-subtotal">$0.00</span></div>
+          <div class="breakdown-row"><span class="label" id="bd-failure-label">Failure markup (0%)</span><span class="value" id="bd-failure">$0.00</span></div>
+          <div class="breakdown-row"><span class="label" id="bd-margin-label">Profit margin (0%)</span><span class="value" id="bd-margin">$0.00</span></div>
+          <div class="breakdown-row total"><span class="label">Total price</span><span class="value" id="bd-total">$0.00</span></div>
+        </div>
+        <div class="btn-row" style="margin-top: 14px;">
+          <button class="btn" id="save-quote">Save to history</button>
+          <button class="btn btn-ghost" id="reset-quote">Reset</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS PANE -->
+    <div class="pane" id="pane-settings">
+      <div class="card">
+        <h2>Defaults</h2>
+        <p style="font-size: 13px; color: var(--muted); margin-bottom: 14px;">
+          These pre-fill new quotes. Saved to your browser.
+        </p>
+
+        <div class="field">
+          <label>Default filament cost</label>
+          <div class="suffix-wrap">
+            <input type="number" id="s-filament-cost" min="0" step="0.01" placeholder="25.00">
+            <span class="suffix">$/kg</span>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Printer preset</label>
+          <select class="input" id="s-printer-preset">
+            <option value="">— Select to auto-fill wattage —</option>
+          </select>
+        </div>
+
+        <div class="input-row">
+          <div class="field">
+            <label>Printer wattage</label>
+            <div class="suffix-wrap">
+              <input type="number" id="s-watts" min="0" step="1" placeholder="180">
+              <span class="suffix">W</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>Electricity rate</label>
+            <div class="suffix-wrap">
+              <input type="number" id="s-kwh" min="0" step="0.001" placeholder="0.150">
+              <span class="suffix">$/kWh</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Hourly machine/labor rate</label>
+          <div class="suffix-wrap">
+            <input type="number" id="s-rate" min="0" step="0.01" placeholder="2.00">
+            <span class="suffix">$/hr</span>
+          </div>
+        </div>
+
+        <div class="input-row">
+          <div class="field">
+            <label>Failure rate markup</label>
+            <div class="suffix-wrap">
+              <input type="number" id="s-failure" min="0" max="100" step="1" placeholder="5">
+              <span class="suffix">%</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>Profit margin</label>
+            <div class="suffix-wrap">
+              <input type="number" id="s-margin" min="0" max="500" step="1" placeholder="30">
+              <span class="suffix">%</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="btn-row" style="margin-top: 14px;">
+          <button class="btn" id="save-settings">Save settings</button>
+          <button class="btn btn-danger" id="reset-settings">Reset to blank</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>How costs are calculated</h2>
+        <div style="font-family: var(--mono); font-size: 12px; color: var(--muted); line-height: 1.7;">
+          filament = Σ (grams ÷ 1000 × $/kg)<br>
+          electricity = (watts ÷ 1000) × hours × $/kWh<br>
+          time cost = hours × $/hr<br>
+          subtotal = filament + electricity + time cost<br>
+          failure = subtotal × failure %<br>
+          margin = (subtotal + failure) × margin %<br>
+          total = subtotal + failure + margin
+        </div>
+      </div>
+    </div>
+
+    <!-- HISTORY PANE -->
+    <div class="pane" id="pane-history">
+      <div id="history-list"></div>
+      <div class="btn-row" id="history-actions" style="display: none; margin-top: 12px;">
+        <button class="btn btn-danger" id="clear-history">Clear all history</button>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const SETTINGS_KEY = 'printpricer:settings';
+    const HISTORY_KEY = 'printpricer:history';
+
+    // Average printing wattage (W) — typical steady-state, not peak with bed heating.
+    const PRINTER_PRESETS = [
+      { group: 'Bambu Lab', items: [
+        { name: 'X1 Carbon', watts: 150 },
+        { name: 'X1E', watts: 180 },
+        { name: 'P1S', watts: 120 },
+        { name: 'P1P', watts: 100 },
+        { name: 'A1', watts: 100 },
+        { name: 'A1 Mini', watts: 60 },
+        { name: 'H2D', watts: 200 },
+      ]},
+      { group: 'Prusa', items: [
+        { name: 'MK4 / MK4S', watts: 80 },
+        { name: 'MK3S+', watts: 120 },
+        { name: 'Mini+', watts: 60 },
+        { name: 'XL', watts: 150 },
+        { name: 'Core One', watts: 120 },
+      ]},
+      { group: 'Creality', items: [
+        { name: 'Ender 3 V2', watts: 120 },
+        { name: 'Ender 3 S1 / Pro', watts: 140 },
+        { name: 'K1 / K1C', watts: 150 },
+        { name: 'K1 Max', watts: 200 },
+        { name: 'K2 Plus', watts: 220 },
+      ]},
+      { group: 'Anycubic', items: [
+        { name: 'Kobra 2 / 2 Pro', watts: 100 },
+        { name: 'Kobra 3', watts: 120 },
+      ]},
+      { group: 'Elegoo', items: [
+        { name: 'Neptune 4 / 4 Pro', watts: 100 },
+        { name: 'Centauri Carbon', watts: 150 },
+      ]},
+      { group: 'Other', items: [
+        { name: 'Voron 2.4', watts: 150 },
+        { name: 'Voron Trident', watts: 130 },
+        { name: 'Sovol SV06 / SV07', watts: 120 },
+        { name: 'Custom / not listed', watts: 0 },
+      ]},
+    ];
+
+    const defaultSettings = {
+      filamentCost: '',
+      watts: '',
+      kwh: '',
+      hourlyRate: '',
+      failurePct: '',
+      marginPct: '',
+    };
+
+    let settings = loadSettings();
+    let filaments = [];
+
+    function loadSettings() {
+      try {
+        const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null');
+        return s || { ...defaultSettings };
+      } catch { return { ...defaultSettings }; }
+    }
+    function saveSettingsToStorage() {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    }
+    function loadHistory() {
+      try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); }
+      catch { return []; }
+    }
+    function saveHistory(h) {
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(h));
+    }
+
+    // ---------- TABS ----------
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('pane-' + tab.dataset.pane).classList.add('active');
+        if (tab.dataset.pane === 'history') renderHistory();
+      });
+    });
+
+    // ---------- FILAMENTS ----------
+    function newFilament() {
+      return {
+        name: '',
+        grams: '',
+        costPerKg: settings.filamentCost || '',
+      };
+    }
+    function renderFilaments() {
+      const container = document.getElementById('filaments');
+      container.innerHTML = '';
+      filaments.forEach((f, i) => {
+        const row = document.createElement('div');
+        row.className = 'filament-row';
+        row.innerHTML = `
+          <div class="field">
+            ${i === 0 ? '<label>Type / color</label>' : ''}
+            <input type="text" placeholder="PLA black" value="${escapeHtml(f.name)}" data-i="${i}" data-k="name">
+          </div>
+          <div class="field">
+            ${i === 0 ? '<label>Grams</label>' : ''}
+            <input type="number" min="0" step="0.1" placeholder="0" value="${f.grams}" data-i="${i}" data-k="grams">
+          </div>
+          <div class="field">
+            ${i === 0 ? '<label>$/kg</label>' : ''}
+            <input type="number" min="0" step="0.01" placeholder="${settings.filamentCost || '25'}" value="${f.costPerKg}" data-i="${i}" data-k="costPerKg">
+          </div>
+          <button class="icon-btn" data-remove="${i}" title="Remove" ${filaments.length === 1 ? 'style="visibility:hidden"' : ''}>×</button>
+        `;
+        container.appendChild(row);
+      });
+      container.querySelectorAll('input').forEach(inp => {
+        inp.addEventListener('input', e => {
+          const i = +e.target.dataset.i;
+          const k = e.target.dataset.k;
+          filaments[i][k] = e.target.value;
+          recalc();
+        });
+      });
+      container.querySelectorAll('[data-remove]').forEach(btn => {
+        btn.addEventListener('click', e => {
+          const i = +e.target.dataset.remove;
+          filaments.splice(i, 1);
+          if (filaments.length === 0) filaments.push(newFilament());
+          renderFilaments();
+          recalc();
+        });
+      });
+    }
+    document.getElementById('add-filament').addEventListener('click', () => {
+      filaments.push(newFilament());
+      renderFilaments();
+      recalc();
+    });
+
+    // ---------- CALCULATION ----------
+    function num(v) {
+      const n = parseFloat(v);
+      return isFinite(n) ? n : 0;
+    }
+    function fmt(n) {
+      return '$' + n.toFixed(2);
+    }
+    function recalc() {
+      const hours = num(document.getElementById('time-h').value)
+        + num(document.getElementById('time-m').value) / 60;
+
+      const filamentCost = filaments.reduce((sum, f) =>
+        sum + (num(f.grams) / 1000) * num(f.costPerKg), 0);
+
+      const watts = num(settings.watts);
+      const kwh = num(settings.kwh);
+      const electricity = (watts / 1000) * hours * kwh;
+
+      const rate = num(settings.hourlyRate);
+      const timeCost = hours * rate;
+
+      const subtotal = filamentCost + electricity + timeCost;
+
+      const failurePct = num(settings.failurePct);
+      const marginPct = num(settings.marginPct);
+      const failureAmt = subtotal * (failurePct / 100);
+      const afterFailure = subtotal + failureAmt;
+      const marginAmt = afterFailure * (marginPct / 100);
+      const total = afterFailure + marginAmt;
+
+      document.getElementById('bd-filament').textContent = fmt(filamentCost);
+      document.getElementById('bd-power').textContent = fmt(electricity);
+      document.getElementById('bd-time').textContent = fmt(timeCost);
+      document.getElementById('bd-subtotal').textContent = fmt(subtotal);
+      document.getElementById('bd-failure').textContent = fmt(failureAmt);
+      document.getElementById('bd-margin').textContent = fmt(marginAmt);
+      document.getElementById('bd-total').textContent = fmt(total);
+      document.getElementById('bd-failure-label').textContent = `Failure markup (${failurePct}%)`;
+      document.getElementById('bd-margin-label').textContent = `Profit margin (${marginPct}%)`;
+
+      return { hours, filamentCost, electricity, timeCost, subtotal, failureAmt, marginAmt, total };
+    }
+
+    document.getElementById('time-h').addEventListener('input', recalc);
+    document.getElementById('time-m').addEventListener('input', recalc);
+
+    // ---------- SETTINGS ----------
+    function loadSettingsToForm() {
+      document.getElementById('s-filament-cost').value = settings.filamentCost;
+      document.getElementById('s-watts').value = settings.watts;
+      document.getElementById('s-kwh').value = settings.kwh;
+      document.getElementById('s-rate').value = settings.hourlyRate;
+      document.getElementById('s-failure').value = settings.failurePct;
+      document.getElementById('s-margin').value = settings.marginPct;
+      document.getElementById('s-printer-preset').value = settings.printerPreset || '';
+    }
+
+    // Populate printer preset dropdown
+    (function buildPresets() {
+      const sel = document.getElementById('s-printer-preset');
+      PRINTER_PRESETS.forEach(g => {
+        const og = document.createElement('optgroup');
+        og.label = g.group;
+        g.items.forEach(p => {
+          const opt = document.createElement('option');
+          opt.value = `${g.group}|${p.name}`;
+          opt.dataset.watts = p.watts;
+          opt.textContent = p.watts ? `${p.name} — ${p.watts}W` : p.name;
+          og.appendChild(opt);
+        });
+        sel.appendChild(og);
+      });
+      sel.addEventListener('change', () => {
+        const opt = sel.selectedOptions[0];
+        const w = +opt.dataset.watts;
+        if (w > 0) document.getElementById('s-watts').value = w;
+      });
+    })();
+    document.getElementById('save-settings').addEventListener('click', () => {
+      settings.filamentCost = document.getElementById('s-filament-cost').value;
+      settings.watts = document.getElementById('s-watts').value;
+      settings.kwh = document.getElementById('s-kwh').value;
+      settings.hourlyRate = document.getElementById('s-rate').value;
+      settings.failurePct = document.getElementById('s-failure').value;
+      settings.marginPct = document.getElementById('s-margin').value;
+      settings.printerPreset = document.getElementById('s-printer-preset').value;
+      saveSettingsToStorage();
+      filaments.forEach(f => { if (!f.costPerKg) f.costPerKg = settings.filamentCost || ''; });
+      renderFilaments();
+      recalc();
+      toast('Settings saved');
+    });
+    document.getElementById('reset-settings').addEventListener('click', () => {
+      if (!confirm('Reset all defaults to blank?')) return;
+      settings = { ...defaultSettings };
+      saveSettingsToStorage();
+      loadSettingsToForm();
+      recalc();
+      toast('Settings reset');
+    });
+
+    // ---------- SAVE / RESET QUOTE ----------
+    document.getElementById('save-quote').addEventListener('click', () => {
+      const result = recalc();
+      if (result.total <= 0) {
+        toast('Enter values first');
+        return;
+      }
+      const name = document.getElementById('print-name').value.trim() || 'Untitled print';
+      const totalGrams = filaments.reduce((s, f) => s + num(f.grams), 0);
+      const entry = {
+        id: Date.now(),
+        name,
+        date: new Date().toISOString(),
+        hours: result.hours,
+        grams: totalGrams,
+        filaments: filaments.map(f => ({ ...f })),
+        breakdown: {
+          filament: result.filamentCost,
+          electricity: result.electricity,
+          time: result.timeCost,
+          subtotal: result.subtotal,
+          failure: result.failureAmt,
+          margin: result.marginAmt,
+          total: result.total,
+        },
+        settingsSnapshot: { ...settings },
+      };
+      const h = loadHistory();
+      h.unshift(entry);
+      saveHistory(h);
+      toast('Saved to history');
+    });
+    document.getElementById('reset-quote').addEventListener('click', () => {
+      document.getElementById('print-name').value = '';
+      document.getElementById('time-h').value = '';
+      document.getElementById('time-m').value = '';
+      filaments = [newFilament()];
+      renderFilaments();
+      recalc();
+    });
+
+    // ---------- HISTORY ----------
+    function renderHistory() {
+      const h = loadHistory();
+      const list = document.getElementById('history-list');
+      const actions = document.getElementById('history-actions');
+      if (h.length === 0) {
+        list.innerHTML = '<div class="empty">No saved quotes yet.<br>Calculate a print and tap "Save to history".</div>';
+        actions.style.display = 'none';
+        return;
+      }
+      actions.style.display = 'flex';
+      list.innerHTML = '';
+      h.forEach(e => {
+        const d = new Date(e.date);
+        const dateStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const item = document.createElement('div');
+        item.className = 'history-item';
+        item.innerHTML = `
+          <div>
+            <div class="history-name">${escapeHtml(e.name)}</div>
+            <div class="history-meta">${dateStr} · ${e.grams.toFixed(1)}g · ${formatHours(e.hours)}</div>
+            <div class="history-actions">
+              <button class="link-btn" data-load="${e.id}">Load</button>
+              <button class="link-btn danger" data-del="${e.id}">Delete</button>
+            </div>
+          </div>
+          <div class="history-price">${fmt(e.breakdown.total)}</div>
+        `;
+        list.appendChild(item);
+      });
+      list.querySelectorAll('[data-load]').forEach(btn => {
+        btn.addEventListener('click', e => loadFromHistory(+e.target.dataset.load));
+      });
+      list.querySelectorAll('[data-del]').forEach(btn => {
+        btn.addEventListener('click', e => deleteFromHistory(+e.target.dataset.del));
+      });
+    }
+    function formatHours(h) {
+      const hrs = Math.floor(h);
+      const mins = Math.round((h - hrs) * 60);
+      return `${hrs}h ${mins}m`;
+    }
+    function loadFromHistory(id) {
+      const h = loadHistory();
+      const e = h.find(x => x.id === id);
+      if (!e) return;
+      document.getElementById('print-name').value = e.name;
+      const hrs = Math.floor(e.hours);
+      const mins = Math.round((e.hours - hrs) * 60);
+      document.getElementById('time-h').value = hrs || '';
+      document.getElementById('time-m').value = mins || '';
+      filaments = e.filaments.length ? e.filaments.map(f => ({ ...f })) : [newFilament()];
+      renderFilaments();
+      recalc();
+      document.querySelector('.tab[data-pane="calc"]').click();
+      toast('Loaded "' + e.name + '"');
+    }
+    function deleteFromHistory(id) {
+      if (!confirm('Delete this quote?')) return;
+      const h = loadHistory().filter(x => x.id !== id);
+      saveHistory(h);
+      renderHistory();
+    }
+    document.getElementById('clear-history').addEventListener('click', () => {
+      if (!confirm('Delete all saved quotes? This cannot be undone.')) return;
+      saveHistory([]);
+      renderHistory();
+      toast('History cleared');
+    });
+
+    // ---------- UTIL ----------
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[c]));
+    }
+    let toastTimer;
+    function toast(msg, isError) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.toggle('error', !!isError);
+      t.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.classList.remove('show'), isError ? 3000 : 1800);
+    }
+
+    // ---------- FILE PARSING (gcode / 3mf) ----------
+    function parseTimeStr(s) {
+      let total = 0;
+      const d = s.match(/(\d+)\s*d/i); if (d) total += parseInt(d[1]) * 86400;
+      const h = s.match(/(\d+)\s*h/i); if (h) total += parseInt(h[1]) * 3600;
+      const m = s.match(/(\d+)\s*m(?!s)/i); if (m) total += parseInt(m[1]) * 60;
+      const sec = s.match(/(\d+)\s*s(?!\w)/i); if (sec) total += parseInt(sec[1]);
+      if (total === 0) {
+        const c = s.match(/(\d+):(\d{1,2}):(\d{1,2})/);
+        if (c) total = (+c[1]) * 3600 + (+c[2]) * 60 + (+c[3]);
+      }
+      return total / 3600;
+    }
+
+    function parseGcode(text) {
+      // Slicer metadata is usually in the first 16KB or last 64KB
+      const head = text.slice(0, 16 * 1024);
+      const tail = text.length > 64 * 1024 ? text.slice(-64 * 1024) : text;
+      const search = head + '\n' + tail;
+
+      const result = { hours: 0, filaments: [] };
+
+      // Print time
+      let m = search.match(/;\s*estimated printing time(?:\s*\(normal mode\))?\s*=\s*([^\r\n]+)/i)
+            || search.match(/;\s*total estimated time\s*[:=]\s*([^\r\n]+)/i)
+            || search.match(/;\s*Print time\s*[:=]\s*([^\r\n]+)/i);
+      if (m) {
+        result.hours = parseTimeStr(m[1].trim());
+      } else {
+        const t = search.match(/;\s*TIME\s*[:=]\s*(\d+)/i);
+        if (t) result.hours = parseInt(t[1]) / 3600;
+      }
+
+      // Filament weights (grams) — comma-separated for multi-material
+      let weights = [];
+      const fm = search.match(/;\s*(?:total\s+)?filament[\s_]used\s*\[g\]\s*=\s*([\d.,\s]+)/i)
+              || search.match(/;\s*filament[\s_]weight\s*[:=]\s*([\d.,\s]+)/i);
+      if (fm) {
+        weights = fm[1].split(',').map(s => parseFloat(s.trim())).filter(n => isFinite(n) && n > 0);
+      }
+
+      // Filament types
+      let types = [];
+      const tm = search.match(/;\s*filament_type\s*=\s*([^\r\n]+)/i);
+      if (tm) types = tm[1].split(/[,;]/).map(s => s.trim()).filter(Boolean);
+
+      result.filaments = weights.map((w, i) => ({
+        name: types[i] || types[0] || '',
+        grams: w.toFixed(2),
+        costPerKg: settings.filamentCost || '',
+      }));
+
+      return result;
+    }
+
+    async function parse3mf(file) {
+      if (typeof JSZip === 'undefined') throw new Error('Zip library not loaded');
+      const zip = await JSZip.loadAsync(file);
+      const result = { hours: 0, filaments: [] };
+
+      // Bambu / Orca: Metadata/slice_info.config
+      const sliceInfo = zip.file('Metadata/slice_info.config') || zip.file('metadata/slice_info.config');
+      if (sliceInfo) {
+        const xml = await sliceInfo.async('string');
+        const filamentTags = xml.match(/<filament[^>]*\/?>/g) || [];
+        filamentTags.forEach(tag => {
+          const g = tag.match(/used_g="([^"]+)"/);
+          const t = tag.match(/type="([^"]+)"/);
+          const c = tag.match(/color="([^"]+)"/);
+          if (g) {
+            const grams = parseFloat(g[1]);
+            if (isFinite(grams) && grams > 0) {
+              const name = [t?.[1], c?.[1] && c[1] !== '#FFFFFFFF' ? c[1] : ''].filter(Boolean).join(' ');
+              result.filaments.push({
+                name: name || 'Filament',
+                grams: grams.toFixed(2),
+                costPerKg: settings.filamentCost || '',
+              });
+            }
+          }
+        });
+        const pred = xml.match(/key="prediction"\s+value="(\d+)"/);
+        if (pred) result.hours = parseInt(pred[1]) / 3600;
+      }
+
+      // Fallback: any embedded gcode file inside the 3MF
+      if (result.hours === 0 || result.filaments.length === 0) {
+        const gcodeName = Object.keys(zip.files).find(n => /\.gcode$/i.test(n));
+        if (gcodeName) {
+          const text = await zip.file(gcodeName).async('string');
+          const g = parseGcode(text);
+          if (!result.hours && g.hours) result.hours = g.hours;
+          if (result.filaments.length === 0 && g.filaments.length) result.filaments = g.filaments;
+        }
+      }
+
+      return result;
+    }
+
+    async function handleFile(file) {
+      if (!file) return;
+      const name = file.name.toLowerCase();
+      try {
+        let parsed;
+        if (/\.(gcode|gco|g)$/.test(name)) {
+          parsed = parseGcode(await file.text());
+        } else if (name.endsWith('.3mf')) {
+          parsed = await parse3mf(file);
+        } else {
+          throw new Error('Use a .gcode or .3mf file');
+        }
+
+        if (!parsed.hours && parsed.filaments.length === 0) {
+          throw new Error('Could not find time or filament data in this file');
+        }
+
+        if (parsed.hours > 0) {
+          const hrs = Math.floor(parsed.hours);
+          const mins = Math.round((parsed.hours - hrs) * 60);
+          document.getElementById('time-h').value = hrs;
+          document.getElementById('time-m').value = mins;
+        }
+        if (parsed.filaments.length > 0) {
+          filaments = parsed.filaments;
+          renderFilaments();
+        }
+        if (!document.getElementById('print-name').value.trim()) {
+          document.getElementById('print-name').value = file.name.replace(/\.[^.]+$/, '');
+        }
+        recalc();
+        const parts = [];
+        if (parsed.hours) parts.push(formatHours(parsed.hours));
+        if (parsed.filaments.length) parts.push(`${parsed.filaments.length} filament${parsed.filaments.length > 1 ? 's' : ''}`);
+        toast(`Loaded ${file.name} — ${parts.join(', ')}`);
+      } catch (err) {
+        toast(err.message || 'Could not parse file', true);
+      }
+    }
+
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('file-input');
+    fileInput.addEventListener('change', e => {
+      const f = e.target.files[0];
+      if (f) handleFile(f);
+      fileInput.value = '';
+    });
+    ['dragenter', 'dragover'].forEach(ev => {
+      dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.add('drag'); });
+    });
+    ['dragleave', 'drop'].forEach(ev => {
+      dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.remove('drag'); });
+    });
+    dropzone.addEventListener('drop', e => {
+      const f = e.dataTransfer.files[0];
+      if (f) handleFile(f);
+    });
+
+    // ---------- INIT ----------
+    filaments = [newFilament()];
+    renderFilaments();
+    loadSettingsToForm();
+    recalc();
+  </script>
+</body>
+</html>
