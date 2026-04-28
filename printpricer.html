@@ -1390,11 +1390,14 @@
       <button class="layer" data-pane="spools">
         <span class="layer-num">02</span>Spools
       </button>
+      <button class="layer" data-pane="printers">
+        <span class="layer-num">03</span>Printers
+      </button>
       <button class="layer" data-pane="settings">
-        <span class="layer-num">03</span>Defaults
+        <span class="layer-num">04</span>Defaults
       </button>
       <button class="layer" data-pane="history">
-        <span class="layer-num">04</span>Archive
+        <span class="layer-num">05</span>Archive
       </button>
     </div>
 
@@ -1415,6 +1418,14 @@
           <h2 class="block-title">Print</h2>
           <div class="block-detail">Detail<span class="id">A</span></div>
         </header>
+        <div class="field">
+          <label>Printer</label>
+          <div style="display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;">
+            <span id="active-printer-display" style="font-family: var(--display); font-size: 18px; font-weight: 700; letter-spacing: 0.5px; color: var(--ink);">— none selected —</span>
+            <button type="button" class="pick-spool-btn" id="pick-printer-btn">Pick printer</button>
+          </div>
+          <div id="active-printer-meta" style="font-family: var(--mono); font-size: 11px; color: var(--ink-faint); letter-spacing: 0.3px; margin-top: 4px;"></div>
+        </div>
         <div class="field">
           <label>Description</label>
           <input type="text" id="print-name" placeholder="e.g. Articulated dragon">
@@ -1497,7 +1508,38 @@
       </section>
     </div>
 
-    <!-- LAYER 03 — DEFAULTS -->
+    <!-- LAYER 03 — PRINTERS -->
+    <div class="pane" id="pane-printers">
+      <section class="block">
+        <span class="bl"></span><span class="br"></span>
+        <header class="block-head">
+          <h2 class="block-title">Printers</h2>
+          <div class="block-detail">Workshop fleet<span class="id">A</span></div>
+        </header>
+
+        <div class="spool-toolbar">
+          <div class="count" id="printer-count">— printers configured</div>
+          <button class="btn btn-add" id="printer-add-btn">+ New printer</button>
+        </div>
+
+        <div id="printer-form-container"></div>
+        <div id="printers-grid"></div>
+      </section>
+
+      <section class="block">
+        <span class="bl"></span><span class="br"></span>
+        <header class="block-head">
+          <h2 class="block-title">How it links</h2>
+          <div class="block-detail">Reference note<span class="id">B</span></div>
+        </header>
+        <div class="formula" style="font-family: var(--sans); font-size: 13px; line-height: 1.65;">
+          On the Estimate sheet, <span class="kw">Pick printer</span> selects which printer this quote is for. That printer's <span class="kw">wattage</span>, <span class="kw">hourly rate</span>, <span class="kw">throughput</span>, and <span class="kw">multi-color overhead</span> drive the calculation.<br><br>
+          The active selection is per-device — different members of a group can default to different machines. The list of printers is shared across the group.
+        </div>
+      </section>
+    </div>
+
+    <!-- LAYER 04 — DEFAULTS -->
     <div class="pane" id="pane-settings">
       <section class="block" id="group-block">
         <span class="bl"></span><span class="br"></span>
@@ -1587,34 +1629,10 @@
         </div>
 
         <div class="field">
-          <label>Printer preset</label>
-          <select class="input" id="s-printer-preset">
-            <option value="">— Select to auto-fill wattage —</option>
-          </select>
-        </div>
-
-        <div class="input-row">
-          <div class="field">
-            <label>Printer wattage</label>
-            <div class="suffix-wrap">
-              <input type="number" id="s-watts" min="0" step="1" placeholder="180">
-              <span class="suffix">W</span>
-            </div>
-          </div>
-          <div class="field">
-            <label>Electricity rate</label>
-            <div class="suffix-wrap">
-              <input type="number" id="s-kwh" min="0" step="0.001" placeholder="0.150">
-              <span class="suffix">$ / kWh</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="field">
-          <label>Hourly machine / labor rate</label>
+          <label>Electricity rate</label>
           <div class="suffix-wrap">
-            <input type="number" id="s-rate" min="0" step="0.01" placeholder="2.00">
-            <span class="suffix">$ / hr</span>
+            <input type="number" id="s-kwh" min="0" step="0.001" placeholder="0.150">
+            <span class="suffix">$ / kWh</span>
           </div>
         </div>
 
@@ -1640,7 +1658,7 @@
           <p style="font-family: var(--sans); font-size: 12px; color: var(--ink-mid); line-height: 1.5; margin-bottom: 12px;">
             Used when a model-only 3MF is dropped (no slicing data). Defaults are PLA on a typical FDM printer. Tune to your machine.
           </p>
-          <div class="input-row-3">
+          <div class="input-row">
             <div class="field">
               <label>Density</label>
               <div class="suffix-wrap">
@@ -1655,21 +1673,10 @@
                 <span class="suffix">%</span>
               </div>
             </div>
-            <div class="field">
-              <label>Throughput</label>
-              <div class="suffix-wrap">
-                <input type="number" id="s-est-gph" min="1" max="200" step="1" placeholder="18">
-                <span class="suffix">g / hr</span>
-              </div>
-            </div>
           </div>
-          <div class="field" style="margin-top: 10px;">
-            <label>Multi-color time overhead — added per extra filament beyond the first (AMS / MMU swap + purge)</label>
-            <div class="suffix-wrap">
-              <input type="number" id="s-est-swap" min="0" max="200" step="1" placeholder="25">
-              <span class="suffix">% / color</span>
-            </div>
-          </div>
+          <p style="font-family: var(--sans); font-size: 11px; color: var(--ink-faint); margin-top: 8px; line-height: 1.5;">
+            <em>Throughput</em> and <em>multi-color time overhead</em> moved to the per-printer settings (layer 03 — Printers), since they vary by machine.
+          </p>
         </div>
 
         <div class="btn-row" style="margin-top: 18px;">
@@ -1696,7 +1703,7 @@
       </section>
     </div>
 
-    <!-- LAYER 04 — ARCHIVE -->
+    <!-- LAYER 05 — ARCHIVE -->
     <div class="pane" id="pane-history">
       <section class="block">
         <span class="bl"></span><span class="br"></span>
@@ -1967,6 +1974,20 @@
         } finally { state.isApplyingRemote = false; }
       }));
 
+      // Listen to printers
+      const printersRef = fb.collection(fb.db, 'groups', gid, 'printers');
+      state.unsubs.push(fb.onSnapshot(printersRef, snap => {
+        const arr = [];
+        snap.forEach(d => { arr.push({ id: parseInt(d.id) || d.id, ...d.data() }); });
+        state.isApplyingRemote = true;
+        try {
+          localStorage.setItem(PRINTERS_KEY, JSON.stringify(arr));
+          if (document.querySelector('.layer.active')?.dataset.pane === 'printers') renderPrinters();
+          updateActivePrinterDisplay();
+          recalc();
+        } finally { state.isApplyingRemote = false; }
+      }));
+
       // Listen to settings
       const settingsRef = fb.doc(fb.db, 'groups', gid, 'settings', 'main');
       state.unsubs.push(fb.onSnapshot(settingsRef, snap => {
@@ -2023,6 +2044,21 @@
       await fb.setDoc(fb.doc(fb.db, 'groups', gid, 'settings', 'main'), s);
     }
 
+    async function pushPrinters(printers) {
+      if (!isInCloudMode() || state.isApplyingRemote) return;
+      const gid = state.groupId;
+      const colRef = fb.collection(fb.db, 'groups', gid, 'printers');
+      const existing = await fb.getDocs(colRef);
+      const localIds = new Set(printers.map(p => String(p.id)));
+      const batch = fb.writeBatch(fb.db);
+      existing.forEach(d => { if (!localIds.has(d.id)) batch.delete(d.ref); });
+      printers.forEach(p => {
+        const { id, ...data } = p;
+        batch.set(fb.doc(fb.db, 'groups', gid, 'printers', String(id)), data);
+      });
+      await batch.commit();
+    }
+
     // ----- Auth handlers -----
     async function doSignIn(email, password) {
       if (!fb) throw new Error('Cloud not configured');
@@ -2055,6 +2091,7 @@
       // will mirror the (initially empty) remote state into localStorage.
       const localSpools = loadSpools();
       const localHistory = loadHistory();
+      const localPrinters = loadPrinters();
       const localSettings = { ...settings };
 
       const code = generateJoinCode();
@@ -2072,6 +2109,7 @@
       state.groupId = ref.id;
       if (localSpools.length) await pushSpools(localSpools);
       if (localHistory.length) await pushHistory(localHistory);
+      if (localPrinters.length) await pushPrinters(localPrinters);
       await pushSettings(localSettings);
       await subscribeToGroup(ref.id);
       return ref.id;
@@ -2302,6 +2340,8 @@
     const SETTINGS_KEY = 'printpricer:settings';
     const HISTORY_KEY = 'printpricer:history';
     const SPOOLS_KEY = 'printpricer:spools';
+    const PRINTERS_KEY = 'printpricer:printers';
+    const ACTIVE_PRINTER_KEY = 'printpricer:activePrinterId';
     const LOW_STOCK_THRESHOLD = 50;
 
     const MATERIALS = ['PLA', 'PLA+', 'PLA-CF', 'Silk PLA', 'Wood PLA', 'PETG', 'PETG-CF', 'ABS', 'ASA', 'TPU', 'PC', 'Nylon', 'Other'];
@@ -2390,6 +2430,26 @@
       localStorage.setItem(SPOOLS_KEY, JSON.stringify(s));
       pushSpools(s).catch(err => console.warn('cloud push (spools):', err));
     }
+    function loadPrinters() {
+      try { return JSON.parse(localStorage.getItem(PRINTERS_KEY) || '[]'); }
+      catch { return []; }
+    }
+    function savePrinters(arr) {
+      localStorage.setItem(PRINTERS_KEY, JSON.stringify(arr));
+      pushPrinters(arr).catch(err => console.warn('cloud push (printers):', err));
+    }
+    function loadActivePrinterId() {
+      return localStorage.getItem(ACTIVE_PRINTER_KEY) || null;
+    }
+    function saveActivePrinterId(id) {
+      if (id == null) localStorage.removeItem(ACTIVE_PRINTER_KEY);
+      else localStorage.setItem(ACTIVE_PRINTER_KEY, String(id));
+    }
+    function getActivePrinter() {
+      const id = loadActivePrinterId();
+      if (!id) return null;
+      return loadPrinters().find(p => String(p.id) === String(id)) || null;
+    }
 
     // ---------- TABS ----------
     document.querySelectorAll('.layer').forEach(tab => {
@@ -2400,6 +2460,7 @@
         document.getElementById('pane-' + tab.dataset.pane).classList.add('active');
         if (tab.dataset.pane === 'history') renderHistory();
         if (tab.dataset.pane === 'spools') renderSpools();
+        if (tab.dataset.pane === 'printers') renderPrinters();
       });
     });
 
@@ -2508,11 +2569,14 @@
       const filamentCost = filaments.reduce((sum, f) =>
         sum + (num(f.grams) / 1000) * num(f.costPerKg), 0);
 
-      const watts = num(settings.watts);
+      // Wattage and hourly rate now come from the active printer (per-print
+      // selection on the Estimate sheet) instead of global settings.
+      const printer = getActivePrinter();
+      const watts = printer ? num(printer.watts) : 0;
       const kwh = num(settings.kwh);
       const electricity = (watts / 1000) * hours * kwh;
 
-      const rate = num(settings.hourlyRate);
+      const rate = printer ? num(printer.hourlyRate) : 0;
       const timeCost = hours * rate;
 
       const subtotal = filamentCost + electricity + timeCost;
@@ -2543,51 +2607,20 @@
     // ---------- SETTINGS ----------
     function loadSettingsToForm() {
       document.getElementById('s-filament-cost').value = settings.filamentCost;
-      document.getElementById('s-watts').value = settings.watts;
       document.getElementById('s-kwh').value = settings.kwh;
-      document.getElementById('s-rate').value = settings.hourlyRate;
       document.getElementById('s-failure').value = settings.failurePct;
       document.getElementById('s-margin').value = settings.marginPct;
-      document.getElementById('s-printer-preset').value = settings.printerPreset || '';
       document.getElementById('s-est-density').value = settings.estDensity || '';
       document.getElementById('s-est-fill').value = settings.estFillPct || '';
-      document.getElementById('s-est-gph').value = settings.estGramsPerHour || '';
-      document.getElementById('s-est-swap').value = settings.estSwapPct || '';
     }
-
-    (function buildPresets() {
-      const sel = document.getElementById('s-printer-preset');
-      PRINTER_PRESETS.forEach(g => {
-        const og = document.createElement('optgroup');
-        og.label = g.group;
-        g.items.forEach(p => {
-          const opt = document.createElement('option');
-          opt.value = `${g.group}|${p.name}`;
-          opt.dataset.watts = p.watts;
-          opt.textContent = p.watts ? `${p.name} — ${p.watts}W` : p.name;
-          og.appendChild(opt);
-        });
-        sel.appendChild(og);
-      });
-      sel.addEventListener('change', () => {
-        const opt = sel.selectedOptions[0];
-        const w = +opt.dataset.watts;
-        if (w > 0) document.getElementById('s-watts').value = w;
-      });
-    })();
 
     document.getElementById('save-settings').addEventListener('click', () => {
       settings.filamentCost = document.getElementById('s-filament-cost').value;
-      settings.watts = document.getElementById('s-watts').value;
       settings.kwh = document.getElementById('s-kwh').value;
-      settings.hourlyRate = document.getElementById('s-rate').value;
       settings.failurePct = document.getElementById('s-failure').value;
       settings.marginPct = document.getElementById('s-margin').value;
-      settings.printerPreset = document.getElementById('s-printer-preset').value;
       settings.estDensity = document.getElementById('s-est-density').value;
       settings.estFillPct = document.getElementById('s-est-fill').value;
-      settings.estGramsPerHour = document.getElementById('s-est-gph').value;
-      settings.estSwapPct = document.getElementById('s-est-swap').value;
       saveSettingsToStorage();
       filaments.forEach(f => { if (!f.costPerKg) f.costPerKg = settings.filamentCost || ''; });
       renderFilaments();
@@ -2612,12 +2645,15 @@
       }
       const name = document.getElementById('print-name').value.trim() || 'Untitled print';
       const totalGrams = filaments.reduce((s, f) => s + num(f.grams), 0);
+      const printer = getActivePrinter();
       const entry = {
         id: Date.now(),
         name,
         date: new Date().toISOString(),
         hours: result.hours,
         grams: totalGrams,
+        printerId: printer?.id || null,
+        printerName: printer?.name || null,
         filaments: filaments.map(f => ({ ...f })),
         breakdown: {
           filament: result.filamentCost,
@@ -2688,7 +2724,7 @@
         item.innerHTML = `
           <div>
             <div class="history-name">${escapeHtml(e.name)}</div>
-            <div class="history-meta">${dateStr} · ${e.grams.toFixed(1)} g · ${formatHours(e.hours)}</div>
+            <div class="history-meta">${dateStr} · ${e.grams.toFixed(1)} g · ${formatHours(e.hours)}${e.printerName ? ' · ' + escapeHtml(e.printerName) : ''}</div>
             <div class="history-actions">
               <button class="link-btn" data-load="${e.id}">Load</button>
               <button class="link-btn danger" data-del="${e.id}">Delete</button>
@@ -2967,10 +3003,13 @@
 
       if (!isFinite(totalMm3) || totalMm3 <= 0) return null;
 
-      // Tunable factors with reasonable PLA-on-FDM defaults.
-      const density       = +settings.estDensity      || 1.24; // g/cm³ — PLA
-      const fillPct       = +settings.estFillPct      || 30;   // % of mesh volume that's plastic
-      const gramsPerHour  = +settings.estGramsPerHour || 18;   // typical FDM throughput
+      // Tunable factors with reasonable PLA-on-FDM defaults. Throughput and
+      // swap-overhead come from the active printer; material defaults stay
+      // in workspace settings (density, fill fraction).
+      const printer       = getActivePrinter();
+      const density       = +settings.estDensity || 1.24;
+      const fillPct       = +settings.estFillPct || 30;
+      const gramsPerHour  = +(printer?.gramsPerHour) || 18;
 
       const volCm3   = totalMm3 / 1000;
       const totalG   = volCm3 * density * (fillPct / 100);
@@ -2979,7 +3018,9 @@
       // Multi-color overhead: AMS / MMU prints spend significant time on
       // tool changes, purges, and prime-tower priming. The base mass /
       // throughput ignores this. Apply a per-extra-filament percentage.
-      const swapPct = +settings.estSwapPct >= 0 ? +settings.estSwapPct : 25;
+      const swapPct = printer && printer.swapPct !== '' && printer.swapPct != null
+        ? +printer.swapPct
+        : 25;
       const numColors = Math.max(1, distinctColors);
       const overheadFactor = 1 + (swapPct / 100) * (numColors - 1);
       const hours = baseHours * overheadFactor;
@@ -3544,6 +3585,10 @@
       pickerTargetIndex = filamentIndex;
       const overlay = document.getElementById('picker-overlay');
       const list = document.getElementById('picker-list');
+      // The same overlay is reused by the printer picker on the Estimate
+      // sheet, which mutates the title — reset it back here.
+      const head = document.querySelector('.picker-head h3');
+      if (head) head.textContent = 'Pick a Spool';
       const spools = loadSpools();
       if (spools.length === 0) {
         list.innerHTML = '<div class="picker-empty">No spools yet. Add one in the Spools layer first.</div>';
@@ -3592,10 +3637,303 @@
       if (e.key === 'Escape') closeSpoolPicker();
     });
 
+    // ---------- PRINTERS ----------
+    let editingPrinterId = null;
+    let isAddingPrinter = false;
+
+    function migrateLegacySinglePrinter() {
+      // One-time migration: if user has watts/hourlyRate/throughput in their
+      // old settings (from before the per-printer feature) and no printers
+      // entry yet, create a "My Printer" with those values so nothing is lost.
+      if (loadPrinters().length > 0) return;
+      const hasLegacy = settings.watts || settings.hourlyRate
+        || settings.estGramsPerHour || settings.estSwapPct
+        || settings.printerPreset;
+      if (!hasLegacy) return;
+      const newPrinter = {
+        id: Date.now(),
+        name: 'My Printer',
+        preset: settings.printerPreset || '',
+        watts: settings.watts || '',
+        hourlyRate: settings.hourlyRate || '',
+        gramsPerHour: settings.estGramsPerHour || '',
+        swapPct: settings.estSwapPct || '',
+      };
+      // Save without going through pushPrinters (cloud not necessarily up yet)
+      localStorage.setItem(PRINTERS_KEY, JSON.stringify([newPrinter]));
+      saveActivePrinterId(newPrinter.id);
+      console.log('[migrate] moved legacy single-printer settings into a "My Printer" entry');
+    }
+
+    function updateActivePrinterDisplay() {
+      const display = document.getElementById('active-printer-display');
+      const meta = document.getElementById('active-printer-meta');
+      if (!display) return;
+      const p = getActivePrinter();
+      if (p) {
+        display.textContent = p.name;
+        display.style.color = '';
+        const bits = [];
+        if (p.watts) bits.push(`${p.watts} W`);
+        if (p.hourlyRate) bits.push(`$${(+p.hourlyRate).toFixed(2)}/hr`);
+        if (p.gramsPerHour) bits.push(`${p.gramsPerHour} g/hr`);
+        if (p.swapPct) bits.push(`${p.swapPct}%/color`);
+        meta.textContent = bits.join(' · ');
+      } else {
+        display.textContent = '— none selected —';
+        display.style.color = 'var(--ink-faint)';
+        meta.textContent = loadPrinters().length === 0
+          ? 'Add a printer in layer 03 first.'
+          : 'Pick a printer to use its rates.';
+      }
+    }
+
+    function renderPrinters() {
+      const container = document.getElementById('printers-grid');
+      const count = document.getElementById('printer-count');
+      const formContainer = document.getElementById('printer-form-container');
+      if (!container) return;
+      const printers = loadPrinters();
+      const activeId = loadActivePrinterId();
+
+      count.innerHTML = printers.length === 0
+        ? 'No printers configured yet'
+        : `<strong>${printers.length}</strong> printer${printers.length !== 1 ? 's' : ''} in workshop`;
+
+      formContainer.innerHTML = '';
+      if (isAddingPrinter || editingPrinterId !== null) {
+        const editing = editingPrinterId !== null
+          ? printers.find(p => String(p.id) === String(editingPrinterId))
+          : null;
+        formContainer.appendChild(buildPrinterForm(editing));
+      }
+
+      container.innerHTML = '';
+      if (printers.length === 0 && !isAddingPrinter && editingPrinterId === null) {
+        container.innerHTML = '<div class="empty"><strong>No printers yet</strong>Add a printer to start estimating prints. Each printer has its own wattage, hourly rate, throughput, and multi-color overhead.</div>';
+        return;
+      }
+
+      printers.forEach(p => {
+        const isActive = String(p.id) === String(activeId);
+        const isEditing = String(p.id) === String(editingPrinterId);
+        const item = document.createElement('div');
+        item.className = 'spool-item' + (isEditing ? ' editing' : '');
+        item.innerHTML = `
+          <div class="spool-swatch" style="background: ${isActive ? 'var(--blueprint)' : 'var(--paper-dim)'}"></div>
+          <div class="spool-info">
+            <div class="spool-name">${escapeHtml(p.name)}${isActive ? '<span style="font-family:var(--condensed);font-size:9px;letter-spacing:1.4px;color:var(--blueprint);margin-left:8px;font-weight:700;">· ACTIVE</span>' : ''}</div>
+            <div class="spool-meta">
+              ${p.preset ? `<span class="material-badge">${escapeHtml(p.preset.replace('|', ' '))}</span>` : ''}
+              ${p.watts ? `<span>${p.watts} W</span>` : ''}
+              ${p.hourlyRate ? `<span>· $${(+p.hourlyRate).toFixed(2)}/hr</span>` : ''}
+              ${p.gramsPerHour ? `<span>· ${p.gramsPerHour} g/hr</span>` : ''}
+              ${p.swapPct ? `<span>· ${p.swapPct}%/color</span>` : ''}
+            </div>
+          </div>
+          <div class="spool-actions">
+            <div class="actions-row">
+              ${isActive ? '' : `<button class="link-btn" data-set-active="${escapeHtml(String(p.id))}">Set active</button>`}
+              <button class="link-btn" data-edit-printer="${escapeHtml(String(p.id))}">Edit</button>
+              <button class="link-btn danger" data-del-printer="${escapeHtml(String(p.id))}">Delete</button>
+            </div>
+          </div>
+        `;
+        container.appendChild(item);
+      });
+
+      container.querySelectorAll('[data-set-active]').forEach(btn => {
+        btn.addEventListener('click', e => {
+          saveActivePrinterId(e.target.dataset.setActive);
+          renderPrinters();
+          updateActivePrinterDisplay();
+          recalc();
+          toast('Active printer set');
+        });
+      });
+      container.querySelectorAll('[data-edit-printer]').forEach(btn => {
+        btn.addEventListener('click', e => {
+          editingPrinterId = e.target.dataset.editPrinter;
+          isAddingPrinter = false;
+          renderPrinters();
+        });
+      });
+      container.querySelectorAll('[data-del-printer]').forEach(btn => {
+        btn.addEventListener('click', e => {
+          const id = e.target.dataset.delPrinter;
+          const p = loadPrinters().find(x => String(x.id) === String(id));
+          if (!confirm(`Delete printer "${p?.name || ''}"?`)) return;
+          const remaining = loadPrinters().filter(x => String(x.id) !== String(id));
+          savePrinters(remaining);
+          if (String(loadActivePrinterId()) === String(id)) saveActivePrinterId(null);
+          renderPrinters();
+          updateActivePrinterDisplay();
+          recalc();
+        });
+      });
+    }
+
+    function buildPrinterForm(editing) {
+      const wrap = document.createElement('div');
+      wrap.className = 'spool-form' + (editing ? '' : ' adding');
+      const p = editing || { name: '', preset: '', watts: '', hourlyRate: '', gramsPerHour: '', swapPct: '' };
+
+      let presetOptions = '<option value="">— Custom (no preset) —</option>';
+      PRINTER_PRESETS.forEach(g => {
+        presetOptions += `<optgroup label="${escapeHtml(g.group)}">`;
+        g.items.forEach(item => {
+          const v = `${g.group}|${item.name}`;
+          presetOptions += `<option value="${escapeHtml(v)}" data-watts="${item.watts}" ${v === p.preset ? 'selected' : ''}>${escapeHtml(item.name)}${item.watts ? ` — ${item.watts}W` : ''}</option>`;
+        });
+        presetOptions += '</optgroup>';
+      });
+
+      wrap.innerHTML = `
+        <div class="spool-form-row" style="grid-template-columns: 1fr 1.2fr;">
+          <div class="field">
+            <label>Name</label>
+            <input type="text" id="pf-name" placeholder="e.g. X1 Carbon (workshop)" value="${escapeHtml(p.name)}">
+          </div>
+          <div class="field">
+            <label>Preset (auto-fills wattage)</label>
+            <select class="input" id="pf-preset">${presetOptions}</select>
+          </div>
+        </div>
+        <div class="spool-form-row three">
+          <div class="field">
+            <label>Wattage</label>
+            <div class="suffix-wrap">
+              <input type="number" id="pf-watts" min="0" step="1" value="${p.watts}">
+              <span class="suffix">W</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>Hourly rate</label>
+            <div class="suffix-wrap">
+              <input type="number" id="pf-rate" min="0" step="0.01" value="${p.hourlyRate}">
+              <span class="suffix">$ / hr</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>Throughput</label>
+            <div class="suffix-wrap">
+              <input type="number" id="pf-gph" min="1" step="1" value="${p.gramsPerHour}" placeholder="18">
+              <span class="suffix">g / hr</span>
+            </div>
+          </div>
+        </div>
+        <div class="field">
+          <label>Multi-color overhead — added per extra filament beyond the first</label>
+          <div class="suffix-wrap">
+            <input type="number" id="pf-swap" min="0" max="200" step="1" value="${p.swapPct}" placeholder="25">
+            <span class="suffix">% / color</span>
+          </div>
+        </div>
+        <div class="btn-row" style="margin-top: 12px;">
+          <button class="btn" id="pf-save">${editing ? 'Save changes' : 'Add printer'}</button>
+          <button class="btn btn-ghost" id="pf-cancel">Cancel</button>
+        </div>
+      `;
+
+      wrap.querySelector('#pf-preset').addEventListener('change', e => {
+        const opt = e.target.selectedOptions[0];
+        const w = +opt.dataset.watts;
+        if (w > 0) wrap.querySelector('#pf-watts').value = w;
+      });
+      wrap.querySelector('#pf-cancel').addEventListener('click', () => {
+        editingPrinterId = null;
+        isAddingPrinter = false;
+        renderPrinters();
+      });
+      wrap.querySelector('#pf-save').addEventListener('click', () => {
+        const name = wrap.querySelector('#pf-name').value.trim();
+        if (!name) { toast('Printer name required', true); return; }
+        const data = {
+          name,
+          preset: wrap.querySelector('#pf-preset').value,
+          watts: wrap.querySelector('#pf-watts').value,
+          hourlyRate: wrap.querySelector('#pf-rate').value,
+          gramsPerHour: wrap.querySelector('#pf-gph').value,
+          swapPct: wrap.querySelector('#pf-swap').value,
+        };
+        const all = loadPrinters();
+        if (editing) {
+          const idx = all.findIndex(x => String(x.id) === String(editing.id));
+          if (idx !== -1) all[idx] = { ...all[idx], ...data };
+          toast('Printer updated');
+        } else {
+          const newP = { id: Date.now(), ...data };
+          all.push(newP);
+          if (!loadActivePrinterId()) saveActivePrinterId(newP.id);
+          toast('Printer added');
+        }
+        savePrinters(all);
+        editingPrinterId = null;
+        isAddingPrinter = false;
+        renderPrinters();
+        updateActivePrinterDisplay();
+        recalc();
+      });
+
+      return wrap;
+    }
+
+    document.getElementById('printer-add-btn').addEventListener('click', () => {
+      if (isAddingPrinter) return;
+      isAddingPrinter = true;
+      editingPrinterId = null;
+      renderPrinters();
+    });
+
+    // Active-printer picker on the Estimate sheet — reuses the spool picker overlay
+    document.getElementById('pick-printer-btn').addEventListener('click', () => {
+      const printers = loadPrinters();
+      if (printers.length === 0) {
+        toast('Add a printer in layer 03 first', true);
+        return;
+      }
+      const overlay = document.getElementById('picker-overlay');
+      const list = document.getElementById('picker-list');
+      const head = document.querySelector('.picker-head h3');
+      head.textContent = 'Pick a Printer';
+      list.innerHTML = '';
+      printers.forEach(p => {
+        const isActive = String(p.id) === String(loadActivePrinterId());
+        const btn = document.createElement('button');
+        btn.className = 'picker-item';
+        btn.type = 'button';
+        const meta = [
+          p.watts ? `${p.watts} W` : '',
+          p.hourlyRate ? `$${(+p.hourlyRate).toFixed(2)}/hr` : '',
+          p.gramsPerHour ? `${p.gramsPerHour} g/hr` : ''
+        ].filter(Boolean).join(' · ');
+        btn.innerHTML = `
+          <div class="picker-swatch" style="background:${isActive ? 'var(--blueprint)' : 'var(--paper-dim)'}"></div>
+          <div>
+            <div class="picker-name">${escapeHtml(p.name)}</div>
+            <div class="picker-meta">${escapeHtml(meta || 'no rates set')}</div>
+          </div>
+          <div class="picker-cost">${isActive ? '✓' : ''}</div>
+        `;
+        btn.addEventListener('click', () => {
+          saveActivePrinterId(p.id);
+          overlay.classList.remove('show');
+          head.textContent = 'Pick a Spool';
+          updateActivePrinterDisplay();
+          recalc();
+          toast(`Active: ${p.name}`);
+        });
+        list.appendChild(btn);
+      });
+      overlay.classList.add('show');
+    });
+
     // ---------- INIT ----------
+    migrateLegacySinglePrinter();
     filaments = [newFilament()];
     renderFilaments();
     loadSettingsToForm();
+    updateActivePrinterDisplay();
     recalc();
   </script>
 </body>

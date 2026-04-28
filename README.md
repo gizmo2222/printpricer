@@ -105,14 +105,31 @@ A **Refill** button on the edit form resets a spool's remaining to its full weig
 
 ---
 
+## Multiple printers
+
+The **Printers** layer holds your workshop's fleet — one entry per machine, each with its own:
+
+- Name and optional preset (Bambu, Prusa, Creality, Anycubic, Elegoo, Voron, Sovol)
+- **Wattage** — drives the electricity cost on this estimate
+- **Hourly rate** — drives the time/labor cost on this estimate
+- **Throughput** — used by the geometry estimator (g/hr) when a model-only 3MF is dropped
+- **Multi-color overhead** — % added per extra filament beyond the first (AMS / MMU swap + purge)
+
+On the **Estimate** sheet, the **Pick printer** button selects which printer this quote is for. That printer's rates drive the calculation; the printer name is recorded in the **Archive** entry. The active selection is per-device, so different members of a group can default to different machines. The **list** of printers is shared across the group.
+
+If you used Print Pricer before this layer existed, your old single-printer settings (wattage / hourly rate / throughput) auto-migrate into a "My Printer" entry on first load — nothing is lost.
+
+---
+
 ## Layers
 
-The app has four numbered layers (tabs):
+The app has five numbered layers (tabs):
 
 - **01 — Estimate** — drop file, edit values, see live breakdown, stamp & archive the quote
 - **02 — Spools** — filament inventory: track what you have, what's low, what each cost
-- **03 — Defaults** — pre-fill values for new estimates (printer, electricity, hourly rate, failure %, margin %)
-- **04 — Archive** — saved estimates; click Load to bring one back into the calculator
+- **03 — Printers** — workshop fleet: per-machine wattage, hourly rate, throughput, multi-color overhead
+- **04 — Defaults** — workspace-wide values: filament cost, electricity rate, failure %, margin %, geometry density / fill fraction
+- **05 — Archive** — saved estimates; click Load to bring one back into the calculator
 
 ---
 
