@@ -30,10 +30,31 @@ Drop a `.gcode`, `.gco`, or `.3mf` file onto the upload zone and it pulls out th
 | Slicer | Format | Notes |
 |---|---|---|
 | PrusaSlicer / OrcaSlicer / SuperSlicer | `.gcode` | Reads `; estimated printing time` and `; filament used [g]` |
-| Bambu Studio / OrcaSlicer | `.3mf` | Reads `Metadata/slice_info.config` for prediction time and per-filament `used_g` |
+| Bambu Studio / OrcaSlicer | `.3mf` (sliced) | Reads `slice_info.config` and `plate_*.json` for prediction time and per-filament `used_g` |
+| Bambu Studio / PrusaSlicer | `.gcode.3mf` | Reads the embedded gcode |
 | Cura | `.gcode` | Reads `;TIME:` and filament data |
+| **Any slicer** | `.3mf` (model-only) | Falls back to **geometry-based estimation** — see below |
 
 Multi-material prints split into separate filament rows automatically.
+
+### Geometry-based estimation (model-only 3MFs)
+
+If you drop a 3MF that has no slicing data — a Bambu/Orca project saved before slicing, or a model downloaded from MakerWorld / Printables — Print Pricer falls back to a rough estimate:
+
+1. Parses the mesh from `3D/3dmodel.model` (vertices + triangles + build-item transforms)
+2. Computes the mesh **volume** via the divergence theorem
+3. Mass ≈ `volume × density × fill fraction`
+4. Time ≈ `mass ÷ throughput`
+
+The toast says "Estimated from geometry — review values" and pre-fills a single filament row labeled "Estimated · adjust if needed". The defaults assume PLA on a typical FDM printer; tune them in **Defaults → Estimate factors**:
+
+| Factor | Default | What it represents |
+|---|---|---|
+| **Density** | 1.24 g/cm³ | PLA. Use 1.27 for PETG, 1.04 for ABS, 1.21 for TPU |
+| **Fill fraction** | 30% | What share of the model's bounding volume is actual plastic (perimeters + infill combined). Lower for hollow prints, higher for solid |
+| **Throughput** | 18 g/hr | Filament extrusion rate during a typical print on your printer. Watch a real print, divide grams by hours |
+
+This is an approximation, not a real slicer — accuracy ±30% is normal. For paying customers always slice first. For ballpark personal quoting, it's plenty.
 
 ---
 

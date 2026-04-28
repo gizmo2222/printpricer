@@ -1611,6 +1611,36 @@
           </div>
         </div>
 
+        <div style="margin-top: 18px; padding-top: 14px; border-top: 1px dotted var(--ink-faint);">
+          <div style="font-family: var(--condensed); font-size: 10px; font-weight: 700; letter-spacing: 1.8px; text-transform: uppercase; color: var(--blueprint); margin-bottom: 4px;">Estimate factors</div>
+          <p style="font-family: var(--sans); font-size: 12px; color: var(--ink-mid); line-height: 1.5; margin-bottom: 12px;">
+            Used when a model-only 3MF is dropped (no slicing data). Defaults are PLA on a typical FDM printer. Tune to your machine.
+          </p>
+          <div class="input-row-3">
+            <div class="field">
+              <label>Density</label>
+              <div class="suffix-wrap">
+                <input type="number" id="s-est-density" min="0.5" max="3" step="0.01" placeholder="1.24">
+                <span class="suffix">g / cm³</span>
+              </div>
+            </div>
+            <div class="field">
+              <label>Fill fraction</label>
+              <div class="suffix-wrap">
+                <input type="number" id="s-est-fill" min="1" max="100" step="1" placeholder="30">
+                <span class="suffix">%</span>
+              </div>
+            </div>
+            <div class="field">
+              <label>Throughput</label>
+              <div class="suffix-wrap">
+                <input type="number" id="s-est-gph" min="1" max="200" step="1" placeholder="18">
+                <span class="suffix">g / hr</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="btn-row" style="margin-top: 18px;">
           <button class="btn" id="save-settings">Commit settings</button>
           <button class="btn btn-danger" id="reset-settings">Reset to blank</button>
@@ -2294,6 +2324,9 @@
       failurePct: '',
       marginPct: '',
       printerPreset: '',
+      estDensity: '',
+      estFillPct: '',
+      estGramsPerHour: '',
     };
 
     let settings = loadSettings();
@@ -2484,6 +2517,9 @@
       document.getElementById('s-failure').value = settings.failurePct;
       document.getElementById('s-margin').value = settings.marginPct;
       document.getElementById('s-printer-preset').value = settings.printerPreset || '';
+      document.getElementById('s-est-density').value = settings.estDensity || '';
+      document.getElementById('s-est-fill').value = settings.estFillPct || '';
+      document.getElementById('s-est-gph').value = settings.estGramsPerHour || '';
     }
 
     (function buildPresets() {
@@ -2515,6 +2551,9 @@
       settings.failurePct = document.getElementById('s-failure').value;
       settings.marginPct = document.getElementById('s-margin').value;
       settings.printerPreset = document.getElementById('s-printer-preset').value;
+      settings.estDensity = document.getElementById('s-est-density').value;
+      settings.estFillPct = document.getElementById('s-est-fill').value;
+      settings.estGramsPerHour = document.getElementById('s-est-gph').value;
       saveSettingsToStorage();
       filaments.forEach(f => { if (!f.costPerKg) f.costPerKg = settings.filamentCost || ''; });
       renderFilaments();
@@ -2733,6 +2772,119 @@
       return result;
     }
 
+    // Apply a 3MF row-major 4x3 affine transform to a point.
+    function applyTransform3MF(p, t) {
+      if (!t || t.length < 12) return p;
+      return {
+        x: t[0]*p.x + t[3]*p.y + t[6]*p.z + t[9],
+        y: t[1]*p.x + t[4]*p.y + t[7]*p.z + t[10],
+        z: t[2]*p.x + t[5]*p.y + t[8]*p.z + t[11],
+      };
+    }
+
+    // Volume contribution of a closed mesh via the divergence theorem.
+    // Sums signed tetrahedra from the origin; absolute value = enclosed volume.
+    function meshVolumeMm3(verts, tris, transform) {
+      let v = 0;
+      for (let i = 0; i < tris.length; i++) {
+        const t = tris[i];
+        const a = applyTransform3MF(verts[t.v1], transform);
+        const b = applyTransform3MF(verts[t.v2], transform);
+        const c = applyTransform3MF(verts[t.v3], transform);
+        const cx = b.y * c.z - b.z * c.y;
+        const cy = b.z * c.x - b.x * c.z;
+        const cz = b.x * c.y - b.y * c.x;
+        v += (a.x * cx + a.y * cy + a.z * cz) / 6;
+      }
+      return Math.abs(v);
+    }
+
+    // Estimate filament mass + print time from a model-only 3MF by
+    // computing mesh volume × density × fill_fraction, and time from
+    // a tunable grams-per-hour rate.
+    async function estimateFromGeometry(zip) {
+      const paths = Object.keys(zip.files).filter(p => !zip.files[p].dir);
+      const modelPath = paths.find(p => /3dmodel\.model$/i.test(p));
+      if (!modelPath) return null;
+      let xml;
+      try { xml = await zip.file(modelPath).async('string'); }
+      catch { return null; }
+
+      // Parse <object> blocks → id → { vertices, triangles }
+      const objects = new Map();
+      const objRe = /<object\b[^>]*\bid\s*=\s*"([^"]+)"[^>]*>([\s\S]*?)<\/object>/gi;
+      let om;
+      while ((om = objRe.exec(xml))) {
+        const id = om[1];
+        const body = om[2];
+        const verts = [];
+        const vRe = /<vertex\b[^>]*\bx\s*=\s*"([^"]+)"\s+y\s*=\s*"([^"]+)"\s+z\s*=\s*"([^"]+)"/gi;
+        let vm;
+        while ((vm = vRe.exec(body))) {
+          verts.push({ x: +vm[1], y: +vm[2], z: +vm[3] });
+        }
+        const tris = [];
+        const tRe = /<triangle\b[^>]*\bv1\s*=\s*"(\d+)"\s+v2\s*=\s*"(\d+)"\s+v3\s*=\s*"(\d+)"/gi;
+        let tm;
+        while ((tm = tRe.exec(body))) {
+          tris.push({ v1: +tm[1], v2: +tm[2], v3: +tm[3] });
+        }
+        if (verts.length && tris.length) objects.set(id, { verts, tris });
+      }
+      if (objects.size === 0) return null;
+
+      // Parse <build> items (object instances with transforms)
+      const items = [];
+      const buildBlock = xml.match(/<build\b[^>]*>([\s\S]*?)<\/build>/i);
+      if (buildBlock) {
+        const itemRe = /<item\s+([^>/]+)\/?>/gi;
+        let im;
+        while ((im = itemRe.exec(buildBlock[1]))) {
+          const attrs = im[1];
+          const oid = attrs.match(/objectid\s*=\s*"([^"]+)"/i)?.[1];
+          const tStr = attrs.match(/\btransform\s*=\s*"([^"]+)"/i)?.[1];
+          const transform = tStr ? tStr.trim().split(/\s+/).map(Number) : null;
+          if (oid && objects.has(oid)) items.push({ oid, transform });
+        }
+      }
+
+      // Sum mesh volume across all build items (or all objects if no build block)
+      let totalMm3 = 0;
+      if (items.length > 0) {
+        for (const it of items) {
+          const o = objects.get(it.oid);
+          if (o) totalMm3 += meshVolumeMm3(o.verts, o.tris, it.transform);
+        }
+      } else {
+        for (const [, o] of objects) totalMm3 += meshVolumeMm3(o.verts, o.tris, null);
+      }
+
+      if (!isFinite(totalMm3) || totalMm3 <= 0) return null;
+
+      // Tunable factors with reasonable PLA-on-FDM defaults.
+      const density       = +settings.estDensity      || 1.24; // g/cm³ — PLA
+      const fillPct       = +settings.estFillPct      || 30;   // % of mesh volume that's plastic
+      const gramsPerHour  = +settings.estGramsPerHour || 18;   // typical FDM throughput
+
+      const volCm3 = totalMm3 / 1000;
+      const grams  = volCm3 * density * (fillPct / 100);
+      const hours  = grams / gramsPerHour;
+
+      console.log(`[3MF estimate] mesh volume: ${volCm3.toFixed(2)} cm³, ` +
+                  `density: ${density} g/cm³, fill: ${fillPct}%, throughput: ${gramsPerHour} g/h ` +
+                  `→ ${grams.toFixed(2)} g, ${hours.toFixed(2)} h`);
+
+      return {
+        hours,
+        filaments: [{
+          name: 'Estimated · adjust if needed',
+          grams: grams.toFixed(2),
+          costPerKg: settings.filamentCost || '',
+        }],
+        meshVolumeCm3: volCm3,
+      };
+    }
+
     async function parse3mf(file) {
       if (typeof JSZip === 'undefined') throw new Error('Zip library not loaded');
       const zip = await JSZip.loadAsync(file);
@@ -2829,6 +2981,17 @@
         }
       }
 
+      // ---- Strategy 5: estimate from geometry (model-only 3MF) ----
+      if (result.filaments.length === 0 || result.hours === 0) {
+        const est = await estimateFromGeometry(zip);
+        if (est) {
+          if (!result.hours && est.hours) result.hours = est.hours;
+          if (result.filaments.length === 0 && est.filaments.length) result.filaments = est.filaments;
+          result.estimated = true;
+          result.meshVolumeCm3 = est.meshVolumeCm3;
+        }
+      }
+
       // ---- Detailed failure ----
       if (result.filaments.length === 0 && result.hours === 0) {
         // Always log full file list to console for debugging.
@@ -2886,7 +3049,12 @@
         const parts = [];
         if (parsed.hours) parts.push(formatHours(parsed.hours));
         if (parsed.filaments.length) parts.push(`${parsed.filaments.length} filament${parsed.filaments.length > 1 ? 's' : ''}`);
-        toast(`Loaded · ${parts.join(' · ')}`);
+        if (parsed.estimated) {
+          const vol = parsed.meshVolumeCm3 ? ` · ${parsed.meshVolumeCm3.toFixed(1)} cm³` : '';
+          toast(`Estimated from geometry${vol} — review values`);
+        } else {
+          toast(`Loaded · ${parts.join(' · ')}`);
+        }
       } catch (err) {
         toast(err.message || 'Could not parse file', true);
       }
