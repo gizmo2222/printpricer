@@ -2838,60 +2838,53 @@
     // a tunable grams-per-hour rate.
     async function estimateFromGeometry(zip) {
       const paths = Object.keys(zip.files).filter(p => !zip.files[p].dir);
-      const modelPath = paths.find(p => /3dmodel\.model$/i.test(p));
-      if (!modelPath) return null;
-      let xml;
-      try { xml = await zip.file(modelPath).async('string'); }
-      catch { return null; }
+      // Bambu / Orca often use the 3MF componentized form: the main
+      // 3D/3dmodel.model is a shell that references real geometry in
+      // 3D/Objects/object_*.model files. Scan every .model file.
+      const modelPaths = paths.filter(p => /\.model$/i.test(p));
+      if (modelPaths.length === 0) return null;
 
-      // Parse <object> blocks → id → { vertices, triangles }
-      const objects = new Map();
-      const objRe = /<object\b[^>]*\bid\s*=\s*"([^"]+)"[^>]*>([\s\S]*?)<\/object>/gi;
-      let om;
-      while ((om = objRe.exec(xml))) {
-        const id = om[1];
-        const body = om[2];
-        const verts = [];
-        const vRe = /<vertex\b[^>]*\bx\s*=\s*"([^"]+)"\s+y\s*=\s*"([^"]+)"\s+z\s*=\s*"([^"]+)"/gi;
-        let vm;
-        while ((vm = vRe.exec(body))) {
-          verts.push({ x: +vm[1], y: +vm[2], z: +vm[3] });
+      // Parse one model XML's <object> blocks. Each object has its own
+      // vertex index space; compute its volume independently then sum.
+      function objectsWithMesh(xml) {
+        const out = [];
+        const objRe = /<object\b[^>]*>([\s\S]*?)<\/object>/gi;
+        let om;
+        while ((om = objRe.exec(xml))) {
+          const body = om[1];
+          const verts = [];
+          const vRe = /<vertex\b[^>]*\bx\s*=\s*"([^"]+)"[^>]*\by\s*=\s*"([^"]+)"[^>]*\bz\s*=\s*"([^"]+)"/gi;
+          let vm;
+          while ((vm = vRe.exec(body))) {
+            verts.push({ x: +vm[1], y: +vm[2], z: +vm[3] });
+          }
+          const tris = [];
+          const tRe = /<triangle\b[^>]*\bv1\s*=\s*"(\d+)"[^>]*\bv2\s*=\s*"(\d+)"[^>]*\bv3\s*=\s*"(\d+)"/gi;
+          let tm;
+          while ((tm = tRe.exec(body))) {
+            tris.push({ v1: +tm[1], v2: +tm[2], v3: +tm[3] });
+          }
+          if (verts.length && tris.length) out.push({ verts, tris });
         }
-        const tris = [];
-        const tRe = /<triangle\b[^>]*\bv1\s*=\s*"(\d+)"\s+v2\s*=\s*"(\d+)"\s+v3\s*=\s*"(\d+)"/gi;
-        let tm;
-        while ((tm = tRe.exec(body))) {
-          tris.push({ v1: +tm[1], v2: +tm[2], v3: +tm[3] });
-        }
-        if (verts.length && tris.length) objects.set(id, { verts, tris });
-      }
-      if (objects.size === 0) return null;
-
-      // Parse <build> items (object instances with transforms)
-      const items = [];
-      const buildBlock = xml.match(/<build\b[^>]*>([\s\S]*?)<\/build>/i);
-      if (buildBlock) {
-        const itemRe = /<item\s+([^>/]+)\/?>/gi;
-        let im;
-        while ((im = itemRe.exec(buildBlock[1]))) {
-          const attrs = im[1];
-          const oid = attrs.match(/objectid\s*=\s*"([^"]+)"/i)?.[1];
-          const tStr = attrs.match(/\btransform\s*=\s*"([^"]+)"/i)?.[1];
-          const transform = tStr ? tStr.trim().split(/\s+/).map(Number) : null;
-          if (oid && objects.has(oid)) items.push({ oid, transform });
-        }
+        return out;
       }
 
-      // Sum mesh volume across all build items (or all objects if no build block)
       let totalMm3 = 0;
-      if (items.length > 0) {
-        for (const it of items) {
-          const o = objects.get(it.oid);
-          if (o) totalMm3 += meshVolumeMm3(o.verts, o.tris, it.transform);
+      let totalObjects = 0;
+      for (const mp of modelPaths) {
+        let xml;
+        try { xml = await zip.file(mp).async('string'); }
+        catch { continue; }
+        const objs = objectsWithMesh(xml);
+        for (const o of objs) {
+          totalMm3 += meshVolumeMm3(o.verts, o.tris, null);
+          totalObjects++;
         }
-      } else {
-        for (const [, o] of objects) totalMm3 += meshVolumeMm3(o.verts, o.tris, null);
       }
+
+      console.log(`[3MF estimate] scanned ${modelPaths.length} .model file(s), ` +
+                  `found ${totalObjects} object(s) with mesh data, ` +
+                  `total volume ${(totalMm3/1000).toFixed(2)} cm³`);
 
       if (!isFinite(totalMm3) || totalMm3 <= 0) return null;
 
