@@ -2833,9 +2833,27 @@
       return Math.abs(v);
     }
 
+    // Triangle area (magnitude of the cross product of two edges, halved).
+    function triArea(a, b, c) {
+      const ux = b.x - a.x, uy = b.y - a.y, uz = b.z - a.z;
+      const vx = c.x - a.x, vy = c.y - a.y, vz = c.z - a.z;
+      const cx = uy * vz - uz * vy;
+      const cy = uz * vx - ux * vz;
+      const cz = ux * vy - uy * vx;
+      return Math.sqrt(cx * cx + cy * cy + cz * cz) / 2;
+    }
+
     // Estimate filament mass + print time from a model-only 3MF by
     // computing mesh volume × density × fill_fraction, and time from
     // a tunable grams-per-hour rate.
+    //
+    // Multi-material support: triangles may carry a Bambu/Orca
+    // `paint_color` attribute or a 3MF Core `pid`+`pindex` referencing a
+    // <basematerials> resource. For each painted region we compute the
+    // share of the model's surface area, and split the estimated total
+    // mass proportionally. This is rough — surface-area share isn't the
+    // same as volume share, especially for thick painted regions — but
+    // it's an actionable first cut for quoting.
     async function estimateFromGeometry(zip) {
       const paths = Object.keys(zip.files).filter(p => !zip.files[p].dir);
       // Bambu / Orca often use the 3MF componentized form: the main
@@ -2859,10 +2877,25 @@
             verts.push({ x: +vm[1], y: +vm[2], z: +vm[3] });
           }
           const tris = [];
-          const tRe = /<triangle\b[^>]*\bv1\s*=\s*"(\d+)"[^>]*\bv2\s*=\s*"(\d+)"[^>]*\bv3\s*=\s*"(\d+)"/gi;
+          // Capture v1/v2/v3 plus any material-assignment attribute.
+          // - paint_color: Bambu/Orca painted-region extension (per-triangle filament/AMS slot)
+          // - extruder: PrusaSlicer painted-region extension
+          // - pid / pindex: 3MF Core property assignment (basematerials)
+          const tRe = /<triangle\b([^>]*?)\/?>/gi;
           let tm;
           while ((tm = tRe.exec(body))) {
-            tris.push({ v1: +tm[1], v2: +tm[2], v3: +tm[3] });
+            const attrs = tm[1];
+            const v1 = attrs.match(/\bv1\s*=\s*"(\d+)"/i);
+            const v2 = attrs.match(/\bv2\s*=\s*"(\d+)"/i);
+            const v3 = attrs.match(/\bv3\s*=\s*"(\d+)"/i);
+            if (!v1 || !v2 || !v3) continue;
+            const paint    = attrs.match(/\bpaint_color\s*=\s*"([^"]+)"/i)?.[1];
+            const extruder = attrs.match(/\bextruder\s*=\s*"([^"]+)"/i)?.[1];
+            const pindex   = attrs.match(/\bpindex\s*=\s*"([^"]+)"/i)?.[1];
+            // Build a stable per-triangle "color key" used to group surface areas.
+            // First non-empty wins so a single naming convention dominates.
+            let colorKey = paint ?? extruder ?? pindex ?? '0';
+            tris.push({ v1: +v1[1], v2: +v2[1], v3: +v3[1], color: String(colorKey) });
           }
           if (verts.length && tris.length) out.push({ verts, tris });
         }
@@ -2871,6 +2904,8 @@
 
       let totalMm3 = 0;
       let totalObjects = 0;
+      const areaByColor = new Map();
+
       for (const mp of modelPaths) {
         let xml;
         try { xml = await zip.file(mp).async('string'); }
@@ -2879,12 +2914,19 @@
         for (const o of objs) {
           totalMm3 += meshVolumeMm3(o.verts, o.tris, null);
           totalObjects++;
+          for (const t of o.tris) {
+            const a = o.verts[t.v1], b = o.verts[t.v2], c = o.verts[t.v3];
+            const area = triArea(a, b, c);
+            areaByColor.set(t.color, (areaByColor.get(t.color) || 0) + area);
+          }
         }
       }
 
+      const distinctColors = areaByColor.size;
       console.log(`[3MF estimate] scanned ${modelPaths.length} .model file(s), ` +
                   `found ${totalObjects} object(s) with mesh data, ` +
-                  `total volume ${(totalMm3/1000).toFixed(2)} cm³`);
+                  `total volume ${(totalMm3/1000).toFixed(2)} cm³, ` +
+                  `${distinctColors} distinct paint region(s)`);
 
       if (!isFinite(totalMm3) || totalMm3 <= 0) return null;
 
@@ -2893,23 +2935,76 @@
       const fillPct       = +settings.estFillPct      || 30;   // % of mesh volume that's plastic
       const gramsPerHour  = +settings.estGramsPerHour || 18;   // typical FDM throughput
 
-      const volCm3 = totalMm3 / 1000;
-      const grams  = volCm3 * density * (fillPct / 100);
-      const hours  = grams / gramsPerHour;
+      const volCm3   = totalMm3 / 1000;
+      const totalG   = volCm3 * density * (fillPct / 100);
+      const hours    = totalG / gramsPerHour;
 
-      console.log(`[3MF estimate] mesh volume: ${volCm3.toFixed(2)} cm³, ` +
-                  `density: ${density} g/cm³, fill: ${fillPct}%, throughput: ${gramsPerHour} g/h ` +
-                  `→ ${grams.toFixed(2)} g, ${hours.toFixed(2)} h`);
+      // Try to label colors using filament metadata (Bambu/Orca model_settings.config or project_settings.config)
+      const filamentLabels = await readFilamentLabelsFromZip(zip);
+
+      // If only one paint region, single filament row (existing behavior).
+      // If multiple, split by surface-area share.
+      const filamentRows = [];
+      if (distinctColors <= 1) {
+        filamentRows.push({
+          name: 'Estimated · adjust if needed',
+          grams: totalG.toFixed(2),
+          costPerKg: settings.filamentCost || '',
+        });
+      } else {
+        const totalArea = [...areaByColor.values()].reduce((s, a) => s + a, 0) || 1;
+        // Sort by area descending so the dominant material is row 1
+        const sorted = [...areaByColor.entries()].sort((a, b) => b[1] - a[1]);
+        sorted.forEach(([color, area], idx) => {
+          const share = area / totalArea;
+          const grams = totalG * share;
+          if (grams < 0.05) return; // ignore vanishingly small painted regions
+          const label = filamentLabels[+color] || filamentLabels[color] || null;
+          const name = label
+            ? `Est. ${label}`
+            : `Est. filament ${idx + 1} (paint ${color})`;
+          filamentRows.push({
+            name,
+            grams: grams.toFixed(2),
+            costPerKg: settings.filamentCost || '',
+          });
+        });
+      }
+
+      console.log(`[3MF estimate] density: ${density} g/cm³, fill: ${fillPct}%, ` +
+                  `throughput: ${gramsPerHour} g/h → ${totalG.toFixed(2)} g total, ${hours.toFixed(2)} h, ` +
+                  `${filamentRows.length} filament row(s)`);
 
       return {
         hours,
-        filaments: [{
-          name: 'Estimated · adjust if needed',
-          grams: grams.toFixed(2),
-          costPerKg: settings.filamentCost || '',
-        }],
+        filaments: filamentRows,
         meshVolumeCm3: volCm3,
       };
+    }
+
+    // Look up filament names/colors from Bambu/Orca config files in the
+    // 3MF. Returns a map: index → label (e.g. "PLA #FF0000").
+    async function readFilamentLabelsFromZip(zip) {
+      const labels = {};
+      const paths = Object.keys(zip.files).filter(p => !zip.files[p].dir);
+      for (const path of paths) {
+        if (!/(model_settings|project_settings|slice_info)\.config$/i.test(path)) continue;
+        let xml;
+        try { xml = await zip.file(path).async('string'); }
+        catch { continue; }
+        // Bambu writes <filament id="1" type="PLA" color="#RRGGBBAA"/> in some configs
+        const tags = xml.match(/<filament\b[^>]*?>/gi) || [];
+        tags.forEach(tag => {
+          const id    = tag.match(/\bid\s*=\s*"([^"]+)"/i)?.[1];
+          const type  = tag.match(/\btype\s*=\s*"([^"]+)"/i)?.[1];
+          const color = tag.match(/\bcolor\s*=\s*"([^"]+)"/i)?.[1];
+          if (id) {
+            const label = [type, color && !/^#FFFFFFFF$/i.test(color) ? color : ''].filter(Boolean).join(' ');
+            if (label && !labels[id]) labels[id] = label;
+          }
+        });
+      }
+      return labels;
     }
 
     async function parse3mf(file) {
