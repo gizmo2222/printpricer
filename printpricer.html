@@ -708,7 +708,31 @@
     .toast.error {
       background: var(--rust);
       border-color: var(--rust);
+      max-width: min(720px, calc(100vw - 40px));
+      white-space: normal;
+      text-transform: none;
+      letter-spacing: 0.3px;
+      font-family: var(--sans);
+      font-size: 13px;
+      font-weight: 500;
+      line-height: 1.5;
+      padding: 14px 44px 14px 16px;
+      cursor: pointer;
+      text-align: left;
     }
+    .toast.error::after {
+      content: '×';
+      position: absolute;
+      top: 8px;
+      right: 12px;
+      font-family: var(--display);
+      font-weight: 700;
+      font-size: 20px;
+      line-height: 1;
+      color: var(--paper);
+      opacity: 0.85;
+    }
+    .toast.error:hover::after { opacity: 1; }
     .toast.stamp {
       background: var(--rust);
       border-color: var(--rust);
@@ -2711,6 +2735,7 @@
       }[c]));
     }
     let toastTimer;
+    let toastDismissHandler = null;
     function toast(msg, isError, variant) {
       const t = document.getElementById('toast');
       t.textContent = msg;
@@ -2718,7 +2743,16 @@
       t.classList.toggle('stamp', variant === 'stamp');
       t.classList.add('show');
       clearTimeout(toastTimer);
-      toastTimer = setTimeout(() => t.classList.remove('show'), isError ? 3000 : 1800);
+      // Detach any previous click handler so old ones can't double-fire
+      if (toastDismissHandler) { t.removeEventListener('click', toastDismissHandler); toastDismissHandler = null; }
+      if (isError) {
+        // Sticky: stays until clicked. Also log so it survives in DevTools.
+        console.error('[toast]', msg);
+        toastDismissHandler = () => { t.classList.remove('show'); };
+        t.addEventListener('click', toastDismissHandler, { once: true });
+      } else {
+        toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
+      }
     }
 
     // ---------- FILE PARSING (gcode / 3mf) ----------
