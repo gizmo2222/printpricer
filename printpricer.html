@@ -3,359 +3,802 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Print Pricer</title>
+  <title>Print Pricer · DWG-001</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
     :root {
-      --bg: #0e1116;
-      --bg2: #161b22;
-      --bg3: #1f262f;
-      --border: #2a323d;
-      --accent: #00c2a8;
-      --accent-dim: #008874;
-      --warn: #f0a020;
-      --danger: #e5484d;
-      --text: #e6edf3;
-      --muted: #8b949e;
-      --mono: 'JetBrains Mono', monospace;
+      /* Paper */
+      --paper:        #f0e8d3;
+      --paper-dim:    #e7decd; /* slightly darker tone */
+      --paper-deep:   #ddd0b4; /* deeper for stamps and corner blocks */
+      --paper-shadow: #c9bb9a;
+
+      /* Ink */
+      --ink:          #16202d; /* primary ink, slight blue cast */
+      --ink-mid:      #4a5562;
+      --ink-faint:    #837b67; /* drafting pencil annotation */
+      --ink-ghost:    #b8ad94; /* very faint, for grid */
+
+      /* Accents */
+      --blueprint:        #1f4e7a;
+      --blueprint-bright: #2d6ba8;
+      --rust:             #a13c1f; /* stamp red */
+      --moss:             #4a6a3a; /* drafting pencil green */
+
+      /* Type */
+      --display: 'Big Shoulders Display', 'Impact', sans-serif;
+      --sans:    'IBM Plex Sans', system-ui, sans-serif;
+      --condensed: 'IBM Plex Sans Condensed', 'IBM Plex Sans', sans-serif;
+      --mono:    'IBM Plex Mono', 'Consolas', monospace;
+
+      /* Motion */
+      --ease-quart: cubic-bezier(0.165, 0.84, 0.44, 1);
     }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.001s !important; transition-duration: 0.001s !important; }
+    }
+
     html, body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      color: var(--ink);
+      font-family: var(--sans);
       font-size: 15px;
       line-height: 1.5;
-      min-height: 100vh;
+      font-feature-settings: 'kern', 'liga', 'tnum' off;
     }
-    body { padding: 0 0 80px; }
 
-    .header {
-      background: var(--bg2);
-      border-bottom: 1px solid var(--border);
-      padding: 14px 20px;
-      position: sticky;
-      top: 0;
-      z-index: 10;
+    /* Drafting paper with faint blueprint grid */
+    body {
+      background-color: var(--paper);
+      background-image:
+        /* major grid every 120px */
+        linear-gradient(rgba(31, 78, 122, 0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(31, 78, 122, 0.06) 1px, transparent 1px),
+        /* minor grid every 24px */
+        linear-gradient(rgba(31, 78, 122, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(31, 78, 122, 0.04) 1px, transparent 1px);
+      background-size: 120px 120px, 120px 120px, 24px 24px, 24px 24px;
+      background-position: 0 0;
     }
-    .header h1 {
-      font-size: 20px;
-      font-weight: 700;
-      letter-spacing: -0.5px;
-    }
-    .header h1 .dot { color: var(--accent); }
-    .header-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
 
-    .tabs {
-      display: flex;
-      background: var(--bg2);
-      border-bottom: 1px solid var(--border);
-      position: sticky;
-      top: 60px;
-      z-index: 9;
+    /* Faint paper-grain noise via radial dots */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image: radial-gradient(circle at 20% 30%, rgba(22, 32, 45, 0.025) 1px, transparent 1.5px),
+                        radial-gradient(circle at 80% 70%, rgba(22, 32, 45, 0.02) 1px, transparent 1.5px);
+      background-size: 80px 80px, 60px 60px;
+      z-index: 0;
     }
-    .tab {
-      flex: 1;
-      padding: 12px;
-      background: none;
-      border: none;
-      color: var(--muted);
-      font-family: inherit;
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      border-bottom: 2px solid transparent;
-      transition: color 0.15s, border-color 0.15s;
-    }
-    .tab:hover { color: var(--text); }
-    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
 
-    .container {
-      max-width: 720px;
+    /* Page frame: registration crosses at corners */
+    .page-frame {
+      position: relative;
+      max-width: 940px;
       margin: 0 auto;
-      padding: 20px;
+      padding: 28px 36px 90px;
+      z-index: 1;
     }
-
-    .pane { display: none; }
-    .pane.active { display: block; }
-
-    .card {
-      background: var(--bg2);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 16px;
-      margin-bottom: 16px;
+    .page-frame::before, .page-frame::after,
+    .corner-tr, .corner-bl, .corner-br {
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      pointer-events: none;
     }
-    .card h2 {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--muted);
+    .corner-mark {
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      pointer-events: none;
+      opacity: 0.45;
+    }
+    .corner-mark::before, .corner-mark::after {
+      content: '';
+      position: absolute;
+      background: var(--blueprint);
+    }
+    .corner-mark::before { top: 50%; left: 0; width: 100%; height: 1px; transform: translateY(-50%); }
+    .corner-mark::after  { left: 50%; top: 0; height: 100%; width: 1px; transform: translateX(-50%); }
+    .corner-tl { top: 12px; left: 12px; }
+    .corner-tr { top: 12px; right: 12px; }
+    .corner-bl { bottom: 12px; left: 12px; }
+    .corner-br { bottom: 12px; right: 12px; }
+
+    /* Title block — engineering drawing style */
+    .title-block {
+      display: grid;
+      grid-template-columns: 1fr 220px;
+      border: 1.5px solid var(--ink);
+      background: var(--paper-dim);
+      margin-bottom: 28px;
+      box-shadow: 2px 2px 0 var(--paper-shadow);
+    }
+    .title-main {
+      padding: 14px 18px 14px;
+      border-right: 1px solid var(--ink);
+    }
+    .title-main h1 {
+      font-family: var(--display);
+      font-weight: 800;
+      font-size: clamp(32px, 5vw, 52px);
+      line-height: 0.95;
+      letter-spacing: 0.5px;
       text-transform: uppercase;
-      letter-spacing: 0.8px;
-      margin-bottom: 12px;
+      color: var(--ink);
     }
-
-    .field { margin-bottom: 12px; }
-    .field:last-child { margin-bottom: 0; }
-    .field label {
-      display: block;
-      font-size: 12px;
-      color: var(--muted);
-      margin-bottom: 4px;
+    .title-main h1 .ampersand {
+      color: var(--rust);
       font-weight: 500;
+      font-style: italic;
     }
-    .input, .field input {
-      width: 100%;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      color: var(--text);
-      font-family: var(--mono);
-      font-size: 15px;
-      padding: 10px 12px;
-      transition: border-color 0.15s;
+    .title-main .subtitle {
+      font-family: var(--condensed);
+      font-size: 12px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--ink-mid);
+      margin-top: 4px;
     }
-    .input:focus, .field input:focus {
-      outline: none;
-      border-color: var(--accent);
-    }
-    .input-row {
+    .title-meta {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 10px;
+      grid-auto-rows: 1fr;
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--ink);
     }
-    .input-row-3 {
-      display: grid;
-      grid-template-columns: 2fr 1fr 1fr;
-      gap: 8px;
+    .title-meta .cell {
+      padding: 6px 10px 4px;
+      border-bottom: 1px solid var(--ink);
+      border-right: 1px solid var(--ink);
     }
+    .title-meta .cell:nth-child(2n) { border-right: none; }
+    .title-meta .cell:nth-last-child(-n+2) { border-bottom: none; }
+    .title-meta .key {
+      font-family: var(--condensed);
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 1.6px;
+      color: var(--ink-faint);
+      text-transform: uppercase;
+      display: block;
+      margin-bottom: 1px;
+    }
+    .title-meta .val { font-weight: 500; letter-spacing: 0.5px; }
+    .title-meta .val.accent { color: var(--blueprint); font-weight: 600; }
+
+    /* Tabs as drafting layer indicators */
+    .layers {
+      display: flex;
+      gap: 0;
+      margin-bottom: 22px;
+      border-bottom: 1.5px solid var(--ink);
+    }
+    .layer {
+      flex: 1;
+      background: transparent;
+      border: none;
+      border-right: 1px solid var(--ink);
+      padding: 12px 14px 10px;
+      cursor: pointer;
+      font-family: var(--condensed);
+      font-weight: 500;
+      font-size: 13px;
+      letter-spacing: 1.8px;
+      text-transform: uppercase;
+      text-align: left;
+      color: var(--ink-mid);
+      position: relative;
+      transition: color 0.15s var(--ease-quart), background 0.15s var(--ease-quart);
+    }
+    .layer:last-child { border-right: none; }
+    .layer .layer-num {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--ink-faint);
+      letter-spacing: 0.5px;
+      display: block;
+      margin-bottom: 2px;
+    }
+    .layer:hover { color: var(--ink); background: var(--paper-dim); }
+    .layer.active {
+      color: var(--ink);
+      background: var(--paper);
+      font-weight: 700;
+    }
+    .layer.active::after {
+      content: '';
+      position: absolute;
+      left: 0; right: 0; bottom: -1.5px;
+      height: 3px;
+      background: var(--blueprint);
+    }
+    .layer.active .layer-num { color: var(--blueprint); font-weight: 600; }
+
+    .pane { display: none; }
+    .pane.active {
+      display: block;
+      animation: rise 0.5s var(--ease-quart) both;
+    }
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Drawing block — engineering-drawing card */
+    .block {
+      position: relative;
+      padding: 22px 24px 20px;
+      margin-bottom: 22px;
+      background: var(--paper);
+      border: 1px solid var(--ink);
+      animation: rise 0.5s var(--ease-quart) both;
+    }
+    .pane.active .block:nth-child(1) { animation-delay: 0.05s; }
+    .pane.active .block:nth-child(2) { animation-delay: 0.12s; }
+    .pane.active .block:nth-child(3) { animation-delay: 0.19s; }
+    .pane.active .block:nth-child(4) { animation-delay: 0.26s; }
+
+    /* Corner brackets on each block */
+    .block::before, .block::after,
+    .block > .br, .block > .bl {
+      content: '';
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      border: 1.5px solid var(--blueprint);
+    }
+    .block::before { top: -3px; left: -3px; border-right: none; border-bottom: none; }
+    .block::after  { top: -3px; right: -3px; border-left: none; border-bottom: none; }
+    .block > .br   { bottom: -3px; right: -3px; border-left: none; border-top: none; }
+    .block > .bl   { bottom: -3px; left: -3px; border-right: none; border-top: none; }
+
+    .block-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--ink);
+    }
+    .block-title {
+      font-family: var(--display);
+      font-weight: 700;
+      font-size: 22px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--ink);
+    }
+    .block-detail {
+      font-family: var(--condensed);
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      font-weight: 600;
+    }
+    .block-detail .id {
+      color: var(--blueprint);
+      font-family: var(--mono);
+      font-size: 11px;
+      margin-left: 6px;
+      font-weight: 600;
+    }
+
+    /* Field — drafting form slot */
+    .field { margin-bottom: 14px; }
+    .field:last-child { margin-bottom: 0; }
+    .field > label {
+      display: block;
+      font-family: var(--condensed);
+      font-weight: 600;
+      font-size: 10px;
+      letter-spacing: 1.8px;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      margin-bottom: 4px;
+    }
+    .input, .field input, .field select {
+      width: 100%;
+      background: transparent;
+      border: none;
+      border-bottom: 1.5px solid var(--ink);
+      color: var(--ink);
+      font-family: var(--mono);
+      font-size: 16px;
+      font-weight: 500;
+      padding: 6px 0 5px;
+      transition: border-color 0.15s var(--ease-quart), background 0.15s var(--ease-quart);
+    }
+    .field input::placeholder { color: var(--ink-ghost); font-style: italic; }
+    .input:focus, .field input:focus, .field select:focus {
+      outline: none;
+      border-bottom-color: var(--blueprint);
+      background: rgba(31, 78, 122, 0.04);
+    }
+    .field input[type="text"] { font-family: var(--sans); }
+
+    .input-row { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+    .input-row-3 { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 14px; }
+
     .suffix-wrap { position: relative; }
     .suffix {
       position: absolute;
-      right: 10px;
-      top: 50%;
-      transform: translateY(-50%);
-      color: var(--muted);
-      font-size: 12px;
-      font-family: var(--mono);
+      right: 0;
+      bottom: 7px;
+      font-family: var(--condensed);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: var(--ink-faint);
       pointer-events: none;
     }
-    .suffix-wrap input { padding-right: 38px; }
+    .suffix-wrap input { padding-right: 50px; }
 
+    /* Filament rows */
     .filament-row {
       display: grid;
-      grid-template-columns: 1fr 90px 90px 36px;
-      gap: 8px;
+      grid-template-columns: 1fr 110px 110px 32px;
+      gap: 16px;
       align-items: end;
-      margin-bottom: 8px;
+      margin-bottom: 16px;
+      padding-bottom: 6px;
+      border-bottom: 1px dotted var(--ink-ghost);
     }
+    .filament-row:last-of-type { border-bottom: none; padding-bottom: 0; }
     .filament-row .field { margin-bottom: 0; }
-    .filament-row input { font-size: 14px; padding: 8px 10px; }
+    .filament-row input { font-size: 15px; }
     .icon-btn {
-      background: var(--bg3);
-      border: 1px solid var(--border);
-      color: var(--muted);
-      border-radius: 6px;
+      background: transparent;
+      border: 1px solid var(--ink-faint);
+      color: var(--ink-mid);
       cursor: pointer;
+      font-family: var(--display);
       font-size: 18px;
-      height: 38px;
-      transition: all 0.15s;
+      font-weight: 700;
+      width: 32px;
+      height: 32px;
+      line-height: 1;
+      padding: 0;
+      transition: all 0.12s var(--ease-quart);
     }
-    .icon-btn:hover { color: var(--danger); border-color: var(--danger); }
+    .icon-btn:hover { color: var(--paper); background: var(--rust); border-color: var(--rust); }
 
+    /* Buttons — stamp / utility flavors */
     .btn {
-      background: var(--accent);
-      color: #000;
-      border: none;
-      border-radius: 6px;
-      padding: 10px 16px;
-      font-family: inherit;
-      font-size: 14px;
-      font-weight: 600;
+      background: var(--ink);
+      color: var(--paper);
+      border: 1px solid var(--ink);
+      padding: 10px 18px 9px;
+      font-family: var(--condensed);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
       cursor: pointer;
-      transition: background 0.15s;
+      transition: all 0.12s var(--ease-quart);
     }
-    .btn:hover { background: var(--accent-dim); }
+    .btn:hover { background: var(--blueprint); border-color: var(--blueprint); }
+    .btn-stamp {
+      background: var(--rust);
+      color: var(--paper);
+      border-color: var(--rust);
+      letter-spacing: 2.5px;
+    }
+    .btn-stamp:hover { background: var(--ink); border-color: var(--ink); }
     .btn-ghost {
       background: transparent;
-      color: var(--accent);
-      border: 1px solid var(--accent);
+      color: var(--ink);
+      border: 1px solid var(--ink);
     }
-    .btn-ghost:hover { background: var(--accent); color: #000; }
+    .btn-ghost:hover { background: var(--ink); color: var(--paper); }
+    .btn-add {
+      background: transparent;
+      color: var(--blueprint);
+      border: 1px dashed var(--blueprint);
+      padding: 8px 14px;
+      letter-spacing: 1.8px;
+      font-size: 12px;
+    }
+    .btn-add:hover { background: var(--blueprint); color: var(--paper); border-style: solid; }
     .btn-danger {
       background: transparent;
-      color: var(--danger);
-      border: 1px solid var(--danger);
+      color: var(--rust);
+      border: 1px solid var(--rust);
     }
-    .btn-danger:hover { background: var(--danger); color: #fff; }
-    .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn-danger:hover { background: var(--rust); color: var(--paper); }
+    .btn-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 
-    .breakdown {
-      font-family: var(--mono);
-      font-size: 14px;
-    }
+    /* Breakdown — dimensioned bill of materials */
+    .breakdown { margin-top: 4px; }
     .breakdown-row {
       display: flex;
-      justify-content: space-between;
-      padding: 8px 0;
-      border-bottom: 1px dashed var(--border);
+      align-items: baseline;
+      gap: 8px;
+      padding: 6px 0;
+      font-family: var(--mono);
+      font-size: 14px;
+      font-variant-numeric: tabular-nums;
     }
-    .breakdown-row:last-of-type { border-bottom: none; }
-    .breakdown-row .label { color: var(--muted); }
-    .breakdown-row .value { color: var(--text); font-weight: 600; }
+    .breakdown-row .label {
+      flex: 0 0 auto;
+      font-family: var(--condensed);
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 1.4px;
+      text-transform: uppercase;
+      color: var(--ink-mid);
+    }
+    .breakdown-row .leader {
+      flex: 1;
+      border-bottom: 1px dotted var(--ink-faint);
+      transform: translateY(-3px);
+      min-width: 24px;
+    }
+    .breakdown-row .value {
+      flex: 0 0 auto;
+      font-weight: 500;
+      color: var(--ink);
+      letter-spacing: 0.3px;
+    }
     .breakdown-row.subtotal {
-      border-bottom: 1px solid var(--border);
-      border-top: 1px solid var(--border);
-      margin-top: 4px;
+      margin-top: 6px;
+      padding-top: 10px;
+      border-top: 1px solid var(--ink);
     }
     .breakdown-row.subtotal .label,
-    .breakdown-row.subtotal .value { color: var(--text); }
-    .breakdown-row.total {
-      border-bottom: none;
-      padding-top: 12px;
-      font-size: 17px;
+    .breakdown-row.subtotal .value {
+      color: var(--ink);
+      font-weight: 600;
     }
-    .breakdown-row.total .label { color: var(--text); font-weight: 600; }
-    .breakdown-row.total .value { color: var(--accent); font-weight: 700; }
+    .breakdown-row.subtotal .value { font-weight: 600; }
 
+    /* Total — stamp style */
+    .total-stamp {
+      margin-top: 18px;
+      padding: 14px 18px;
+      border: 2px solid var(--blueprint);
+      background: var(--paper-dim);
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 12px;
+      position: relative;
+    }
+    .total-stamp::before {
+      content: '';
+      position: absolute;
+      inset: 3px;
+      border: 1px solid var(--blueprint);
+      pointer-events: none;
+    }
+    .total-stamp .label {
+      font-family: var(--display);
+      font-size: 17px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--blueprint);
+    }
+    .total-stamp .value {
+      font-family: var(--mono);
+      font-size: 28px;
+      font-weight: 600;
+      color: var(--ink);
+      letter-spacing: 0.5px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Drop sheet — drawing-sheet upload area */
+    .dropsheet {
+      display: block;
+      position: relative;
+      border: 1.5px dashed var(--blueprint);
+      background: rgba(31, 78, 122, 0.04);
+      padding: 26px 22px;
+      cursor: pointer;
+      margin-bottom: 22px;
+      transition: all 0.15s var(--ease-quart);
+    }
+    .dropsheet:hover, .dropsheet.drag {
+      background: rgba(31, 78, 122, 0.10);
+      border-color: var(--blueprint-bright);
+      border-style: solid;
+    }
+    .dropsheet input { display: none; }
+    .dropsheet .icon {
+      display: inline-block;
+      vertical-align: middle;
+      margin-right: 14px;
+      width: 38px;
+      height: 38px;
+      border: 1.5px solid var(--blueprint);
+      position: relative;
+      transform: rotate(-4deg);
+    }
+    .dropsheet .icon::before {
+      content: '';
+      position: absolute;
+      inset: 4px;
+      border: 1px solid var(--blueprint);
+      opacity: 0.4;
+    }
+    .dropsheet .icon::after {
+      content: '+';
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--display);
+      font-weight: 800;
+      font-size: 26px;
+      color: var(--blueprint);
+      line-height: 1;
+    }
+    .dropsheet .text {
+      display: inline-block;
+      vertical-align: middle;
+    }
+    .dropsheet strong {
+      display: block;
+      font-family: var(--display);
+      font-weight: 700;
+      font-size: 18px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--ink);
+    }
+    .dropsheet .hint {
+      font-family: var(--condensed);
+      font-size: 11px;
+      letter-spacing: 1.6px;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      font-weight: 500;
+      margin-top: 2px;
+    }
+
+    /* Settings: select + dropdown styling */
+    select.input {
+      appearance: none;
+      cursor: pointer;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path fill='%2316202d' d='M0 0l5 6 5-6z'/></svg>");
+      background-repeat: no-repeat;
+      background-position: right 0 center;
+      padding-right: 18px;
+    }
+
+    /* Formula block — drafting note */
+    .formula {
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.9;
+      color: var(--ink-mid);
+      padding-left: 16px;
+      border-left: 2px solid var(--moss);
+      background: rgba(74, 106, 58, 0.05);
+      padding: 10px 14px;
+    }
+    .formula .op { color: var(--ink-faint); }
+    .formula .kw { color: var(--moss); font-weight: 600; }
+
+    /* History */
     .empty {
-      text-align: center;
-      color: var(--muted);
-      padding: 40px 20px;
+      text-align: left;
+      padding: 32px 28px;
+      font-family: var(--condensed);
       font-size: 14px;
+      letter-spacing: 1px;
+      color: var(--ink-faint);
+      border: 1px dashed var(--ink-faint);
+      background: var(--paper-dim);
+    }
+    .empty strong {
+      display: block;
+      font-family: var(--display);
+      font-weight: 700;
+      font-size: 22px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--ink);
+      margin-bottom: 6px;
     }
 
     .history-item {
-      background: var(--bg2);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 12px 14px;
-      margin-bottom: 8px;
       display: grid;
       grid-template-columns: 1fr auto;
-      gap: 10px;
+      gap: 18px;
       align-items: center;
+      padding: 14px 18px;
+      background: var(--paper);
+      border: 1px solid var(--ink);
+      margin-bottom: 10px;
+      position: relative;
+      transition: background 0.12s var(--ease-quart);
+    }
+    .history-item:hover { background: var(--paper-dim); }
+    .history-item::before {
+      content: '';
+      position: absolute;
+      left: -1px; top: -1px; bottom: -1px;
+      width: 4px;
+      background: var(--blueprint);
     }
     .history-name {
-      font-weight: 600;
-      font-size: 15px;
+      font-family: var(--display);
+      font-weight: 700;
+      font-size: 19px;
+      letter-spacing: 0.8px;
+      color: var(--ink);
       margin-bottom: 2px;
     }
     .history-meta {
       font-family: var(--mono);
       font-size: 11px;
-      color: var(--muted);
+      color: var(--ink-faint);
+      letter-spacing: 0.4px;
     }
     .history-price {
       font-family: var(--mono);
-      font-size: 18px;
-      font-weight: 700;
-      color: var(--accent);
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--blueprint);
+      letter-spacing: 0.3px;
+      font-variant-numeric: tabular-nums;
       text-align: right;
     }
     .history-actions {
       display: flex;
-      gap: 6px;
-      margin-top: 4px;
+      gap: 12px;
+      margin-top: 6px;
     }
     .link-btn {
       background: none;
       border: none;
-      color: var(--muted);
-      font-family: inherit;
+      font-family: var(--condensed);
       font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1.6px;
+      text-transform: uppercase;
+      color: var(--ink-mid);
       cursor: pointer;
       padding: 0;
-      text-decoration: underline;
+      transition: color 0.12s var(--ease-quart);
     }
-    .link-btn:hover { color: var(--accent); }
-    .link-btn.danger:hover { color: var(--danger); }
+    .link-btn:hover { color: var(--blueprint); }
+    .link-btn.danger:hover { color: var(--rust); }
 
+    /* Toast — drafting note */
     .toast {
       position: fixed;
-      bottom: 20px;
+      bottom: 28px;
       left: 50%;
-      transform: translateX(-50%);
-      background: var(--accent);
-      color: #000;
-      padding: 10px 18px;
-      border-radius: 6px;
+      transform: translate(-50%, 12px);
+      background: var(--ink);
+      color: var(--paper);
+      padding: 10px 18px 9px;
+      font-family: var(--condensed);
+      font-size: 12px;
       font-weight: 600;
-      font-size: 14px;
+      letter-spacing: 1.8px;
+      text-transform: uppercase;
+      border: 1px solid var(--ink);
+      box-shadow: 3px 3px 0 var(--paper-shadow);
       opacity: 0;
       pointer-events: none;
-      transition: opacity 0.2s;
+      transition: opacity 0.18s var(--ease-quart), transform 0.22s var(--ease-quart);
       z-index: 100;
     }
-    .toast.show { opacity: 1; }
-    .toast.error { background: var(--danger); color: #fff; }
-
-    /* Drop zone */
-    .dropzone {
-      border: 2px dashed var(--border);
-      border-radius: 10px;
-      padding: 18px 14px;
-      text-align: center;
-      color: var(--muted);
-      font-size: 13px;
-      cursor: pointer;
-      background: var(--bg2);
-      margin-bottom: 16px;
-      transition: border-color 0.15s, color 0.15s, background 0.15s;
+    .toast.show {
+      opacity: 1;
+      transform: translate(-50%, 0);
     }
-    .dropzone:hover, .dropzone.drag {
-      border-color: var(--accent);
-      color: var(--accent);
-      background: var(--bg3);
+    .toast.error {
+      background: var(--rust);
+      border-color: var(--rust);
     }
-    .dropzone strong { color: var(--text); }
-    .dropzone-hint { font-size: 11px; margin-top: 4px; }
-    .dropzone input { display: none; }
-
-    select.input {
-      appearance: none;
-      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path fill='%238b949e' d='M0 0l5 6 5-6z'/></svg>");
-      background-repeat: no-repeat;
-      background-position: right 12px center;
-      padding-right: 32px;
+    .toast.stamp {
+      background: var(--rust);
+      border-color: var(--rust);
+      transform: translate(-50%, 12px) rotate(-2deg);
     }
+    .toast.stamp.show { transform: translate(-50%, 0) rotate(-2deg); }
 
-    @media (max-width: 520px) {
-      .filament-row { grid-template-columns: 1fr 70px 70px 32px; gap: 6px; }
-      .filament-row input { font-size: 13px; padding: 7px 8px; }
-      .input-row { grid-template-columns: 1fr; }
-      .container { padding: 14px; }
+    /* Sheet number — bottom-right footer */
+    .sheet-footer {
+      margin-top: 32px;
+      padding-top: 12px;
+      border-top: 1px solid var(--ink-faint);
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-family: var(--condensed);
+      font-size: 10px;
+      letter-spacing: 1.8px;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+    }
+    .sheet-footer .scale { color: var(--blueprint); font-weight: 600; }
+
+    /* Responsive */
+    @media (max-width: 720px) {
+      .page-frame { padding: 18px 16px 60px; }
+      .title-block { grid-template-columns: 1fr; }
+      .title-main { border-right: none; border-bottom: 1px solid var(--ink); }
+      .title-meta { grid-template-columns: 1fr 1fr; }
+      .filament-row { grid-template-columns: 1fr 80px 80px 28px; gap: 10px; }
+      .input-row { grid-template-columns: 1fr; gap: 14px; }
+      .input-row-3 { grid-template-columns: 1fr; gap: 10px; }
+      .layer { padding: 10px 8px 8px; font-size: 11px; letter-spacing: 1.2px; }
+      .layer .layer-num { font-size: 9px; }
+      .total-stamp { flex-direction: column; align-items: flex-start; gap: 4px; }
+      .total-stamp .value { font-size: 24px; }
     }
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1>Print Pricer<span class="dot">.</span></h1>
-    <div class="header-sub">3D print quoting · filament + time + power + margin</div>
-  </div>
+  <div class="page-frame">
+    <div class="corner-mark corner-tl"></div>
+    <div class="corner-mark corner-tr"></div>
+    <div class="corner-mark corner-bl"></div>
+    <div class="corner-mark corner-br"></div>
 
-  <div class="tabs">
-    <button class="tab active" data-pane="calc">Calculate</button>
-    <button class="tab" data-pane="settings">Settings</button>
-    <button class="tab" data-pane="history">History</button>
-  </div>
+    <div class="title-block">
+      <div class="title-main">
+        <h1>Print Pricer</h1>
+        <div class="subtitle">Filament · Time · Power · Margin</div>
+      </div>
+      <div class="title-meta">
+        <div class="cell"><span class="key">Drawing</span><span class="val accent">PP-001</span></div>
+        <div class="cell"><span class="key">Sheet</span><span class="val">01 / 01</span></div>
+        <div class="cell"><span class="key">Scale</span><span class="val">1 : 1</span></div>
+        <div class="cell"><span class="key">Date</span><span class="val" id="title-date">—</span></div>
+      </div>
+    </div>
 
-  <div class="container">
+    <div class="layers">
+      <button class="layer active" data-pane="calc">
+        <span class="layer-num">01</span>Estimate
+      </button>
+      <button class="layer" data-pane="settings">
+        <span class="layer-num">02</span>Defaults
+      </button>
+      <button class="layer" data-pane="history">
+        <span class="layer-num">03</span>Archive
+      </button>
+    </div>
 
-    <!-- CALCULATE PANE -->
+    <!-- LAYER 01 — ESTIMATE -->
     <div class="pane active" id="pane-calc">
-      <label class="dropzone" id="dropzone">
-        <div><strong>Drop a project file</strong> or click to upload</div>
-        <div class="dropzone-hint">.gcode, .gco, .3mf — auto-fills print time and filament weights</div>
+      <label class="dropsheet" id="dropzone">
+        <span class="icon"></span>
+        <span class="text">
+          <strong>Drop project file</strong>
+          <span class="hint">.gcode · .gco · .3mf — auto-fills time and filament</span>
+        </span>
         <input type="file" id="file-input" accept=".gcode,.gco,.g,.3mf">
       </label>
 
-      <div class="card">
-        <h2>Print</h2>
+      <section class="block">
+        <span class="bl"></span><span class="br"></span>
+        <header class="block-head">
+          <h2 class="block-title">Print</h2>
+          <div class="block-detail">Detail<span class="id">A</span></div>
+        </header>
         <div class="field">
-          <label>Name (optional)</label>
+          <label>Description</label>
           <input type="text" id="print-name" placeholder="e.g. Articulated dragon">
         </div>
         <div class="input-row">
@@ -368,45 +811,57 @@
             <input type="number" id="time-m" min="0" max="59" step="1" placeholder="0">
           </div>
         </div>
-      </div>
+      </section>
 
-      <div class="card">
-        <h2>Filaments</h2>
+      <section class="block">
+        <span class="bl"></span><span class="br"></span>
+        <header class="block-head">
+          <h2 class="block-title">Filaments</h2>
+          <div class="block-detail">Detail<span class="id">B</span></div>
+        </header>
         <div id="filaments"></div>
-        <button class="btn btn-ghost" id="add-filament" style="margin-top: 8px;">+ Add filament</button>
-      </div>
+        <button class="btn btn-add" id="add-filament" style="margin-top: 14px;">+ Add filament</button>
+      </section>
 
-      <div class="card">
-        <h2>Breakdown</h2>
+      <section class="block">
+        <span class="bl"></span><span class="br"></span>
+        <header class="block-head">
+          <h2 class="block-title">Cost Breakdown</h2>
+          <div class="block-detail">Bill of materials<span class="id">C</span></div>
+        </header>
         <div class="breakdown" id="breakdown">
-          <div class="breakdown-row"><span class="label">Filament</span><span class="value" id="bd-filament">$0.00</span></div>
-          <div class="breakdown-row"><span class="label">Electricity</span><span class="value" id="bd-power">$0.00</span></div>
-          <div class="breakdown-row"><span class="label">Time (machine/labor)</span><span class="value" id="bd-time">$0.00</span></div>
-          <div class="breakdown-row subtotal"><span class="label">Subtotal</span><span class="value" id="bd-subtotal">$0.00</span></div>
-          <div class="breakdown-row"><span class="label" id="bd-failure-label">Failure markup (0%)</span><span class="value" id="bd-failure">$0.00</span></div>
-          <div class="breakdown-row"><span class="label" id="bd-margin-label">Profit margin (0%)</span><span class="value" id="bd-margin">$0.00</span></div>
-          <div class="breakdown-row total"><span class="label">Total price</span><span class="value" id="bd-total">$0.00</span></div>
+          <div class="breakdown-row"><span class="label">Filament</span><span class="leader"></span><span class="value" id="bd-filament">$0.00</span></div>
+          <div class="breakdown-row"><span class="label">Electricity</span><span class="leader"></span><span class="value" id="bd-power">$0.00</span></div>
+          <div class="breakdown-row"><span class="label">Time (machine / labor)</span><span class="leader"></span><span class="value" id="bd-time">$0.00</span></div>
+          <div class="breakdown-row subtotal"><span class="label">Subtotal</span><span class="leader"></span><span class="value" id="bd-subtotal">$0.00</span></div>
+          <div class="breakdown-row"><span class="label" id="bd-failure-label">Failure markup (0%)</span><span class="leader"></span><span class="value" id="bd-failure">$0.00</span></div>
+          <div class="breakdown-row"><span class="label" id="bd-margin-label">Profit margin (0%)</span><span class="leader"></span><span class="value" id="bd-margin">$0.00</span></div>
         </div>
-        <div class="btn-row" style="margin-top: 14px;">
-          <button class="btn" id="save-quote">Save to history</button>
-          <button class="btn btn-ghost" id="reset-quote">Reset</button>
+        <div class="total-stamp">
+          <span class="label">Estimated price</span>
+          <span class="value" id="bd-total">$0.00</span>
         </div>
-      </div>
+        <div class="btn-row" style="margin-top: 18px;">
+          <button class="btn btn-stamp" id="save-quote">Stamp &amp; Archive</button>
+          <button class="btn btn-ghost" id="reset-quote">Reset Sheet</button>
+        </div>
+      </section>
     </div>
 
-    <!-- SETTINGS PANE -->
+    <!-- LAYER 02 — DEFAULTS -->
     <div class="pane" id="pane-settings">
-      <div class="card">
-        <h2>Defaults</h2>
-        <p style="font-size: 13px; color: var(--muted); margin-bottom: 14px;">
-          These pre-fill new quotes. Saved to your browser.
-        </p>
+      <section class="block">
+        <span class="bl"></span><span class="br"></span>
+        <header class="block-head">
+          <h2 class="block-title">Defaults</h2>
+          <div class="block-detail">Configuration<span class="id">A</span></div>
+        </header>
 
         <div class="field">
           <label>Default filament cost</label>
           <div class="suffix-wrap">
             <input type="number" id="s-filament-cost" min="0" step="0.01" placeholder="25.00">
-            <span class="suffix">$/kg</span>
+            <span class="suffix">$ / kg</span>
           </div>
         </div>
 
@@ -429,16 +884,16 @@
             <label>Electricity rate</label>
             <div class="suffix-wrap">
               <input type="number" id="s-kwh" min="0" step="0.001" placeholder="0.150">
-              <span class="suffix">$/kWh</span>
+              <span class="suffix">$ / kWh</span>
             </div>
           </div>
         </div>
 
         <div class="field">
-          <label>Hourly machine/labor rate</label>
+          <label>Hourly machine / labor rate</label>
           <div class="suffix-wrap">
             <input type="number" id="s-rate" min="0" step="0.01" placeholder="2.00">
-            <span class="suffix">$/hr</span>
+            <span class="suffix">$ / hr</span>
           </div>
         </div>
 
@@ -459,39 +914,65 @@
           </div>
         </div>
 
-        <div class="btn-row" style="margin-top: 14px;">
-          <button class="btn" id="save-settings">Save settings</button>
+        <div class="btn-row" style="margin-top: 18px;">
+          <button class="btn" id="save-settings">Commit settings</button>
           <button class="btn btn-danger" id="reset-settings">Reset to blank</button>
         </div>
-      </div>
+      </section>
 
-      <div class="card">
-        <h2>How costs are calculated</h2>
-        <div style="font-family: var(--mono); font-size: 12px; color: var(--muted); line-height: 1.7;">
-          filament = Σ (grams ÷ 1000 × $/kg)<br>
-          electricity = (watts ÷ 1000) × hours × $/kWh<br>
-          time cost = hours × $/hr<br>
-          subtotal = filament + electricity + time cost<br>
-          failure = subtotal × failure %<br>
-          margin = (subtotal + failure) × margin %<br>
-          total = subtotal + failure + margin
+      <section class="block">
+        <span class="bl"></span><span class="br"></span>
+        <header class="block-head">
+          <h2 class="block-title">Cost Formula</h2>
+          <div class="block-detail">Reference note<span class="id">B</span></div>
+        </header>
+        <div class="formula">
+<span class="kw">filament</span>     <span class="op">=</span>  Σ ( grams ÷ 1000 × $/kg )<br>
+<span class="kw">electricity</span>  <span class="op">=</span>  ( watts ÷ 1000 ) × hours × $/kWh<br>
+<span class="kw">time cost</span>    <span class="op">=</span>  hours × $/hr<br>
+<span class="kw">subtotal</span>     <span class="op">=</span>  filament <span class="op">+</span> electricity <span class="op">+</span> time<br>
+<span class="kw">failure</span>      <span class="op">=</span>  subtotal × failure %<br>
+<span class="kw">margin</span>       <span class="op">=</span>  ( subtotal <span class="op">+</span> failure ) × margin %<br>
+<span class="kw">total</span>        <span class="op">=</span>  subtotal <span class="op">+</span> failure <span class="op">+</span> margin
         </div>
-      </div>
+      </section>
     </div>
 
-    <!-- HISTORY PANE -->
+    <!-- LAYER 03 — ARCHIVE -->
     <div class="pane" id="pane-history">
-      <div id="history-list"></div>
-      <div class="btn-row" id="history-actions" style="display: none; margin-top: 12px;">
-        <button class="btn btn-danger" id="clear-history">Clear all history</button>
-      </div>
+      <section class="block">
+        <span class="bl"></span><span class="br"></span>
+        <header class="block-head">
+          <h2 class="block-title">Archive</h2>
+          <div class="block-detail">Saved estimates<span class="id">A</span></div>
+        </header>
+        <div id="history-list"></div>
+        <div class="btn-row" id="history-actions" style="display: none; margin-top: 16px;">
+          <button class="btn btn-danger" id="clear-history">Clear archive</button>
+        </div>
+      </section>
     </div>
+
+    <footer class="sheet-footer">
+      <span>Print Pricer · DWG-PP-001</span>
+      <span class="scale">Sheet 01 / 01</span>
+      <span>Drawn locally · Stored in browser</span>
+    </footer>
 
   </div>
 
   <div class="toast" id="toast"></div>
 
   <script>
+    // Title-block date
+    (function setDate() {
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      document.getElementById('title-date').textContent = `${y}.${m}.${day}`;
+    })();
+
     const SETTINGS_KEY = 'printpricer:settings';
     const HISTORY_KEY = 'printpricer:history';
 
@@ -543,6 +1024,7 @@
       hourlyRate: '',
       failurePct: '',
       marginPct: '',
+      printerPreset: '',
     };
 
     let settings = loadSettings();
@@ -566,9 +1048,9 @@
     }
 
     // ---------- TABS ----------
-    document.querySelectorAll('.tab').forEach(tab => {
+    document.querySelectorAll('.layer').forEach(tab => {
       tab.addEventListener('click', () => {
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.layer').forEach(t => t.classList.remove('active'));
         document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
         tab.classList.add('active');
         document.getElementById('pane-' + tab.dataset.pane).classList.add('active');
@@ -689,7 +1171,6 @@
       document.getElementById('s-printer-preset').value = settings.printerPreset || '';
     }
 
-    // Populate printer preset dropdown
     (function buildPresets() {
       const sel = document.getElementById('s-printer-preset');
       PRINTER_PRESETS.forEach(g => {
@@ -710,6 +1191,7 @@
         if (w > 0) document.getElementById('s-watts').value = w;
       });
     })();
+
     document.getElementById('save-settings').addEventListener('click', () => {
       settings.filamentCost = document.getElementById('s-filament-cost').value;
       settings.watts = document.getElementById('s-watts').value;
@@ -722,7 +1204,7 @@
       filaments.forEach(f => { if (!f.costPerKg) f.costPerKg = settings.filamentCost || ''; });
       renderFilaments();
       recalc();
-      toast('Settings saved');
+      toast('Settings committed');
     });
     document.getElementById('reset-settings').addEventListener('click', () => {
       if (!confirm('Reset all defaults to blank?')) return;
@@ -737,7 +1219,7 @@
     document.getElementById('save-quote').addEventListener('click', () => {
       const result = recalc();
       if (result.total <= 0) {
-        toast('Enter values first');
+        toast('Enter values first', true);
         return;
       }
       const name = document.getElementById('print-name').value.trim() || 'Untitled print';
@@ -763,7 +1245,7 @@
       const h = loadHistory();
       h.unshift(entry);
       saveHistory(h);
-      toast('Saved to history');
+      toast('Stamped & archived', false, 'stamp');
     });
     document.getElementById('reset-quote').addEventListener('click', () => {
       document.getElementById('print-name').value = '';
@@ -780,7 +1262,7 @@
       const list = document.getElementById('history-list');
       const actions = document.getElementById('history-actions');
       if (h.length === 0) {
-        list.innerHTML = '<div class="empty">No saved quotes yet.<br>Calculate a print and tap "Save to history".</div>';
+        list.innerHTML = '<div class="empty"><strong>Empty archive</strong>Estimate a print and tap "Stamp &amp; Archive" to record it here.</div>';
         actions.style.display = 'none';
         return;
       }
@@ -788,13 +1270,13 @@
       list.innerHTML = '';
       h.forEach(e => {
         const d = new Date(e.date);
-        const dateStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const dateStr = d.toLocaleDateString() + ' · ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         const item = document.createElement('div');
         item.className = 'history-item';
         item.innerHTML = `
           <div>
             <div class="history-name">${escapeHtml(e.name)}</div>
-            <div class="history-meta">${dateStr} · ${e.grams.toFixed(1)}g · ${formatHours(e.hours)}</div>
+            <div class="history-meta">${dateStr} · ${e.grams.toFixed(1)} g · ${formatHours(e.hours)}</div>
             <div class="history-actions">
               <button class="link-btn" data-load="${e.id}">Load</button>
               <button class="link-btn danger" data-del="${e.id}">Delete</button>
@@ -828,20 +1310,20 @@
       filaments = e.filaments.length ? e.filaments.map(f => ({ ...f })) : [newFilament()];
       renderFilaments();
       recalc();
-      document.querySelector('.tab[data-pane="calc"]').click();
+      document.querySelector('.layer[data-pane="calc"]').click();
       toast('Loaded "' + e.name + '"');
     }
     function deleteFromHistory(id) {
-      if (!confirm('Delete this quote?')) return;
+      if (!confirm('Delete this entry?')) return;
       const h = loadHistory().filter(x => x.id !== id);
       saveHistory(h);
       renderHistory();
     }
     document.getElementById('clear-history').addEventListener('click', () => {
-      if (!confirm('Delete all saved quotes? This cannot be undone.')) return;
+      if (!confirm('Clear all archived estimates? This cannot be undone.')) return;
       saveHistory([]);
       renderHistory();
-      toast('History cleared');
+      toast('Archive cleared');
     });
 
     // ---------- UTIL ----------
@@ -851,10 +1333,11 @@
       }[c]));
     }
     let toastTimer;
-    function toast(msg, isError) {
+    function toast(msg, isError, variant) {
       const t = document.getElementById('toast');
       t.textContent = msg;
       t.classList.toggle('error', !!isError);
+      t.classList.toggle('stamp', variant === 'stamp');
       t.classList.add('show');
       clearTimeout(toastTimer);
       toastTimer = setTimeout(() => t.classList.remove('show'), isError ? 3000 : 1800);
@@ -875,14 +1358,12 @@
     }
 
     function parseGcode(text) {
-      // Slicer metadata is usually in the first 16KB or last 64KB
       const head = text.slice(0, 16 * 1024);
       const tail = text.length > 64 * 1024 ? text.slice(-64 * 1024) : text;
       const search = head + '\n' + tail;
 
       const result = { hours: 0, filaments: [] };
 
-      // Print time
       let m = search.match(/;\s*estimated printing time(?:\s*\(normal mode\))?\s*=\s*([^\r\n]+)/i)
             || search.match(/;\s*total estimated time\s*[:=]\s*([^\r\n]+)/i)
             || search.match(/;\s*Print time\s*[:=]\s*([^\r\n]+)/i);
@@ -893,7 +1374,6 @@
         if (t) result.hours = parseInt(t[1]) / 3600;
       }
 
-      // Filament weights (grams) — comma-separated for multi-material
       let weights = [];
       const fm = search.match(/;\s*(?:total\s+)?filament[\s_]used\s*\[g\]\s*=\s*([\d.,\s]+)/i)
               || search.match(/;\s*filament[\s_]weight\s*[:=]\s*([\d.,\s]+)/i);
@@ -901,7 +1381,6 @@
         weights = fm[1].split(',').map(s => parseFloat(s.trim())).filter(n => isFinite(n) && n > 0);
       }
 
-      // Filament types
       let types = [];
       const tm = search.match(/;\s*filament_type\s*=\s*([^\r\n]+)/i);
       if (tm) types = tm[1].split(/[,;]/).map(s => s.trim()).filter(Boolean);
@@ -920,7 +1399,6 @@
       const zip = await JSZip.loadAsync(file);
       const result = { hours: 0, filaments: [] };
 
-      // Bambu / Orca: Metadata/slice_info.config
       const sliceInfo = zip.file('Metadata/slice_info.config') || zip.file('metadata/slice_info.config');
       if (sliceInfo) {
         const xml = await sliceInfo.async('string');
@@ -945,7 +1423,6 @@
         if (pred) result.hours = parseInt(pred[1]) / 3600;
       }
 
-      // Fallback: any embedded gcode file inside the 3MF
       if (result.hours === 0 || result.filaments.length === 0) {
         const gcodeName = Object.keys(zip.files).find(n => /\.gcode$/i.test(n));
         if (gcodeName) {
@@ -973,7 +1450,7 @@
         }
 
         if (!parsed.hours && parsed.filaments.length === 0) {
-          throw new Error('Could not find time or filament data in this file');
+          throw new Error('No time or filament data found in this file');
         }
 
         if (parsed.hours > 0) {
@@ -993,7 +1470,7 @@
         const parts = [];
         if (parsed.hours) parts.push(formatHours(parsed.hours));
         if (parsed.filaments.length) parts.push(`${parsed.filaments.length} filament${parsed.filaments.length > 1 ? 's' : ''}`);
-        toast(`Loaded ${file.name} — ${parts.join(', ')}`);
+        toast(`Loaded · ${parts.join(' · ')}`);
       } catch (err) {
         toast(err.message || 'Could not parse file', true);
       }
