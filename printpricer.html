@@ -2929,9 +2929,12 @@
       const sliceInfo = await readByRegex(/slice_info\.config$/i);
       if (sliceInfo) {
         const xml = sliceInfo.text;
-        const filamentTags = xml.match(/<filament\b[^>]*\/?>/gi) || [];
-        filamentTags.forEach(tag => {
-          const g = tag.match(/used_g\s*=\s*"([^"]+)"/i);
+        // Match any <filament ...> open tag (self-closing or not). Be lenient
+        // about whitespace and missing trailing slash.
+        const filamentTags = xml.match(/<filament\b[^>]*?>/gi) || [];
+        console.log(`[3MF] slice_info.config: ${filamentTags.length} <filament> tags found at ${sliceInfo.path}`);
+        filamentTags.forEach((tag, idx) => {
+          const g = tag.match(/\bused_g\s*=\s*"([^"]+)"/i);
           const t = tag.match(/\btype\s*=\s*"([^"]+)"/i);
           const c = tag.match(/\bcolor\s*=\s*"([^"]+)"/i);
           if (g) {
@@ -2939,7 +2942,7 @@
             if (isFinite(grams) && grams > 0) {
               const name = [t?.[1], c?.[1] && !/^#FFFFFFFF$/i.test(c[1]) ? c[1] : ''].filter(Boolean).join(' ');
               result.filaments.push({
-                name: name || 'Filament',
+                name: name || `Filament ${idx + 1}`,
                 grams: grams.toFixed(2),
                 costPerKg: settings.filamentCost || '',
               });
@@ -2952,12 +2955,16 @@
           const totalSec = preds.reduce((s, m) => s + parseInt(m[1]), 0);
           result.hours = totalSec / 3600;
         }
+        console.log(`[3MF] slice_info parsed → ${result.filaments.length} filaments, ${result.hours.toFixed(2)}h`);
+      } else {
+        console.log('[3MF] no slice_info.config found in zip');
       }
 
       // ---- Strategy 2: Bambu plate_*.json ----
       if (result.filaments.length === 0 || result.hours === 0) {
         const plateJson = await readByRegex(/plate[_-]?\d*\.json$/i);
         if (plateJson) {
+          console.log(`[3MF] trying plate JSON: ${plateJson.path}`);
           try {
             const data = JSON.parse(plateJson.text);
             if (!result.hours && data.prediction) result.hours = data.prediction / 3600;
@@ -2967,7 +2974,7 @@
               data.filament_use_g.forEach((g, i) => {
                 const grams = parseFloat(g);
                 if (isFinite(grams) && grams > 0) {
-                  const name = [types[i], colors[i]].filter(Boolean).join(' ') || 'Filament';
+                  const name = [types[i], colors[i]].filter(Boolean).join(' ') || `Filament ${i + 1}`;
                   result.filaments.push({
                     name,
                     grams: grams.toFixed(2),
@@ -2975,8 +2982,9 @@
                   });
                 }
               });
+              console.log(`[3MF] plate JSON → ${result.filaments.length} filaments`);
             }
-          } catch { /* not JSON we recognize */ }
+          } catch (e) { console.log('[3MF] plate JSON not parseable:', e.message); }
         }
       }
 
@@ -3069,9 +3077,9 @@
           filaments = parsed.filaments;
           renderFilaments();
         }
-        if (!document.getElementById('print-name').value.trim()) {
-          document.getElementById('print-name').value = file.name.replace(/\.[^.]+$/, '');
-        }
+        // Always update description from the new file's name. Replaces any
+        // previous filename (so loading dragon.3mf then cat.3mf shows "cat").
+        document.getElementById('print-name').value = file.name.replace(/\.[^.]+$/, '');
         recalc();
         const parts = [];
         if (parsed.hours) parts.push(formatHours(parsed.hours));
