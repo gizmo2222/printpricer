@@ -2916,7 +2916,14 @@
 
       let totalMm3 = 0;
       let totalObjects = 0;
-      const areaByColor = new Map();
+      // Per-color VOLUME share (mm³) — not surface-area share. For each
+      // object, if the whole object is one color (typical multi-part print
+      // with model_settings.config extruder map), the object's full volume
+      // is attributed to that color. If the object has multiple paint_color
+      // values within it (true MMU painted), that single object's volume is
+      // split by surface-area share within the object only.
+      const volByColor = new Map();
+      function add(map, key, val) { map.set(key, (map.get(key) || 0) + val); }
 
       for (const mp of modelPaths) {
         let xml;
@@ -2924,17 +2931,35 @@
         catch { continue; }
         const objs = objectsWithMesh(xml);
         for (const o of objs) {
-          totalMm3 += meshVolumeMm3(o.verts, o.tris, null);
+          const objVol = meshVolumeMm3(o.verts, o.tris, null);
+          if (!isFinite(objVol) || objVol <= 0) continue;
+          totalMm3 += objVol;
           totalObjects++;
+
+          // Surface area per color WITHIN this object only
+          const objAreaByColor = new Map();
           for (const t of o.tris) {
             const a = o.verts[t.v1], b = o.verts[t.v2], c = o.verts[t.v3];
-            const area = triArea(a, b, c);
-            areaByColor.set(t.color, (areaByColor.get(t.color) || 0) + area);
+            add(objAreaByColor, t.color, triArea(a, b, c));
+          }
+
+          if (objAreaByColor.size === 1) {
+            // Whole object is one color — attribute its full volume to that color.
+            const color = [...objAreaByColor.keys()][0];
+            add(volByColor, color, objVol);
+          } else {
+            // Mixed paint within one mesh — split this object's volume
+            // by its internal surface-area share. Approximate; only fires
+            // for true MMU painted objects.
+            const totalObjArea = [...objAreaByColor.values()].reduce((s, a) => s + a, 0) || 1;
+            for (const [color, area] of objAreaByColor) {
+              add(volByColor, color, objVol * (area / totalObjArea));
+            }
           }
         }
       }
 
-      const distinctColors = areaByColor.size;
+      const distinctColors = volByColor.size;
       console.log(`[3MF estimate] scanned ${modelPaths.length} .model file(s), ` +
                   `found ${totalObjects} object(s) with mesh data, ` +
                   `total volume ${(totalMm3/1000).toFixed(2)} cm³, ` +
@@ -2972,14 +2997,15 @@
           costPerKg: settings.filamentCost || '',
         });
       } else {
-        const totalArea = [...areaByColor.values()].reduce((s, a) => s + a, 0) || 1;
-        // Sort by area descending so the dominant material is row 1
-        const sorted = [...areaByColor.entries()].sort((a, b) => b[1] - a[1]);
-        sorted.forEach(([color, area], idx) => {
-          const share = area / totalArea;
+        // Per-color VOLUME share (not surface-area). volByColor was built
+        // above per-object: monochrome objects contribute their full volume
+        // to one color; truly painted objects split their volume by
+        // internal surface-area share.
+        const totalVol = [...volByColor.values()].reduce((s, v) => s + v, 0) || 1;
+        const sorted = [...volByColor.entries()].sort((a, b) => b[1] - a[1]);
+        sorted.forEach(([color, vol], idx) => {
+          const share = vol / totalVol;
           const grams = totalG * share;
-          // Drop only truly negligible regions (< 0.1% of surface AND < 0.005g).
-          // Previous threshold of 0.05g was filtering accent-color rows on small prints.
           if (share < 0.001 && grams < 0.005) return;
           const label = filamentLabels[+color] || filamentLabels[color] || null;
           const name = label
@@ -2991,9 +3017,8 @@
             costPerKg: settings.filamentCost || '',
           });
         });
-        // Also log every region's share for diagnostic when something looks off.
-        console.log('[3MF estimate] paint regions by area share:',
-          sorted.map(([c, a]) => `${c}=${(a / totalArea * 100).toFixed(1)}%`).join(' '));
+        console.log('[3MF estimate] paint regions by volume share:',
+          sorted.map(([c, v]) => `${c}=${(v / totalVol * 100).toFixed(1)}%`).join(' '));
       }
 
       console.log(`[3MF estimate] density: ${density} g/cm³, fill: ${fillPct}%, ` +
