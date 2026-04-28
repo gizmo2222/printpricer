@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Print Pricer · DWG-001</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</head>
+<body>
+  <div class="page-frame">
+    <div class="corner-mark corner-tl"></div>
+    <div class="corner-mark corner-tr"></div>
+    <div class="corner-mark corner-bl"></div>
+    <div class="corner-mark corner-br"></div>
+
+    <div class="account-pill-wrap">
+      <span id="sync-indicator"></span>
+      <button class="account-pill" id="account-pill" type="button">
+        <span class="dot"></span>
+        <span class="who" id="account-who">Local mode</span>
+      </button>
+    </div>
+
+    <div class="title-block">
+      <div class="title-main">
+        <h1>Print Pricer</h1>
+        <div class="subtitle">Filament · Time · Power · Margin</div>
+      </div>
+      <div class="title-meta title-meta-with-account">
+        <div class="cell"><span class="key">Drawing</span><span class="val accent">PP-001</span></div>
+        <div class="cell"><span class="key">Sheet</span><span class="val">01 / 01</span></div>
+        <div class="cell"><span class="key">Scale</span><span class="val">1 : 1</span></div>
+        <div class="cell"><span class="key">Date</span><span class="val" id="title-date">—</span></div>
+      </div>
+    </div>
+
+    <div class="layers">
+      <button class="layer active" data-pane="calc"><span class="layer-num">01</span>Estimate</button>
+      <button class="layer"        data-pane="spools"><span class="layer-num">02</span>Spools</button>
+      <button class="layer"        data-pane="printers"><span class="layer-num">03</span>Printers</button>
+      <button class="layer"        data-pane="settings"><span class="layer-num">04</span>Defaults</button>
+      <button class="layer"        data-pane="history"><span class="layer-num">05</span>Archive</button>
+    </div>
+
+    <!-- LAYER 01 — ESTIMATE -->
+    <div class="pane active" id="pane-calc">
+      <label class="dropsheet" id="dropzone">
+        <span class="icon"></span>
+        <span class="text">
+          <strong>Drop project file</strong>
+          <span class="hint">.gcode · .gco · .3mf — auto-fills time and filament</span>
+        </span>
+        <input type="file" id="file-input" accept=".gcode,.gco,.g,.3mf">
+      </label>
+
+      <section class="block">
+        <span class="bl"></span><span class="br"></span>
+        <header class="block-head">
+          <h2 class="block-title">Print</h2>
+          <div class="block-detail">Detail<span class="id">A</span></div>
+        </header>
+        <div class="field">
+          <label>Printer</label>
+          <div style="display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;">
+            <span id="active-printer-display" style="font-family: var(--display); font-size: 18px; font-weight: 700; letter-spacing: 0.5px; color: var(--ink);">— none selected —</span>
+            <button type="button" class="pick-spool-btn" id="pick-printer-btn">Pick printer</button>
+          </div>
+          <div id="active-printer-meta" style="font-family: var(--mono); font-size: 11px; color: var(--ink-faint); letter-spacing: 0.3px; margin-top: 4px;"></div>
+        </div>
+        <div class="field">
+          <label>Description</label>
+          <input type="text" id="print-name" placeholder="e.g. Articulated dragon">
+        </div>
+        <div class="input-row">
+          <div class="field">
+            <label>Print time — hours</label>
+            <input type="number" id="time-h" min="0" step="1" placeholder="0">
+          </div>
+          <div class="field">
+            <label>Print time — minutes</label>
+            <input type="number" id="time-m" min="0" max="59" step="1" placeholder="0">
+          </div>
+        </div>
+      </section>
+
+      <section class="block">
+        <span class="bl"></span><span class="br"></span>
+        <header class="block-head">
+          <h2 class="block-title">Filaments</h2>
+          <div class="block-detail">Detail<span class="id">B</span></div>
+        </header>
+        <div id="filaments"></div>
+        <button class="btn btn-add" id="add-filament" style="margin-top: 14px;">+ Add filament</button>
+      </section>
+
+      <section class="block">
+        <span class="bl"></span><span class="br"></span>
+        <header class="block-head">
+          <h2 class="block-title">Cost Breakdown</h2>
+          <div class="block-detail">Bill of materials<span class="id">C</span></div>
+        </header>
+        <div class="breakdown" id="breakdown">
+          <div class="breakdown-row"><span class="label">Filament</span><span class="leader"></span><span class="value" id="bd-filament">$0.00</span></div>
+          <div class="breakdown-row"><span class="label">Electricity</span><span class="leader"></span><span class="value" id="bd-power">$0.00</span></div>
+          <div class="breakdown-row"><span class="label">Time (machine / labor)</span><span class="leader"></span><span class="value" id="bd-time">$0.00</span></div>
+          <div class="breakdown-row subtotal"><span class="label">Subtotal</span><span class="leader"></span><span class="value" id="bd-subtotal">$0.00</span></div>
+          <div class="breakdown-row"><span class="label" id="bd-failure-label">Failure markup (0%)</span><span class="leader"></span><span class="value" id="bd-failure">$0.00</span></div>
+          <div class="breakdown-row"><span class="label" id="bd-margin-label">Profit margin (0%)</span><span class="leader"></span><span class="value" id="bd-margin">$0.00</span></div>
+        </div>
+        <div class="total-stamp">
+          <span class="label">Estimated price</span>
+          <span class="value" id="bd-total">$0.00</span>
+        </div>
+        <div class="btn-row" style="margin-top: 18px;">
+          <button class="btn btn-stamp" id="save-quote">Stamp &amp; Archive</button>
+          <button class="btn btn-ghost" id="reset-quote">Reset Sheet</button>
+        </div>
+      </section>
+    </div>
+
+    <!-- LAYER 02 — SPOOLS -->
+    <div class="pane" id="pane-spools">
+      <section class="block">
+        <span class="bl"></span><span class="br"></span>
+        <header class="block-head">
+          <h2 class="block-title">Spool Inventory</h2>
+          <div class="block-detail">Filament library<span class="id">A</span></div>
+        </header>
+        <div class="spool-toolbar">
+          <div class="count" id="spool-count">— spools on hand</div>
+          <button class="btn btn-add" id="spool-add-btn">+ New spool</button>
+        </div>
+        <div id="spool-form-container"></div>
+        <div id="spools-grid"></div>
+      </section>
+
+      <section class="block">
+        <span class="bl"></span><span class="br"></span>
+        <header class="block-head">
+          <h2 class="block-title">How it links</h2>
+          <div class="block-detail">Reference note<span class="id">B</span></div>
+        </header>
+        <div class="formula" style="font-family: var(--sans); font-size: 13px; line-height: 1.65;">
+          On the Estimate sheet, the <span class="kw">type / color</span> field on each filament row is linked to this inventory: type a name that matches a spool, or use <span class="kw">Pick</span> to choose one. Cost auto-fills.<br><br>
+          When you <span class="kw">Stamp &amp; Archive</span> an estimate, grams used are deducted from the linked spools. Spools below 50&nbsp;g are flagged as low. A consumption forecast (based on your last 30 days of archived prints) shows when each spool will run out.
+        </div>
+      </section>
+    </div>
+
+    <!-- LAYER 03 — PRINTERS -->
+    <div class="pane" id="pane-printers">
+      <section class="block">
+        <span class="bl"></span><span class="br"></span>
+        <header class="block-head">
+          <h2 class="block-title">Printers</h2>
+          <div class="block-detail">Workshop fleet<span class="id">A</span></div>
+        </header>
+        <div class="spool-toolbar">
+          <div class="count" id="printer-count">— printers configured</div>
+          <button class="btn btn-add" id="printer-add-btn">+ New printer</button>
+        </div>
+        <div id="printer-form-container"></div>
+        <div id="printers-grid"></div>
+      </section>
+
+      <section class="block">
+        <span class="bl"></span><span class="br"></span>
+        <header class="block-head">
+          <h2 class="block-title">How it links</h2>
+          <div class="block-detail">Reference note<span class="id">B</span></div>
+        </header>
+        <div class="formula" style="font-family: var(--sans); font-size: 13px; line-height: 1.65;">
+          On the Estimate sheet, <span class="kw">Pick printer</span> selects which printer this quote is for. That printer's <span class="kw">wattage</span>, <span class="kw">hourly rate</span>, <span class="kw">throughput</span>, and <span class="kw">multi-color overhead</span> drive the calculation.<br><br>
+          The active selection is per-device — different members of a group can default to different machines. The list of printers is shared across the group.
+        </div>
+      </section>
+    </div>
+
+    <!-- LAYER 04 — DEFAULTS -->
+    <div class="pane" id="pane-settings">
+      <section class="block" id="group-block">
+        <span class="bl"></span><span class="br"></span>
+        <header class="block-head">
+          <h2 class="block-title">Account &amp; Group</h2>
+          <div class="block-detail">Sync &amp; sharing<span class="id">A</span></div>
+        </header>
+
+        <div id="group-content-loggedout">
+          <p style="font-family: var(--sans); font-size: 13px; color: var(--ink-mid); line-height: 1.55; margin-bottom: 14px;">
+            You're in <strong>Local mode</strong> — spools, archive, and defaults live only in this browser. Sign in to sync across devices and share with family/coworkers using the same printer.
+          </p>
+          <div class="btn-row">
+            <button class="btn" id="group-signin-btn">Sign in or create account</button>
+          </div>
+        </div>
+
+        <div id="group-content-loggedin" style="display:none">
+          <div class="account-status">
+            <div class="status-row">
+              <span class="status-label">Account</span>
+              <span class="status-value" id="group-acct-email">—</span>
+            </div>
+            <div class="status-row">
+              <span class="status-label">Group</span>
+              <span class="status-value dim" id="group-acct-name">— not in a group —</span>
+            </div>
+          </div>
+
+          <div id="group-no-group">
+            <p style="font-family: var(--sans); font-size: 13px; color: var(--ink-mid); line-height: 1.55; margin-bottom: 14px;">
+              A group lets multiple people share the same spool inventory, archive, and defaults — useful when you and family/coworkers are using the same printer.
+            </p>
+            <div class="input-row">
+              <div class="field">
+                <label>Create new group</label>
+                <input type="text" id="group-create-name" placeholder="The Workshop" maxlength="40">
+              </div>
+              <div class="field">
+                <label>Or join with code</label>
+                <input type="text" id="group-join-code" placeholder="PR4-9XK" maxlength="8" style="text-transform: uppercase; letter-spacing: 3px; font-family: var(--mono); font-weight: 600;">
+              </div>
+            </div>
+            <div class="btn-row" style="margin-top: 14px;">
+              <button class="btn" id="btn-create-group">Create group</button>
+              <button class="btn btn-ghost" id="btn-join-group">Join with code</button>
+            </div>
+          </div>
+
+          <div id="group-in-group" style="display:none">
+            <div class="status-row" style="margin-top: 8px;">
+              <span class="status-label">Join code</span>
+            </div>
+            <div class="group-code" id="group-code-display">——————</div>
+            <div class="group-code-hint">share this code with anyone using the same printer</div>
+
+            <div class="status-row" style="margin-top: 14px;">
+              <span class="status-label">Members</span>
+            </div>
+            <ul class="member-list" id="group-member-list"></ul>
+
+            <div id="activity-wrap" style="display: none; margin-top: 18px; padding-top: 14px; border-top: 1px dotted var(--ink-faint);">
+              <div style="font-family: var(--condensed); font-size: 10px; font-weight: 600; letter-spacing: 1.6px; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 6px;">Recent activity</div>
+              <div id="activity-list"></div>
+            </div>
+
+            <div class="btn-row" style="margin-top: 16px;">
+              <button class="btn btn-danger" id="btn-leave-group">Leave group</button>
+            </div>
+          </div>
+
+          <div class="btn-row" style="margin-top: 16px; padding-top: 14px; border-top: 1px dotted var(--ink-faint);">
+            <button class="btn btn-ghost" id="btn-acct-signout">Sign out</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="block">
+        <span class="bl"></span><span class="br"></span>
+        <header class="block-head">
+          <h2 class="block-title">Defaults</h2>
+          <div class="block-detail">Configuration<span class="id">B</span></div>
+        </header>
+
+        <div class="field">
+          <label>Default filament cost</label>
+          <div class="suffix-wrap">
+            <input type="number" id="s-filament-cost" min="0" step="0.01" placeholder="25.00">
+            <span class="suffix">$ / kg</span>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Electricity rate</label>
+          <div class="suffix-wrap">
+            <input type="number" id="s-kwh" min="0" step="0.001" placeholder="0.150">
+            <span class="suffix">$ / kWh</span>
+          </div>
+        </div>
+
+        <div class="input-row">
+          <div class="field">
+            <label>Failure rate markup</label>
+            <div class="suffix-wrap">
+              <input type="number" id="s-failure" min="0" max="100" step="1" placeholder="5">
+              <span class="suffix">%</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>Profit margin</label>
+            <div class="suffix-wrap">
+              <input type="number" id="s-margin" min="0" max="500" step="1" placeholder="30">
+              <span class="suffix">%</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top: 18px; padding-top: 14px; border-top: 1px dotted var(--ink-faint);">
+          <div style="font-family: var(--condensed); font-size: 10px; font-weight: 700; letter-spacing: 1.8px; text-transform: uppercase; color: var(--blueprint); margin-bottom: 4px;">Estimate factors</div>
+          <p style="font-family: var(--sans); font-size: 12px; color: var(--ink-mid); line-height: 1.5; margin-bottom: 12px;">
+            Used when a model-only 3MF is dropped (no slicing data). Defaults are PLA on a typical FDM printer.
+          </p>
+          <div class="input-row">
+            <div class="field">
+              <label>Density</label>
+              <div class="suffix-wrap">
+                <input type="number" id="s-est-density" min="0.5" max="3" step="0.01" placeholder="1.24">
+                <span class="suffix">g / cm³</span>
+              </div>
+            </div>
+            <div class="field">
+              <label>Fill fraction</label>
+              <div class="suffix-wrap">
+                <input type="number" id="s-est-fill" min="1" max="100" step="1" placeholder="30">
+                <span class="suffix">%</span>
+              </div>
+            </div>
+          </div>
+          <p style="font-family: var(--sans); font-size: 11px; color: var(--ink-faint); margin-top: 8px; line-height: 1.5;">
+            <em>Throughput</em> and <em>multi-color time overhead</em> live on each printer in layer 03.
+          </p>
+        </div>
+
+        <div class="btn-row" style="margin-top: 18px;">
+          <button class="btn" id="save-settings">Commit settings</button>
+          <button class="btn btn-danger" id="reset-settings">Reset to blank</button>
+        </div>
+      </section>
+
+      <section class="block">
+        <span class="bl"></span><span class="br"></span>
+        <header class="block-head">
+          <h2 class="block-title">Cost Formula</h2>
+          <div class="block-detail">Reference note<span class="id">C</span></div>
+        </header>
+        <div class="formula">
+<span class="kw">filament</span>     <span class="op">=</span>  Σ ( grams ÷ 1000 × $/kg )<br>
+<span class="kw">electricity</span>  <span class="op">=</span>  ( watts ÷ 1000 ) × hours × $/kWh<br>
+<span class="kw">time cost</span>    <span class="op">=</span>  hours × $/hr<br>
+<span class="kw">subtotal</span>     <span class="op">=</span>  filament <span class="op">+</span> electricity <span class="op">+</span> time<br>
+<span class="kw">failure</span>      <span class="op">=</span>  subtotal × failure %<br>
+<span class="kw">margin</span>       <span class="op">=</span>  ( subtotal <span class="op">+</span> failure ) × margin %<br>
+<span class="kw">total</span>        <span class="op">=</span>  subtotal <span class="op">+</span> failure <span class="op">+</span> margin
+        </div>
+      </section>
+    </div>
+
+    <!-- LAYER 05 — ARCHIVE -->
+    <div class="pane" id="pane-history">
+      <section class="block">
+        <span class="bl"></span><span class="br"></span>
+        <header class="block-head">
+          <h2 class="block-title">Archive</h2>
+          <div class="block-detail">Saved estimates<span class="id">A</span></div>
+        </header>
+        <div id="history-list"></div>
+        <div class="btn-row" id="history-actions" style="display: none; margin-top: 16px;">
+          <button class="btn btn-ghost" id="export-csv">Export CSV</button>
+          <button class="btn btn-danger" id="clear-history">Clear archive</button>
+        </div>
+      </section>
+    </div>
+
+    <footer class="sheet-footer">
+      <span>Print Pricer · DWG-PP-001</span>
+      <span class="scale">Sheet 01 / 01</span>
+      <span>Drawn locally · Synced when in a group</span>
+    </footer>
+  </div>
+
+  <div class="modal-overlay" id="account-modal">
+    <div class="modal-panel">
+      <div class="modal-head">
+        <h3 id="account-modal-title">Sign In</h3>
+        <button class="modal-close" id="account-modal-close" aria-label="Close">×</button>
+      </div>
+      <div class="modal-body" id="account-modal-body">
+        <div class="config-warning" id="config-warning" style="display:none">
+          <strong>Cloud not configured</strong><br>
+          Cloud sync needs Firebase. The app runs in local-only mode and your data stays in this browser.
+        </div>
+
+        <div class="auth-error" id="auth-error"></div>
+
+        <div id="auth-signin">
+          <div class="modal-tabs">
+            <button data-auth-tab="signin" class="active">Sign in</button>
+            <button data-auth-tab="signup">Create account</button>
+          </div>
+
+          <div class="modal-form-section active" data-auth-section="signin">
+            <p>Sign in to sync your spools, archive, and defaults across devices, and to share with a group.</p>
+            <div class="field">
+              <label>Email</label>
+              <input type="email" id="auth-email" placeholder="you@example.com" autocomplete="email">
+            </div>
+            <div class="field">
+              <label>Password</label>
+              <input type="password" id="auth-password" placeholder="••••••••" autocomplete="current-password">
+            </div>
+            <div class="btn-row" style="margin-top: 16px;">
+              <button class="btn" id="btn-signin">Sign in</button>
+              <button class="btn btn-ghost" id="btn-stay-local">Stay local</button>
+            </div>
+          </div>
+
+          <div class="modal-form-section" data-auth-section="signup">
+            <p>Create a new account. Your existing local spools, archive, and defaults will be uploaded to your account on sign-up.</p>
+            <div class="field">
+              <label>Email</label>
+              <input type="email" id="signup-email" placeholder="you@example.com" autocomplete="email">
+            </div>
+            <div class="field">
+              <label>Password (8+ chars)</label>
+              <input type="password" id="signup-password" placeholder="••••••••" autocomplete="new-password">
+            </div>
+            <div class="btn-row" style="margin-top: 16px;">
+              <button class="btn" id="btn-signup">Create account</button>
+              <button class="btn btn-ghost" id="btn-stay-local-2">Stay local</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="auth-signedin" style="display:none">
+          <div class="account-status">
+            <div class="status-row">
+              <span class="status-label">Signed in as</span>
+              <span class="status-value" id="signed-in-email">—</span>
+            </div>
+            <div class="status-row">
+              <span class="status-label">Sync</span>
+              <span class="status-value accent" id="sync-status">Connecting…</span>
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-ghost" id="btn-signout">Sign out</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <div class="picker-overlay" id="picker-overlay">
+    <div class="picker-panel">
+      <div class="picker-head">
+        <h3>Pick</h3>
+        <button class="picker-close" id="picker-close" aria-label="Close">×</button>
+      </div>
+      <div class="picker-list" id="picker-list"></div>
+    </div>
+  </div>
+
+  <datalist id="spool-list"></datalist>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

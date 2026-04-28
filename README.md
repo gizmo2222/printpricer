@@ -1,10 +1,35 @@
 # Print Pricer
 
-A single-file browser app for pricing 3D prints.
+A browser app for pricing 3D prints.
 
-Live at **[metacrystal.com/printpricer.html](https://metacrystal.com/printpricer.html)**.
+Live at **[metacrystal.com/printpricer/](https://metacrystal.com/printpricer/)**.
 
-No server, no install, no dependencies. Settings and saved quotes persist via `localStorage`.
+No server, no install, no build step. ES modules served directly from `printpricer/`. Settings and saved quotes persist via `localStorage`, with optional cloud sync (Firebase) and group sharing.
+
+---
+
+## Project layout
+
+```
+printpricer/
+├── index.html         — page structure
+├── css/styles.css     — all styles
+└── js/
+    ├── main.js        — entry point + DOM glue
+    ├── state.js       — constants, defaults, mutable state
+    ├── storage.js     — localStorage + cloud-push wrappers
+    ├── firebase.js    — auth, group ops, Firestore listeners
+    ├── auth-ui.js     — sign-in modal, account pill
+    ├── parser.js      — gcode + .3mf + geometry estimator
+    ├── spools.js      — Spools layer + refill history
+    ├── printers.js    — Printers layer + active picker
+    ├── filaments.js   — filament rows + undo
+    ├── calc.js        — recalc + cost breakdown
+    ├── archive.js     — history, CSV export, clone, print
+    ├── activity.js    — group activity feed
+    ├── ui.js          — toast, picker overlay, tabs
+    └── utils.js       — pure helpers (csv, format, etc.)
+```
 
 ---
 
@@ -188,9 +213,9 @@ Anonymous / signed-out usage works exactly like before — pure `localStorage`.
 
 ## Deploy
 
-`.github/workflows/deploy.yml` uploads `printpricer.html` to metacrystal.com via SFTP on every push to `main`. Requires repo secrets `SFTP_USER` and `SFTP_PASSWORD`.
+`.github/workflows/deploy.yml` uploads the `printpricer/` directory to `/home/nstrupp/metacrystal.com/printpricer/` via SFTP on every push to `main`. Requires repo secrets `SFTP_USER` and `SFTP_PASSWORD`.
 
-The Firebase config is committed in `printpricer.html`. Note that Firebase web config is **not secret** — security comes from Firestore rules, which are enforced server-side.
+The Firebase config is committed in `js/state.js`. Note that Firebase web config is **not secret** — security comes from Firestore rules, which are enforced server-side.
 
 ---
 

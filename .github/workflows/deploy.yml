@@ -18,8 +18,26 @@ jobs:
           sudo apt-get install -y sshpass > /dev/null 2>&1
           sshpass -e sftp -o StrictHostKeyChecking=no \
             ${{ secrets.SFTP_USER }}@metacrystal.com <<'SFTP'
-          put printpricer.html /home/nstrupp/metacrystal.com/printpricer.html
+          -mkdir /home/nstrupp/metacrystal.com/printpricer
+          -mkdir /home/nstrupp/metacrystal.com/printpricer/css
+          -mkdir /home/nstrupp/metacrystal.com/printpricer/js
+          put printpricer/index.html        /home/nstrupp/metacrystal.com/printpricer/index.html
+          put printpricer/css/styles.css    /home/nstrupp/metacrystal.com/printpricer/css/styles.css
+          put printpricer/js/state.js       /home/nstrupp/metacrystal.com/printpricer/js/state.js
+          put printpricer/js/utils.js       /home/nstrupp/metacrystal.com/printpricer/js/utils.js
+          put printpricer/js/ui.js          /home/nstrupp/metacrystal.com/printpricer/js/ui.js
+          put printpricer/js/storage.js     /home/nstrupp/metacrystal.com/printpricer/js/storage.js
+          put printpricer/js/firebase.js    /home/nstrupp/metacrystal.com/printpricer/js/firebase.js
+          put printpricer/js/auth-ui.js     /home/nstrupp/metacrystal.com/printpricer/js/auth-ui.js
+          put printpricer/js/parser.js      /home/nstrupp/metacrystal.com/printpricer/js/parser.js
+          put printpricer/js/spools.js      /home/nstrupp/metacrystal.com/printpricer/js/spools.js
+          put printpricer/js/printers.js    /home/nstrupp/metacrystal.com/printpricer/js/printers.js
+          put printpricer/js/filaments.js   /home/nstrupp/metacrystal.com/printpricer/js/filaments.js
+          put printpricer/js/calc.js        /home/nstrupp/metacrystal.com/printpricer/js/calc.js
+          put printpricer/js/archive.js     /home/nstrupp/metacrystal.com/printpricer/js/archive.js
+          put printpricer/js/activity.js    /home/nstrupp/metacrystal.com/printpricer/js/activity.js
+          put printpricer/js/main.js        /home/nstrupp/metacrystal.com/printpricer/js/main.js
           SFTP
 
       - name: Confirm
-        run: echo "Deployed printpricer.html to metacrystal.com"
+        run: echo "Deployed printpricer/ to metacrystal.com/printpricer/"
