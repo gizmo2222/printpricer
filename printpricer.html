@@ -2831,10 +2831,21 @@
 
       // ---- Detailed failure ----
       if (result.filaments.length === 0 && result.hours === 0) {
-        const sample = paths.slice(0, 6).join(', ');
+        // Always log full file list to console for debugging.
+        console.warn('[3MF] No print data found. Full file list:', paths);
+
+        const hasOnlyPreviews = paths.every(p =>
+          /\.(png|jpg|jpeg|xml)$/i.test(p) || /3dmodel\.model/i.test(p) || /_rels\//i.test(p)
+        );
+        if (hasOnlyPreviews) {
+          throw new Error(
+            'This 3MF has only the model + previews (no slicing data). ' +
+            'Slice it in your slicer first, then export the sliced 3MF / G-code.'
+          );
+        }
         throw new Error(
-          `No print data in 3MF. Found ${paths.length} files (${sample}${paths.length > 6 ? '…' : ''}). ` +
-          `If this is a PrusaSlicer project, export as 'G-code 3MF' or '.gcode' instead.`
+          `No print data in 3MF. ${paths.length} files found — see browser console (F12) for the full list. ` +
+          `In Bambu/Orca, use the gear icon → "Export plate sliced file". In PrusaSlicer, use "Export plate as G-code 3MF".`
         );
       }
 
