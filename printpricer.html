@@ -2862,14 +2862,20 @@
       const modelPaths = paths.filter(p => /\.model$/i.test(p));
       if (modelPaths.length === 0) return null;
 
-      // Parse one model XML's <object> blocks. Each object has its own
-      // vertex index space; compute its volume independently then sum.
+      // Bambu / Orca 4-color and multi-part prints typically don't paint
+      // every triangle — instead, model_settings.config maps each
+      // <part>/<object> id → extruder/filament index. Build that map up
+      // front so each object's full volume can be attributed to the
+      // right filament when no per-triangle paint info is present.
+      const partExtruder = await readPartExtruderMap(zip);
+
       function objectsWithMesh(xml) {
         const out = [];
-        const objRe = /<object\b[^>]*>([\s\S]*?)<\/object>/gi;
+        const objRe = /<object\b[^>]*\bid\s*=\s*"([^"]+)"[^>]*>([\s\S]*?)<\/object>/gi;
         let om;
         while ((om = objRe.exec(xml))) {
-          const body = om[1];
+          const objId = om[1];
+          const body = om[2];
           const verts = [];
           const vRe = /<vertex\b[^>]*\bx\s*=\s*"([^"]+)"[^>]*\by\s*=\s*"([^"]+)"[^>]*\bz\s*=\s*"([^"]+)"/gi;
           let vm;
@@ -2877,10 +2883,6 @@
             verts.push({ x: +vm[1], y: +vm[2], z: +vm[3] });
           }
           const tris = [];
-          // Capture v1/v2/v3 plus any material-assignment attribute.
-          // - paint_color: Bambu/Orca painted-region extension (per-triangle filament/AMS slot)
-          // - extruder: PrusaSlicer painted-region extension
-          // - pid / pindex: 3MF Core property assignment (basematerials)
           const tRe = /<triangle\b([^>]*?)\/?>/gi;
           let tm;
           while ((tm = tRe.exec(body))) {
@@ -2892,12 +2894,12 @@
             const paint    = attrs.match(/\bpaint_color\s*=\s*"([^"]+)"/i)?.[1];
             const extruder = attrs.match(/\bextruder\s*=\s*"([^"]+)"/i)?.[1];
             const pindex   = attrs.match(/\bpindex\s*=\s*"([^"]+)"/i)?.[1];
-            // Build a stable per-triangle "color key" used to group surface areas.
-            // First non-empty wins so a single naming convention dominates.
-            let colorKey = paint ?? extruder ?? pindex ?? '0';
-            tris.push({ v1: +v1[1], v2: +v2[1], v3: +v3[1], color: String(colorKey) });
+            // Per-triangle paint > per-object part assignment > default '0'
+            const tPaint = paint ?? extruder ?? pindex;
+            const colorKey = String(tPaint ?? partExtruder.get(objId) ?? '0');
+            tris.push({ v1: +v1[1], v2: +v2[1], v3: +v3[1], color: colorKey });
           }
-          if (verts.length && tris.length) out.push({ verts, tris });
+          if (verts.length && tris.length) out.push({ id: objId, verts, tris });
         }
         return out;
       }
@@ -2958,7 +2960,9 @@
         sorted.forEach(([color, area], idx) => {
           const share = area / totalArea;
           const grams = totalG * share;
-          if (grams < 0.05) return; // ignore vanishingly small painted regions
+          // Drop only truly negligible regions (< 0.1% of surface AND < 0.005g).
+          // Previous threshold of 0.05g was filtering accent-color rows on small prints.
+          if (share < 0.001 && grams < 0.005) return;
           const label = filamentLabels[+color] || filamentLabels[color] || null;
           const name = label
             ? `Est. ${label}`
@@ -2969,6 +2973,9 @@
             costPerKg: settings.filamentCost || '',
           });
         });
+        // Also log every region's share for diagnostic when something looks off.
+        console.log('[3MF estimate] paint regions by area share:',
+          sorted.map(([c, a]) => `${c}=${(a / totalArea * 100).toFixed(1)}%`).join(' '));
       }
 
       console.log(`[3MF estimate] density: ${density} g/cm³, fill: ${fillPct}%, ` +
@@ -2980,6 +2987,34 @@
         filaments: filamentRows,
         meshVolumeCm3: volCm3,
       };
+    }
+
+    // Bambu/Orca model_settings.config attaches an extruder/filament index
+    // to each <part> (and sometimes <object>) inside the project. For prints
+    // built from multiple distinctly-colored parts (no per-triangle paint),
+    // that map is the only place the multi-color intent lives in a model-only
+    // 3MF. Returns a Map: partOrObjectId → extruderIndex (string).
+    async function readPartExtruderMap(zip) {
+      const map = new Map();
+      const paths = Object.keys(zip.files).filter(p => !zip.files[p].dir);
+      const cfgPath = paths.find(p => /model_settings\.config$/i.test(p));
+      if (!cfgPath) return map;
+      let xml;
+      try { xml = await zip.file(cfgPath).async('string'); }
+      catch { return map; }
+
+      // Walk every <part id="..."> and <object id="..."> block, look for
+      // either an `extruder` or `filament` metadata key inside.
+      const blockRe = /<(part|object)\b[^>]*\bid\s*=\s*"([^"]+)"[^>]*>([\s\S]*?)<\/\1>/gi;
+      let bm;
+      while ((bm = blockRe.exec(xml))) {
+        const id = bm[2];
+        const body = bm[3];
+        const ex = body.match(/<metadata\b[^>]*\bkey\s*=\s*"(?:extruder|filament)"[^>]*\bvalue\s*=\s*"([^"]+)"/i);
+        if (ex) map.set(id, ex[1].trim());
+      }
+      console.log(`[3MF] model_settings.config: ${map.size} part/object → extruder mapping(s)`);
+      return map;
     }
 
     // Look up filament names/colors from Bambu/Orca config files in the
