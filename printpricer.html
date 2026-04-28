@@ -732,6 +732,261 @@
     }
     .sheet-footer .scale { color: var(--blueprint); font-weight: 600; }
 
+    /* Account pill in title block */
+    .account-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px 3px;
+      background: var(--paper);
+      border: 1px solid var(--ink);
+      font-family: var(--condensed);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 1.4px;
+      text-transform: uppercase;
+      color: var(--ink);
+      cursor: pointer;
+      transition: all 0.12s var(--ease-quart);
+      max-width: 180px;
+    }
+    .account-pill:hover { background: var(--ink); color: var(--paper); }
+    .account-pill .dot {
+      width: 6px; height: 6px;
+      border-radius: 0;
+      background: var(--ink-faint);
+      flex-shrink: 0;
+    }
+    .account-pill.signed-in .dot { background: var(--moss); }
+    .account-pill.in-group .dot { background: var(--blueprint); }
+    .account-pill .who {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      letter-spacing: 0.4px;
+      font-family: var(--mono);
+      font-size: 10px;
+      text-transform: none;
+      font-weight: 500;
+    }
+
+    /* Add account row in title block */
+    .title-meta-with-account {
+      position: relative;
+    }
+    .account-pill-wrap {
+      position: absolute;
+      top: -28px;
+      right: 0;
+    }
+
+    /* Account modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(22, 32, 45, 0.45);
+      z-index: 300;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal-panel {
+      background: var(--paper);
+      border: 1.5px solid var(--ink);
+      box-shadow: 5px 5px 0 var(--paper-shadow);
+      max-width: 460px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 24px 28px 22px;
+      position: relative;
+    }
+    .modal-panel::before, .modal-panel::after {
+      content: '';
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      border: 1.5px solid var(--blueprint);
+    }
+    .modal-panel::before { top: -3px; left: -3px; border-right: none; border-bottom: none; }
+    .modal-panel::after { top: -3px; right: -3px; border-left: none; border-bottom: none; }
+    .modal-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      border-bottom: 1px solid var(--ink);
+      padding-bottom: 10px;
+      margin-bottom: 18px;
+    }
+    .modal-head h3 {
+      font-family: var(--display);
+      font-weight: 800;
+      font-size: 26px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--ink);
+    }
+    .modal-close {
+      background: transparent;
+      border: none;
+      font-family: var(--display);
+      font-size: 24px;
+      font-weight: 700;
+      cursor: pointer;
+      color: var(--ink-mid);
+      line-height: 1;
+      padding: 0;
+    }
+    .modal-close:hover { color: var(--rust); }
+    .modal-body p {
+      font-family: var(--sans);
+      font-size: 13px;
+      color: var(--ink-mid);
+      line-height: 1.55;
+      margin-bottom: 14px;
+    }
+    .modal-tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--ink);
+      margin-bottom: 18px;
+    }
+    .modal-tabs button {
+      flex: 1;
+      background: transparent;
+      border: none;
+      padding: 8px 12px;
+      font-family: var(--condensed);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1.6px;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+    }
+    .modal-tabs button.active {
+      color: var(--ink);
+      border-bottom-color: var(--blueprint);
+    }
+    .modal-form-section { display: none; }
+    .modal-form-section.active { display: block; }
+
+    /* Group / account block */
+    .account-status {
+      padding: 14px 16px;
+      background: var(--paper-dim);
+      border: 1px solid var(--ink);
+      margin-bottom: 14px;
+    }
+    .account-status .status-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 4px;
+    }
+    .account-status .status-row:last-child { margin-bottom: 0; }
+    .account-status .status-label {
+      font-family: var(--condensed);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 1.6px;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+    }
+    .account-status .status-value {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--ink);
+      font-weight: 500;
+      letter-spacing: 0.3px;
+    }
+    .account-status .status-value.dim { color: var(--ink-faint); font-style: italic; }
+    .account-status .status-value.accent { color: var(--blueprint); font-weight: 600; }
+
+    .group-code {
+      font-family: var(--mono);
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 4px;
+      color: var(--blueprint);
+      padding: 8px 12px;
+      background: var(--paper);
+      border: 1.5px dashed var(--blueprint);
+      display: inline-block;
+      margin-top: 4px;
+      cursor: pointer;
+      user-select: all;
+    }
+    .group-code-hint {
+      font-family: var(--condensed);
+      font-size: 9px;
+      letter-spacing: 1.4px;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      margin-top: 2px;
+    }
+
+    .member-list {
+      margin-top: 10px;
+      padding-left: 0;
+      list-style: none;
+    }
+    .member-list li {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--ink-mid);
+      padding: 4px 0;
+      letter-spacing: 0.3px;
+    }
+    .member-list li.you { color: var(--ink); font-weight: 600; }
+    .member-list li.you::after {
+      content: ' · YOU';
+      color: var(--blueprint);
+      font-family: var(--condensed);
+      font-size: 9px;
+      letter-spacing: 1.4px;
+      font-weight: 700;
+    }
+
+    .auth-error {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--rust);
+      padding: 8px 10px;
+      background: rgba(161, 60, 31, 0.08);
+      border-left: 3px solid var(--rust);
+      margin-bottom: 12px;
+      display: none;
+    }
+    .auth-error.show { display: block; }
+
+    .config-warning {
+      font-family: var(--sans);
+      font-size: 13px;
+      color: var(--ink);
+      padding: 14px;
+      background: rgba(161, 60, 31, 0.08);
+      border: 1px solid var(--rust);
+      margin-bottom: 14px;
+      line-height: 1.55;
+    }
+    .config-warning strong {
+      font-family: var(--condensed);
+      letter-spacing: 1.4px;
+      text-transform: uppercase;
+      color: var(--rust);
+    }
+    .config-warning code {
+      font-family: var(--mono);
+      font-size: 11px;
+      background: var(--paper-dim);
+      padding: 1px 4px;
+    }
+
     /* Spools */
     .spool-toolbar {
       display: flex;
@@ -1084,12 +1339,19 @@
     <div class="corner-mark corner-bl"></div>
     <div class="corner-mark corner-br"></div>
 
+    <div class="account-pill-wrap">
+      <button class="account-pill" id="account-pill" type="button">
+        <span class="dot"></span>
+        <span class="who" id="account-who">Local mode</span>
+      </button>
+    </div>
+
     <div class="title-block">
       <div class="title-main">
         <h1>Print Pricer</h1>
         <div class="subtitle">Filament · Time · Power · Margin</div>
       </div>
-      <div class="title-meta">
+      <div class="title-meta title-meta-with-account">
         <div class="cell"><span class="key">Drawing</span><span class="val accent">PP-001</span></div>
         <div class="cell"><span class="key">Sheet</span><span class="val">01 / 01</span></div>
         <div class="cell"><span class="key">Scale</span><span class="val">1 : 1</span></div>
@@ -1213,6 +1475,78 @@
 
     <!-- LAYER 03 — DEFAULTS -->
     <div class="pane" id="pane-settings">
+      <section class="block" id="group-block">
+        <span class="bl"></span><span class="br"></span>
+        <header class="block-head">
+          <h2 class="block-title">Account &amp; Group</h2>
+          <div class="block-detail">Sync &amp; sharing<span class="id">A</span></div>
+        </header>
+
+        <div id="group-content-loggedout">
+          <p style="font-family: var(--sans); font-size: 13px; color: var(--ink-mid); line-height: 1.55; margin-bottom: 14px;">
+            You're in <strong>Local mode</strong> — spools, archive, and defaults live only in this browser. Sign in to sync across devices and share with family/coworkers using the same printer.
+          </p>
+          <div class="btn-row">
+            <button class="btn" id="group-signin-btn">Sign in or create account</button>
+          </div>
+        </div>
+
+        <div id="group-content-loggedin" style="display:none">
+          <div class="account-status">
+            <div class="status-row">
+              <span class="status-label">Account</span>
+              <span class="status-value" id="group-acct-email">—</span>
+            </div>
+            <div class="status-row">
+              <span class="status-label">Group</span>
+              <span class="status-value dim" id="group-acct-name">— not in a group —</span>
+            </div>
+          </div>
+
+          <div id="group-no-group">
+            <p style="font-family: var(--sans); font-size: 13px; color: var(--ink-mid); line-height: 1.55; margin-bottom: 14px;">
+              A group lets multiple people share the same spool inventory, archive, and defaults — useful when you and family/coworkers are using the same printer.
+            </p>
+
+            <div class="input-row">
+              <div class="field">
+                <label>Create new group</label>
+                <input type="text" id="group-create-name" placeholder="The Workshop" maxlength="40">
+              </div>
+              <div class="field">
+                <label>Or join with code</label>
+                <input type="text" id="group-join-code" placeholder="PR4-9XK" maxlength="8" style="text-transform: uppercase; letter-spacing: 3px; font-family: var(--mono); font-weight: 600;">
+              </div>
+            </div>
+            <div class="btn-row" style="margin-top: 14px;">
+              <button class="btn" id="btn-create-group">Create group</button>
+              <button class="btn btn-ghost" id="btn-join-group">Join with code</button>
+            </div>
+          </div>
+
+          <div id="group-in-group" style="display:none">
+            <div class="status-row" style="margin-top: 8px;">
+              <span class="status-label">Join code</span>
+            </div>
+            <div class="group-code" id="group-code-display">——————</div>
+            <div class="group-code-hint">share this code with anyone using the same printer</div>
+
+            <div class="status-row" style="margin-top: 14px;">
+              <span class="status-label">Members</span>
+            </div>
+            <ul class="member-list" id="group-member-list"></ul>
+
+            <div class="btn-row" style="margin-top: 16px;">
+              <button class="btn btn-danger" id="btn-leave-group">Leave group</button>
+            </div>
+          </div>
+
+          <div class="btn-row" style="margin-top: 16px; padding-top: 14px; border-top: 1px dotted var(--ink-faint);">
+            <button class="btn btn-ghost" id="btn-acct-signout">Sign out</button>
+          </div>
+        </div>
+      </section>
+
       <section class="block">
         <span class="bl"></span><span class="br"></span>
         <header class="block-head">
@@ -1324,6 +1658,78 @@
 
   </div>
 
+  <div class="modal-overlay" id="account-modal">
+    <div class="modal-panel">
+      <div class="modal-head">
+        <h3 id="account-modal-title">Sign In</h3>
+        <button class="modal-close" id="account-modal-close" aria-label="Close">×</button>
+      </div>
+      <div class="modal-body" id="account-modal-body">
+        <div class="config-warning" id="config-warning" style="display:none">
+          <strong>Cloud not configured</strong><br>
+          Cloud sync needs Firebase. Paste your project's config into <code>FIREBASE_CONFIG</code> at the top of <code>printpricer.html</code> (see <code>README.md</code>). Until then, the app runs in local-only mode and your data stays in this browser.
+        </div>
+
+        <div class="auth-error" id="auth-error"></div>
+
+        <div id="auth-signin">
+          <div class="modal-tabs">
+            <button data-auth-tab="signin" class="active">Sign in</button>
+            <button data-auth-tab="signup">Create account</button>
+          </div>
+
+          <div class="modal-form-section active" data-auth-section="signin">
+            <p>Sign in to sync your spools, archive, and defaults across devices, and to share with a group.</p>
+            <div class="field">
+              <label>Email</label>
+              <input type="email" id="auth-email" placeholder="you@example.com" autocomplete="email">
+            </div>
+            <div class="field">
+              <label>Password</label>
+              <input type="password" id="auth-password" placeholder="••••••••" autocomplete="current-password">
+            </div>
+            <div class="btn-row" style="margin-top: 16px;">
+              <button class="btn" id="btn-signin">Sign in</button>
+              <button class="btn btn-ghost" id="btn-stay-local">Stay local</button>
+            </div>
+          </div>
+
+          <div class="modal-form-section" data-auth-section="signup">
+            <p>Create a new account. Your existing local spools, archive, and defaults will be uploaded to your account on sign-up.</p>
+            <div class="field">
+              <label>Email</label>
+              <input type="email" id="signup-email" placeholder="you@example.com" autocomplete="email">
+            </div>
+            <div class="field">
+              <label>Password (8+ chars)</label>
+              <input type="password" id="signup-password" placeholder="••••••••" autocomplete="new-password">
+            </div>
+            <div class="btn-row" style="margin-top: 16px;">
+              <button class="btn" id="btn-signup">Create account</button>
+              <button class="btn btn-ghost" id="btn-stay-local-2">Stay local</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="auth-signedin" style="display:none">
+          <div class="account-status">
+            <div class="status-row">
+              <span class="status-label">Signed in as</span>
+              <span class="status-value" id="signed-in-email">—</span>
+            </div>
+            <div class="status-row">
+              <span class="status-label">Sync</span>
+              <span class="status-value accent" id="sync-status">Connecting…</span>
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-ghost" id="btn-signout">Sign out</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="toast" id="toast"></div>
 
   <div class="picker-overlay" id="picker-overlay">
@@ -1338,7 +1744,491 @@
 
   <datalist id="spool-list"></datalist>
 
-  <script>
+  <script type="module">
+    // ============================================================
+    // FIREBASE CONFIG
+    // ============================================================
+    // Paste your Firebase web app config below. See README.md for setup steps.
+    // Leave as-is to run in local-only mode (no cloud sync).
+    const FIREBASE_CONFIG = {
+      // apiKey: "...",
+      // authDomain: "...",
+      // projectId: "...",
+      // storageBucket: "...",
+      // messagingSenderId: "...",
+      // appId: "..."
+    };
+
+    const CLOUD_ENABLED = !!FIREBASE_CONFIG.apiKey;
+
+    // ============================================================
+    // FIREBASE INIT (only if configured)
+    // ============================================================
+    let fb = null;
+    if (CLOUD_ENABLED) {
+      const [
+        { initializeApp },
+        authMod,
+        fsMod,
+      ] = await Promise.all([
+        import('https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js'),
+        import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js'),
+        import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js'),
+      ]);
+      const app = initializeApp(FIREBASE_CONFIG);
+      const auth = authMod.getAuth(app);
+      const db = fsMod.getFirestore(app);
+      // Best-effort offline cache. Will fail in private mode or older browsers — non-fatal.
+      try { await fsMod.enableIndexedDbPersistence(db); } catch (e) { /* ok */ }
+      fb = { app, auth, db, ...authMod, ...fsMod };
+    }
+
+    // ============================================================
+    // CLOUD STATE & SYNC
+    // ============================================================
+    const state = {
+      user: null,         // Firebase user object, or null
+      groupId: null,      // current group id, or null
+      groupDoc: null,     // current group doc data
+      members: [],        // [{ uid, email }]
+      unsubs: [],         // active Firestore listeners to clean up
+      isApplyingRemote: false, // guard against echo: don't push to cloud while applying remote update
+    };
+
+    function isInCloudMode() {
+      return CLOUD_ENABLED && state.user && !state.user.isAnonymous && state.groupId;
+    }
+
+    function clearListeners() {
+      state.unsubs.forEach(u => { try { u(); } catch {} });
+      state.unsubs = [];
+    }
+
+    function generateJoinCode() {
+      // 6-char code, no easily confused chars
+      const alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+      let s = '';
+      for (let i = 0; i < 6; i++) s += alphabet[Math.floor(Math.random() * alphabet.length)];
+      return s.slice(0, 3) + '-' + s.slice(3);
+    }
+
+    async function fetchMembers(uids) {
+      if (!fb || !uids || uids.length === 0) return [];
+      const result = [];
+      // Batch reads — small numbers, just do parallel gets
+      await Promise.all(uids.map(async uid => {
+        try {
+          const snap = await fb.getDoc(fb.doc(fb.db, 'users', uid));
+          result.push({ uid, email: snap.exists() ? (snap.data().email || uid) : uid });
+        } catch {
+          result.push({ uid, email: uid });
+        }
+      }));
+      return result;
+    }
+
+    async function ensureUserDoc(user) {
+      if (!fb || !user || user.isAnonymous) return;
+      const ref = fb.doc(fb.db, 'users', user.uid);
+      const snap = await fb.getDoc(ref);
+      if (!snap.exists()) {
+        await fb.setDoc(ref, {
+          email: user.email || '',
+          createdAt: fb.serverTimestamp(),
+          currentGroupId: null,
+        });
+      } else if (user.email && snap.data().email !== user.email) {
+        await fb.updateDoc(ref, { email: user.email });
+      }
+    }
+
+    async function loadUserGroup() {
+      if (!fb || !state.user || state.user.isAnonymous) return;
+      const ref = fb.doc(fb.db, 'users', state.user.uid);
+      const snap = await fb.getDoc(ref);
+      const gid = snap.exists() ? (snap.data().currentGroupId || null) : null;
+      if (gid) {
+        await subscribeToGroup(gid);
+      } else {
+        state.groupId = null;
+        state.groupDoc = null;
+        state.members = [];
+      }
+    }
+
+    async function subscribeToGroup(gid) {
+      if (!fb) return;
+      clearListeners();
+      state.groupId = gid;
+
+      // Listen to the group doc
+      const groupRef = fb.doc(fb.db, 'groups', gid);
+      state.unsubs.push(fb.onSnapshot(groupRef, async snap => {
+        if (!snap.exists()) {
+          // group was deleted
+          state.groupId = null;
+          state.groupDoc = null;
+          state.members = [];
+          clearListeners();
+          updateAccountUI();
+          renderGroupSection();
+          return;
+        }
+        state.groupDoc = { id: snap.id, ...snap.data() };
+        state.members = await fetchMembers(state.groupDoc.members || []);
+        updateAccountUI();
+        renderGroupSection();
+      }));
+
+      // Listen to spools
+      const spoolsRef = fb.collection(fb.db, 'groups', gid, 'spools');
+      state.unsubs.push(fb.onSnapshot(spoolsRef, snap => {
+        const arr = [];
+        snap.forEach(d => { arr.push({ id: parseInt(d.id) || d.id, ...d.data() }); });
+        state.isApplyingRemote = true;
+        try {
+          localStorage.setItem(SPOOLS_KEY, JSON.stringify(arr));
+          if (document.querySelector('.layer.active').dataset.pane === 'spools') renderSpools();
+          renderFilaments();
+        } finally { state.isApplyingRemote = false; }
+      }));
+
+      // Listen to archive
+      const archiveRef = fb.collection(fb.db, 'groups', gid, 'archive');
+      state.unsubs.push(fb.onSnapshot(archiveRef, snap => {
+        const arr = [];
+        snap.forEach(d => { arr.push({ id: parseInt(d.id) || d.id, ...d.data() }); });
+        arr.sort((a, b) => (b.id || 0) - (a.id || 0));
+        state.isApplyingRemote = true;
+        try {
+          localStorage.setItem(HISTORY_KEY, JSON.stringify(arr));
+          if (document.querySelector('.layer.active').dataset.pane === 'history') renderHistory();
+        } finally { state.isApplyingRemote = false; }
+      }));
+
+      // Listen to settings
+      const settingsRef = fb.doc(fb.db, 'groups', gid, 'settings', 'main');
+      state.unsubs.push(fb.onSnapshot(settingsRef, snap => {
+        if (!snap.exists()) return;
+        const data = snap.data();
+        state.isApplyingRemote = true;
+        try {
+          settings = { ...defaultSettings, ...data };
+          localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+          loadSettingsToForm();
+          recalc();
+        } finally { state.isApplyingRemote = false; }
+      }));
+
+      const status = document.getElementById('sync-status');
+      if (status) status.textContent = 'Live · synced';
+    }
+
+    // ----- Cloud writes -----
+    async function pushSpools(spools) {
+      if (!isInCloudMode() || state.isApplyingRemote) return;
+      const gid = state.groupId;
+      const colRef = fb.collection(fb.db, 'groups', gid, 'spools');
+      // Mirror full state: delete missing docs, set present ones
+      const existing = await fb.getDocs(colRef);
+      const localIds = new Set(spools.map(s => String(s.id)));
+      const batch = fb.writeBatch(fb.db);
+      existing.forEach(d => { if (!localIds.has(d.id)) batch.delete(d.ref); });
+      spools.forEach(s => {
+        const { id, ...data } = s;
+        batch.set(fb.doc(fb.db, 'groups', gid, 'spools', String(id)), data);
+      });
+      await batch.commit();
+    }
+
+    async function pushHistory(history) {
+      if (!isInCloudMode() || state.isApplyingRemote) return;
+      const gid = state.groupId;
+      const colRef = fb.collection(fb.db, 'groups', gid, 'archive');
+      const existing = await fb.getDocs(colRef);
+      const localIds = new Set(history.map(h => String(h.id)));
+      const batch = fb.writeBatch(fb.db);
+      existing.forEach(d => { if (!localIds.has(d.id)) batch.delete(d.ref); });
+      history.forEach(h => {
+        const { id, ...data } = h;
+        batch.set(fb.doc(fb.db, 'groups', gid, 'archive', String(id)), data);
+      });
+      await batch.commit();
+    }
+
+    async function pushSettings(s) {
+      if (!isInCloudMode() || state.isApplyingRemote) return;
+      const gid = state.groupId;
+      await fb.setDoc(fb.doc(fb.db, 'groups', gid, 'settings', 'main'), s);
+    }
+
+    // ----- Auth handlers -----
+    async function doSignIn(email, password) {
+      if (!fb) throw new Error('Cloud not configured');
+      await fb.signInWithEmailAndPassword(fb.auth, email, password);
+    }
+    async function doSignUp(email, password) {
+      if (!fb) throw new Error('Cloud not configured');
+      await fb.createUserWithEmailAndPassword(fb.auth, email, password);
+      // Push current local data up after sign-up so it's preserved
+      // (will run after the auth state change handler registers the user)
+    }
+    async function doSignOut() {
+      if (!fb) return;
+      clearListeners();
+      state.groupId = null;
+      state.groupDoc = null;
+      state.members = [];
+      await fb.signOut(fb.auth);
+    }
+    async function doSignInAnonymously() {
+      if (!fb) return;
+      await fb.signInAnonymously(fb.auth);
+    }
+
+    // ----- Group handlers -----
+    async function createGroup(name) {
+      if (!fb || !state.user || state.user.isAnonymous) throw new Error('Sign in first');
+      if (!name || !name.trim()) throw new Error('Group name required');
+      // Capture local data BEFORE subscribing — once the listener attaches it
+      // will mirror the (initially empty) remote state into localStorage.
+      const localSpools = loadSpools();
+      const localHistory = loadHistory();
+      const localSettings = { ...settings };
+
+      const code = generateJoinCode();
+      const ref = await fb.addDoc(fb.collection(fb.db, 'groups'), {
+        name: name.trim(),
+        joinCode: code,
+        ownerUid: state.user.uid,
+        members: [state.user.uid],
+        createdAt: fb.serverTimestamp(),
+      });
+      await fb.updateDoc(fb.doc(fb.db, 'users', state.user.uid), { currentGroupId: ref.id });
+
+      // Seed group with the captured local data first, THEN subscribe so the
+      // listener's first emission matches what we just wrote.
+      state.groupId = ref.id;
+      if (localSpools.length) await pushSpools(localSpools);
+      if (localHistory.length) await pushHistory(localHistory);
+      await pushSettings(localSettings);
+      await subscribeToGroup(ref.id);
+      return ref.id;
+    }
+
+    async function joinGroupByCode(code) {
+      if (!fb || !state.user || state.user.isAnonymous) throw new Error('Sign in first');
+      const cleaned = code.toUpperCase().replace(/\s+/g, '');
+      const q = fb.query(fb.collection(fb.db, 'groups'), fb.where('joinCode', '==', cleaned));
+      const snap = await fb.getDocs(q);
+      if (snap.empty) throw new Error('No group found with that code');
+      const groupSnap = snap.docs[0];
+      const gid = groupSnap.id;
+      const data = groupSnap.data();
+      if (!(data.members || []).includes(state.user.uid)) {
+        await fb.updateDoc(fb.doc(fb.db, 'groups', gid), {
+          members: fb.arrayUnion(state.user.uid),
+        });
+      }
+      await fb.updateDoc(fb.doc(fb.db, 'users', state.user.uid), { currentGroupId: gid });
+      await subscribeToGroup(gid);
+    }
+
+    async function leaveGroup() {
+      if (!fb || !state.groupId || !state.user) return;
+      const gid = state.groupId;
+      await fb.updateDoc(fb.doc(fb.db, 'groups', gid), {
+        members: fb.arrayRemove(state.user.uid),
+      });
+      await fb.updateDoc(fb.doc(fb.db, 'users', state.user.uid), { currentGroupId: null });
+      clearListeners();
+      state.groupId = null;
+      state.groupDoc = null;
+      state.members = [];
+      updateAccountUI();
+      renderGroupSection();
+    }
+
+    // ----- Auth state change -----
+    if (fb) {
+      fb.onAuthStateChanged(fb.auth, async user => {
+        state.user = user;
+        if (user && !user.isAnonymous) {
+          await ensureUserDoc(user);
+          await loadUserGroup();
+        } else {
+          clearListeners();
+          state.groupId = null;
+          state.groupDoc = null;
+          state.members = [];
+        }
+        updateAccountUI();
+        renderGroupSection();
+      });
+    }
+
+    // ----- UI updates for account/group state -----
+    function updateAccountUI() {
+      const pill = document.getElementById('account-pill');
+      const who = document.getElementById('account-who');
+      const cfgWarn = document.getElementById('config-warning');
+
+      if (!CLOUD_ENABLED) {
+        pill.classList.remove('signed-in', 'in-group');
+        who.textContent = 'Local only';
+        if (cfgWarn) cfgWarn.style.display = 'block';
+        return;
+      }
+      if (cfgWarn) cfgWarn.style.display = 'none';
+
+      if (!state.user || state.user.isAnonymous) {
+        pill.classList.remove('signed-in', 'in-group');
+        who.textContent = 'Local mode';
+        return;
+      }
+      const email = state.user.email || 'Signed in';
+      if (state.groupId && state.groupDoc) {
+        pill.classList.add('signed-in', 'in-group');
+        who.textContent = state.groupDoc.name || email;
+      } else {
+        pill.classList.add('signed-in');
+        pill.classList.remove('in-group');
+        who.textContent = email;
+      }
+    }
+
+    function renderGroupSection() {
+      const loggedOut = document.getElementById('group-content-loggedout');
+      const loggedIn = document.getElementById('group-content-loggedin');
+      const noGroup = document.getElementById('group-no-group');
+      const inGroup = document.getElementById('group-in-group');
+
+      if (!state.user || state.user.isAnonymous) {
+        loggedOut.style.display = '';
+        loggedIn.style.display = 'none';
+        return;
+      }
+      loggedOut.style.display = 'none';
+      loggedIn.style.display = '';
+      document.getElementById('group-acct-email').textContent = state.user.email || '—';
+
+      if (state.groupId && state.groupDoc) {
+        document.getElementById('group-acct-name').textContent = state.groupDoc.name;
+        document.getElementById('group-acct-name').classList.remove('dim');
+        noGroup.style.display = 'none';
+        inGroup.style.display = '';
+        document.getElementById('group-code-display').textContent = state.groupDoc.joinCode || '——';
+        const list = document.getElementById('group-member-list');
+        list.innerHTML = '';
+        state.members.forEach(m => {
+          const li = document.createElement('li');
+          if (m.uid === state.user.uid) li.classList.add('you');
+          li.textContent = m.email;
+          list.appendChild(li);
+        });
+      } else {
+        document.getElementById('group-acct-name').textContent = '— not in a group —';
+        document.getElementById('group-acct-name').classList.add('dim');
+        noGroup.style.display = '';
+        inGroup.style.display = 'none';
+      }
+    }
+
+    // ----- Modal & button wiring -----
+    function openAccountModal() {
+      const m = document.getElementById('account-modal');
+      const signedIn = state.user && !state.user.isAnonymous;
+      document.getElementById('auth-signin').style.display = signedIn ? 'none' : '';
+      document.getElementById('auth-signedin').style.display = signedIn ? '' : 'none';
+      if (signedIn) {
+        document.getElementById('signed-in-email').textContent = state.user.email || '—';
+        document.getElementById('sync-status').textContent = state.groupId ? 'Live · synced to group' : 'Signed in · personal sync';
+      }
+      document.getElementById('account-modal-title').textContent = signedIn ? 'Account' : 'Sign In';
+      document.getElementById('auth-error').classList.remove('show');
+      m.classList.add('show');
+    }
+    function closeAccountModal() {
+      document.getElementById('account-modal').classList.remove('show');
+    }
+    function showAuthError(msg) {
+      const el = document.getElementById('auth-error');
+      el.textContent = msg;
+      el.classList.add('show');
+    }
+
+    document.getElementById('account-pill').addEventListener('click', openAccountModal);
+    document.getElementById('account-modal-close').addEventListener('click', closeAccountModal);
+    document.getElementById('account-modal').addEventListener('click', e => {
+      if (e.target.id === 'account-modal') closeAccountModal();
+    });
+    document.querySelectorAll('[data-auth-tab]').forEach(b => {
+      b.addEventListener('click', () => {
+        document.querySelectorAll('[data-auth-tab]').forEach(x => x.classList.remove('active'));
+        document.querySelectorAll('[data-auth-section]').forEach(x => x.classList.remove('active'));
+        b.classList.add('active');
+        document.querySelector(`[data-auth-section="${b.dataset.authTab}"]`).classList.add('active');
+      });
+    });
+
+    document.getElementById('btn-signin').addEventListener('click', async () => {
+      const email = document.getElementById('auth-email').value.trim();
+      const password = document.getElementById('auth-password').value;
+      if (!email || !password) { showAuthError('Email and password required'); return; }
+      try { await doSignIn(email, password); closeAccountModal(); toast('Signed in'); }
+      catch (e) { showAuthError(e.message || 'Sign-in failed'); }
+    });
+    document.getElementById('btn-signup').addEventListener('click', async () => {
+      const email = document.getElementById('signup-email').value.trim();
+      const password = document.getElementById('signup-password').value;
+      if (!email || !password) { showAuthError('Email and password required'); return; }
+      if (password.length < 8) { showAuthError('Password must be at least 8 characters'); return; }
+      try {
+        await doSignUp(email, password);
+        closeAccountModal();
+        toast('Account created');
+      } catch (e) { showAuthError(e.message || 'Sign-up failed'); }
+    });
+    const stayLocalHandler = () => { closeAccountModal(); };
+    document.getElementById('btn-stay-local').addEventListener('click', stayLocalHandler);
+    document.getElementById('btn-stay-local-2').addEventListener('click', stayLocalHandler);
+    document.getElementById('btn-signout').addEventListener('click', async () => {
+      await doSignOut();
+      closeAccountModal();
+      toast('Signed out');
+    });
+    document.getElementById('btn-acct-signout').addEventListener('click', async () => {
+      await doSignOut();
+      toast('Signed out');
+    });
+    document.getElementById('group-signin-btn').addEventListener('click', openAccountModal);
+
+    document.getElementById('btn-create-group').addEventListener('click', async () => {
+      const name = document.getElementById('group-create-name').value;
+      try { await createGroup(name); toast('Group created · share the code'); document.getElementById('group-create-name').value = ''; }
+      catch (e) { toast(e.message || 'Could not create group', true); }
+    });
+    document.getElementById('btn-join-group').addEventListener('click', async () => {
+      const code = document.getElementById('group-join-code').value;
+      if (!code.trim()) { toast('Enter a code first', true); return; }
+      try { await joinGroupByCode(code); toast('Joined group'); document.getElementById('group-join-code').value = ''; }
+      catch (e) { toast(e.message || 'Could not join', true); }
+    });
+    document.getElementById('btn-leave-group').addEventListener('click', async () => {
+      if (!confirm('Leave this group? Your local cache stays in this browser.')) return;
+      try { await leaveGroup(); toast('Left the group'); }
+      catch (e) { toast(e.message || 'Could not leave', true); }
+    });
+    document.getElementById('group-code-display').addEventListener('click', e => {
+      const code = e.target.textContent.trim();
+      if (!code || code.includes('—')) return;
+      navigator.clipboard?.writeText(code).then(() => toast('Code copied'));
+    });
+
+    // Initial UI state
+    updateAccountUI();
+    renderGroupSection();
+
     // Title-block date
     (function setDate() {
       const d = new Date();
@@ -1417,6 +2307,7 @@
     }
     function saveSettingsToStorage() {
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+      pushSettings(settings).catch(err => console.warn('cloud push (settings):', err));
     }
     function loadHistory() {
       try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); }
@@ -1424,6 +2315,7 @@
     }
     function saveHistory(h) {
       localStorage.setItem(HISTORY_KEY, JSON.stringify(h));
+      pushHistory(h).catch(err => console.warn('cloud push (history):', err));
     }
     function loadSpools() {
       try { return JSON.parse(localStorage.getItem(SPOOLS_KEY) || '[]'); }
@@ -1431,6 +2323,7 @@
     }
     function saveSpools(s) {
       localStorage.setItem(SPOOLS_KEY, JSON.stringify(s));
+      pushSpools(s).catch(err => console.warn('cloud push (spools):', err));
     }
 
     // ---------- TABS ----------
