@@ -69,6 +69,20 @@ export function renderPrinters() {
     ? 'No printers configured yet'
     : `<strong>${printers.length}</strong> printer${printers.length !== 1 ? 's' : ''} in workshop`;
 
+  const callout = document.getElementById('block-detail-printers');
+  if (callout) {
+    if (printers.length > 0) {
+      const active = printers.find(p => String(p.id) === String(activeId));
+      callout.classList.add('active-info');
+      callout.innerHTML = active
+        ? `${active.name.toUpperCase()} ACTIVE<span class="id">A</span>`
+        : `${printers.length} · NONE ACTIVE<span class="id">A</span>`;
+    } else {
+      callout.classList.remove('active-info');
+      callout.innerHTML = `Workshop fleet<span class="id">A</span>`;
+    }
+  }
+
   formContainer.innerHTML = '';
   if (isAddingPrinter || editingPrinterId !== null) {
     const editing = editingPrinterId !== null

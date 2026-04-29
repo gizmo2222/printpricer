@@ -3,7 +3,7 @@
 import { settings, filaments } from './state.js';
 import { saveSettings } from './storage.js';
 import { initTabs, onPaneShow, initPickerOverlay, toast } from './ui.js';
-import { recalc, loadSettingsToForm } from './calc.js';
+import { recalc, loadSettingsToForm, initStickyTotal } from './calc.js';
 import { renderFilaments, resetFilaments, initFilamentsUI } from './filaments.js';
 import { renderSpools, initSpoolsUI } from './spools.js';
 import { renderPrinters, updateActivePrinterDisplay, migrateLegacySinglePrinter, initPrintersUI } from './printers.js';
@@ -24,9 +24,12 @@ import { formatHours } from './utils.js';
 
 // ---- tabs ----
 initTabs();
-onPaneShow('history',  renderHistory);
-onPaneShow('spools',   renderSpools);
-onPaneShow('printers', renderPrinters);
+const hideStickyTotal = () => document.getElementById('sticky-total')?.classList.remove('show');
+onPaneShow('history',  () => { renderHistory();   hideStickyTotal(); });
+onPaneShow('spools',   () => { renderSpools();    hideStickyTotal(); });
+onPaneShow('printers', () => { renderPrinters();  hideStickyTotal(); });
+onPaneShow('settings', hideStickyTotal);
+onPaneShow('calc',     recalc);
 
 // ---- picker overlay (esc / backdrop click / × close) ----
 initPickerOverlay();
@@ -153,8 +156,15 @@ document.addEventListener('keydown', e => {
 startAuthListener();
 
 // ---- initial render ----
+// First-load class enables block-stagger-reveal animation; removed after the
+// initial paint so subsequent tab switches don't restart it.
+document.body.classList.add('first-load');
 resetFilaments();
 renderFilaments();
 loadSettingsToForm();
 updateActivePrinterDisplay();
 recalc();
+initStickyTotal();
+requestAnimationFrame(() => {
+  setTimeout(() => document.body.classList.remove('first-load'), 800);
+});

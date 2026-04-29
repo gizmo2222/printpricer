@@ -27,6 +27,18 @@ export function renderSpools() {
     : `<strong>${total}</strong> spool${total !== 1 ? 's' : ''} on hand` +
       (lowCount ? ` · <span style="color:var(--rust)">${lowCount} low</span>` : '');
 
+  const callout = document.getElementById('block-detail-spools');
+  if (callout) {
+    if (total > 0) {
+      callout.classList.add('active-info');
+      const totalGrams = spools.reduce((s, sp) => s + (+sp.remainingGrams || 0), 0);
+      callout.innerHTML = `${total} · ${(totalGrams / 1000).toFixed(2)} KG${lowCount ? ` · ${lowCount} LOW` : ''}<span class="id">A</span>`;
+    } else {
+      callout.classList.remove('active-info');
+      callout.innerHTML = `Filament library<span class="id">A</span>`;
+    }
+  }
+
   formContainer.innerHTML = '';
   if (isAddingSpool || editingSpoolId !== null) {
     const editing = editingSpoolId !== null ? spools.find(s => s.id === editingSpoolId) : null;

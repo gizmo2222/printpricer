@@ -17,24 +17,19 @@
     <div class="corner-mark corner-bl"></div>
     <div class="corner-mark corner-br"></div>
 
-    <div class="account-pill-wrap">
-      <span id="sync-indicator"></span>
-      <button class="account-pill" id="account-pill" type="button">
-        <span class="dot"></span>
-        <span class="who" id="account-who">Local mode</span>
-      </button>
-    </div>
-
     <div class="title-block">
       <div class="title-main">
         <h1>Print Pricer</h1>
         <div class="subtitle">Filament · Time · Power · Margin</div>
       </div>
-      <div class="title-meta title-meta-with-account">
+      <div class="title-meta">
         <div class="cell"><span class="key">Drawing</span><span class="val accent">PP-001</span></div>
-        <div class="cell"><span class="key">Sheet</span><span class="val">01 / 01</span></div>
-        <div class="cell"><span class="key">Scale</span><span class="val">1 : 1</span></div>
         <div class="cell"><span class="key">Date</span><span class="val" id="title-date">—</span></div>
+        <div class="cell account-cell" id="account-pill" role="button" tabindex="0">
+          <span class="key">Owner</span>
+          <span class="val"><span class="dot"></span><span id="account-who">Local mode</span><span id="sync-indicator"></span></span>
+        </div>
+        <div class="cell"><span class="key">Sheet</span><span class="val">01 / 01</span></div>
       </div>
     </div>
 
@@ -61,15 +56,15 @@
         <span class="bl"></span><span class="br"></span>
         <header class="block-head">
           <h2 class="block-title">Print</h2>
-          <div class="block-detail">Detail<span class="id">A</span></div>
+          <div class="block-detail" id="block-detail-print">Detail<span class="id">A</span></div>
         </header>
         <div class="field">
           <label>Printer</label>
-          <div style="display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;">
-            <span id="active-printer-display" style="font-family: var(--display); font-size: 18px; font-weight: 700; letter-spacing: 0.5px; color: var(--ink);">— none selected —</span>
-            <button type="button" class="pick-spool-btn" id="pick-printer-btn">Pick printer</button>
-          </div>
-          <div id="active-printer-meta" style="font-family: var(--mono); font-size: 11px; color: var(--ink-faint); letter-spacing: 0.3px; margin-top: 4px;"></div>
+          <button type="button" class="printer-pick-row" id="pick-printer-btn">
+            <span class="printer-name empty" id="active-printer-display">— none selected —</span>
+            <span class="printer-pick-arrow">PICK ▾</span>
+          </button>
+          <div class="printer-meta-line" id="active-printer-meta"></div>
         </div>
         <div class="field">
           <label>Description</label>
@@ -91,7 +86,7 @@
         <span class="bl"></span><span class="br"></span>
         <header class="block-head">
           <h2 class="block-title">Filaments</h2>
-          <div class="block-detail">Detail<span class="id">B</span></div>
+          <div class="block-detail" id="block-detail-filaments">Detail<span class="id">B</span></div>
         </header>
         <div id="filaments"></div>
         <button class="btn btn-add" id="add-filament" style="margin-top: 14px;">+ Add filament</button>
@@ -101,7 +96,7 @@
         <span class="bl"></span><span class="br"></span>
         <header class="block-head">
           <h2 class="block-title">Cost Breakdown</h2>
-          <div class="block-detail">Bill of materials<span class="id">C</span></div>
+          <div class="block-detail" id="block-detail-breakdown">Bill of materials<span class="id">C</span></div>
         </header>
         <div class="breakdown" id="breakdown">
           <div class="breakdown-row"><span class="label">Filament</span><span class="leader"></span><span class="value" id="bd-filament">$0.00</span></div>
@@ -128,7 +123,7 @@
         <span class="bl"></span><span class="br"></span>
         <header class="block-head">
           <h2 class="block-title">Spool Inventory</h2>
-          <div class="block-detail">Filament library<span class="id">A</span></div>
+          <div class="block-detail" id="block-detail-spools">Filament library<span class="id">A</span></div>
         </header>
         <div class="spool-toolbar">
           <div class="count" id="spool-count">— spools on hand</div>
@@ -157,7 +152,7 @@
         <span class="bl"></span><span class="br"></span>
         <header class="block-head">
           <h2 class="block-title">Printers</h2>
-          <div class="block-detail">Workshop fleet<span class="id">A</span></div>
+          <div class="block-detail" id="block-detail-printers">Workshop fleet<span class="id">A</span></div>
         </header>
         <div class="spool-toolbar">
           <div class="count" id="printer-count">— printers configured</div>
@@ -186,7 +181,7 @@
         <span class="bl"></span><span class="br"></span>
         <header class="block-head">
           <h2 class="block-title">Account &amp; Group</h2>
-          <div class="block-detail">Sync &amp; sharing<span class="id">A</span></div>
+          <div class="block-detail" id="block-detail-account">Sync &amp; sharing<span class="id">A</span></div>
         </header>
 
         <div id="group-content-loggedout">
@@ -354,7 +349,7 @@
         <span class="bl"></span><span class="br"></span>
         <header class="block-head">
           <h2 class="block-title">Archive</h2>
-          <div class="block-detail">Saved estimates<span class="id">A</span></div>
+          <div class="block-detail" id="block-detail-archive">Saved estimates<span class="id">A</span></div>
         </header>
         <div id="history-list"></div>
         <div class="btn-row" id="history-actions" style="display: none; margin-top: 16px;">
@@ -441,6 +436,11 @@
         </div>
       </div>
     </div>
+  </div>
+
+  <div class="sticky-total" id="sticky-total" aria-hidden="true">
+    <span class="sticky-label">Estimated price</span>
+    <span class="sticky-value" id="sticky-total-value">$0.00</span>
   </div>
 
   <div class="toast" id="toast"></div>

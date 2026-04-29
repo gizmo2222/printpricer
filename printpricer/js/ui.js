@@ -140,16 +140,31 @@ export function switchToPane(pane) {
   document.querySelector(`.layer[data-pane="${pane}"]`)?.click();
 }
 
-// Pending-writes indicator on the account pill — shows "● syncing" when
-// writes are queued, "● synced" when caught up.
+// Pending-writes indicator inside the title-block account cell.
+//   pending > 0  → "syncing N"
+//   pending = 0  → "synced ✓" (briefly), then blank
+let lastPending = 0;
+let syncedFlashTimer = null;
 export function updateSyncIndicator(pending) {
   const el = document.getElementById('sync-indicator');
   if (!el) return;
   if (pending > 0) {
-    el.textContent = `· syncing (${pending})`;
+    el.textContent = ` · syncing ${pending}`;
     el.classList.add('pending');
+    el.classList.remove('complete');
+  } else if (lastPending > 0) {
+    // Just transitioned to caught-up — show a brief stamp moment.
+    el.textContent = ' · synced ✓';
+    el.classList.remove('pending');
+    el.classList.add('complete');
+    if (syncedFlashTimer) clearTimeout(syncedFlashTimer);
+    syncedFlashTimer = setTimeout(() => {
+      el.textContent = '';
+      el.classList.remove('complete');
+    }, 1500);
   } else {
     el.textContent = '';
-    el.classList.remove('pending');
+    el.classList.remove('pending', 'complete');
   }
+  lastPending = pending;
 }

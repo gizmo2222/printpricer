@@ -197,10 +197,10 @@ body::before {
 .layer.active .layer-num { color: var(--blueprint); font-weight: 600; }
 
 .pane { display: none; }
-.pane.active { display: block; animation: rise 0.5s var(--ease-quart) both; }
+.pane.active { display: block; animation: rise 0.18s var(--ease-quart) both; }
 
 @keyframes rise {
-  from { opacity: 0; transform: translateY(6px); }
+  from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
@@ -211,12 +211,16 @@ body::before {
   margin-bottom: 22px;
   background: var(--paper);
   border: 1px solid var(--ink);
-  animation: rise 0.5s var(--ease-quart) both;
 }
-.pane.active .block:nth-child(1) { animation-delay: 0.05s; }
-.pane.active .block:nth-child(2) { animation-delay: 0.12s; }
-.pane.active .block:nth-child(3) { animation-delay: 0.19s; }
-.pane.active .block:nth-child(4) { animation-delay: 0.26s; }
+/* Initial-load only: stagger the blocks in. Tab switches don't restart this
+   because the .first-load class is removed once first paint settles. */
+body.first-load .pane.active .block {
+  animation: rise 0.45s var(--ease-quart) both;
+}
+body.first-load .pane.active .block:nth-child(1) { animation-delay: 0.04s; }
+body.first-load .pane.active .block:nth-child(2) { animation-delay: 0.10s; }
+body.first-load .pane.active .block:nth-child(3) { animation-delay: 0.16s; }
+body.first-load .pane.active .block:nth-child(4) { animation-delay: 0.22s; }
 
 .block::before, .block::after,
 .block > .br, .block > .bl {
@@ -274,7 +278,7 @@ body::before {
   padding: 6px 0 5px;
   transition: border-color 0.15s, background 0.15s;
 }
-.field input::placeholder { color: var(--ink-ghost); font-style: italic; }
+.field input::placeholder { color: var(--ink-faint); font-style: italic; }
 .input:focus, .field input:focus, .field select:focus {
   outline: none;
   border-bottom-color: var(--blueprint);
@@ -1063,6 +1067,151 @@ select.input {
   flex-wrap: wrap; gap: 8px;
 }
 .sheet-footer .scale { color: var(--blueprint); font-weight: 600; }
+
+/* ---------- normalized printer pick row ---------- */
+.printer-pick-row {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1.5px solid var(--ink);
+  font-family: var(--mono);
+  font-size: 16px; font-weight: 500;
+  padding: 6px 0 5px;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--ink);
+  transition: border-color 0.15s, background 0.15s;
+}
+.printer-pick-row:hover,
+.printer-pick-row:focus {
+  outline: none;
+  border-bottom-color: var(--blueprint);
+  background: rgba(31, 78, 122, 0.04);
+}
+.printer-pick-row .printer-name {
+  font-family: var(--display);
+  font-size: 18px; font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+.printer-pick-row .printer-name.empty {
+  color: var(--ink-faint); font-style: italic;
+  font-weight: 500; letter-spacing: 0;
+  text-transform: none;
+  font-family: var(--sans);
+  font-size: 14px;
+}
+.printer-pick-row .printer-pick-arrow {
+  font-family: var(--display);
+  font-size: 14px;
+  color: var(--ink-faint);
+  letter-spacing: 1px;
+}
+.printer-pick-row:hover .printer-pick-arrow,
+.printer-pick-row:focus .printer-pick-arrow { color: var(--blueprint); }
+.printer-meta-line {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-faint);
+  letter-spacing: 0.3px;
+  margin-top: 4px;
+}
+
+/* ---------- sticky total bar ---------- */
+.sticky-total {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: var(--ink);
+  color: var(--paper);
+  padding: 10px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  z-index: 50;
+  transform: translateY(110%);
+  transition: transform 0.22s var(--ease-quart);
+  box-shadow: 0 -2px 0 var(--blueprint);
+  pointer-events: none;
+}
+.sticky-total.show { transform: translateY(0); }
+.sticky-total .sticky-label {
+  font-family: var(--condensed);
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  color: var(--paper-shadow);
+}
+.sticky-total .sticky-value {
+  font-family: var(--mono);
+  font-size: 22px; font-weight: 600;
+  color: var(--paper);
+  letter-spacing: 0.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- recalc flash on changing values ---------- */
+.breakdown-row .value,
+.total-stamp .value,
+#sticky-total-value {
+  transition: background-color 0.7s ease-out;
+}
+.breakdown-row .value.flashed,
+.total-stamp .value.flashed,
+#sticky-total-value.flashed {
+  background-color: rgba(31, 78, 122, 0.20);
+  transition: background-color 0s;
+  outline: 1px solid rgba(31, 78, 122, 0.20);
+  outline-offset: 1px;
+}
+
+/* ---------- block-detail callout link styling (when interactive) ---------- */
+.block-detail.active-info {
+  color: var(--blueprint);
+  font-weight: 700;
+}
+.block-detail.active-info .id {
+  color: var(--ink-faint);
+  font-weight: 500;
+}
+
+/* ---------- title-block account cell ---------- */
+.title-meta .cell.account-cell {
+  cursor: pointer;
+  transition: background 0.12s var(--ease-quart);
+}
+.title-meta .cell.account-cell:hover { background: var(--paper); }
+.title-meta .cell.account-cell .val {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.title-meta .cell.account-cell .dot {
+  display: inline-block;
+  width: 6px; height: 6px;
+  background: var(--ink-faint);
+  margin-right: 4px;
+  vertical-align: middle;
+}
+.title-meta .cell.account-cell.signed-in .dot { background: var(--moss); }
+.title-meta .cell.account-cell.in-group .dot  { background: var(--blueprint); }
+
+/* sync indicator inside the title-block account cell */
+#sync-indicator {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  color: var(--ink-faint);
+  text-transform: lowercase;
+  margin-left: 4px;
+}
+#sync-indicator.pending  { color: var(--blueprint); }
+#sync-indicator.complete { color: var(--moss); }
 
 /* ---------- mobile ---------- */
 @media (max-width: 720px) {

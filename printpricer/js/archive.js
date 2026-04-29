@@ -4,8 +4,7 @@ import { settings, filaments } from './state.js';
 import { loadHistory, saveHistory, loadSpools, saveSpools, getActivePrinter } from './storage.js';
 import { LOW_STOCK_THRESHOLD } from './state.js';
 import { num, fmt, escapeHtml, formatHours, toCsv, downloadFile } from './utils.js';
-import { toast } from './ui.js';
-import { switchToPane } from './ui.js';
+import { toast, toastWithUndo, switchToPane } from './ui.js';
 import { renderFilaments, setFilaments, newFilament } from './filaments.js';
 import { recalc } from './calc.js';
 import { logActivity } from './firebase.js';
@@ -16,9 +15,22 @@ export function renderHistory() {
   const h = loadHistory();
   const list = document.getElementById('history-list');
   const actions = document.getElementById('history-actions');
+  const callout = document.getElementById('block-detail-archive');
   if (!list) return;
+
+  if (callout) {
+    if (h.length > 0) {
+      const totalRevenue = h.reduce((s, e) => s + (e.breakdown?.total || 0), 0);
+      callout.classList.add('active-info');
+      callout.innerHTML = `${h.length} · $${totalRevenue.toFixed(2)} TOTAL<span class="id">A</span>`;
+    } else {
+      callout.classList.remove('active-info');
+      callout.innerHTML = `Saved estimates<span class="id">A</span>`;
+    }
+  }
+
   if (h.length === 0) {
-    list.innerHTML = '<div class="empty"><strong>Empty archive</strong>Estimate a print and tap "Stamp &amp; Archive" to record it here.</div>';
+    list.innerHTML = '<div class="empty"><strong>Empty archive</strong>Estimate a print and tap "Stamp &amp; Archive" to record it here. Saved entries can be cloned to start a similar print, exported as CSV for accounting, or printed as a customer-ready quote.</div>';
     actions.style.display = 'none';
     return;
   }
@@ -144,6 +156,10 @@ async function stampAndArchive() {
       },
       settingsSnapshot: { ...settings },
     };
+
+    // Capture pre-state for undo (deep clone of spools — they're small).
+    const spoolsBefore = JSON.parse(JSON.stringify(loadSpools()));
+
     const h = loadHistory();
     h.unshift(entry);
     saveHistory(h);
@@ -167,10 +183,22 @@ async function stampAndArchive() {
       renderFilaments();
     }
 
+    // Undo: removes the new archive entry and restores the spool snapshot.
+    const undo = () => {
+      saveHistory(loadHistory().filter(x => x.id !== entry.id));
+      saveSpools(spoolsBefore);
+      renderFilaments();
+      recalc();
+      logActivity(`undid archive of "${name}"`);
+      toast('Stamp undone');
+    };
+
     if (newlyLow.length) {
+      // Low-stock warning is too important to bury in an undo toast — show
+      // it as the regular sticky error AND log the archive at the same time.
       toast(`Low stock: ${newlyLow.join(', ')}`, true);
     } else {
-      toast('Stamped & archived', false, 'stamp');
+      toastWithUndo(`Stamped & archived · ${fmt(result.total)}`, undo, 8000);
     }
     logActivity(`archived "${name}" — ${fmt(result.total)}`);
   } finally {

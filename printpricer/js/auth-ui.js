@@ -5,13 +5,13 @@ import { toast } from './ui.js';
 import { doSignIn, doSignUp, doSignOut, createGroup, joinGroupByCode, leaveGroup } from './firebase.js';
 
 export function updateAccountUI() {
-  const pill = document.getElementById('account-pill');
+  const cell = document.getElementById('account-pill');
   const who = document.getElementById('account-who');
   const cfgWarn = document.getElementById('config-warning');
-  if (!pill) return;
+  if (!cell) return;
 
   if (!CLOUD_ENABLED) {
-    pill.classList.remove('signed-in', 'in-group');
+    cell.classList.remove('signed-in', 'in-group');
     who.textContent = 'Local only';
     if (cfgWarn) cfgWarn.style.display = 'block';
     return;
@@ -19,17 +19,17 @@ export function updateAccountUI() {
   if (cfgWarn) cfgWarn.style.display = 'none';
 
   if (!state.user || state.user.isAnonymous) {
-    pill.classList.remove('signed-in', 'in-group');
+    cell.classList.remove('signed-in', 'in-group');
     who.textContent = 'Local mode';
     return;
   }
   const email = state.user.email || 'Signed in';
   if (state.groupId && state.groupDoc) {
-    pill.classList.add('signed-in', 'in-group');
+    cell.classList.add('signed-in', 'in-group');
     who.textContent = state.groupDoc.name || email;
   } else {
-    pill.classList.add('signed-in');
-    pill.classList.remove('in-group');
+    cell.classList.add('signed-in');
+    cell.classList.remove('in-group');
     who.textContent = email;
   }
 }
@@ -40,6 +40,18 @@ export function renderGroupSection() {
   const noGroup = document.getElementById('group-no-group');
   const inGroup = document.getElementById('group-in-group');
   if (!loggedOut) return;
+
+  // Earn the Account & Group block-detail callout
+  const callout = document.getElementById('block-detail-account');
+  if (callout) {
+    let label;
+    if (!CLOUD_ENABLED) label = 'CLOUD OFF';
+    else if (!state.user || state.user.isAnonymous) label = 'LOCAL';
+    else if (state.groupId && state.groupDoc) label = `GROUP · ${state.members.length} MEMBER${state.members.length !== 1 ? 'S' : ''}`;
+    else label = 'PERSONAL';
+    callout.classList.add('active-info');
+    callout.innerHTML = `${label}<span class="id">A</span>`;
+  }
 
   if (!state.user || state.user.isAnonymous) {
     loggedOut.style.display = '';
@@ -95,7 +107,11 @@ function showAuthError(msg) {
 }
 
 export function initAuthUI() {
-  document.getElementById('account-pill').addEventListener('click', openAccountModal);
+  const pill = document.getElementById('account-pill');
+  pill.addEventListener('click', openAccountModal);
+  pill.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openAccountModal(); }
+  });
   document.getElementById('account-modal-close').addEventListener('click', closeAccountModal);
   document.getElementById('account-modal').addEventListener('click', e => {
     if (e.target.id === 'account-modal') closeAccountModal();
