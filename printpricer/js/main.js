@@ -1,19 +1,19 @@
 // Entry point: wire everything up after the DOM is ready.
 
-import { settings, filaments } from './state.js';
-import { saveSettings } from './storage.js';
-import { initTabs, onPaneShow, initPickerOverlay, toast } from './ui.js';
-import { recalc, loadSettingsToForm, initStickyTotal } from './calc.js';
-import { renderFilaments, resetFilaments, initFilamentsUI } from './filaments.js';
-import { renderSpools, initSpoolsUI } from './spools.js';
-import { renderPrinters, updateActivePrinterDisplay, migrateLegacySinglePrinter, initPrintersUI } from './printers.js';
-import { renderHistory, initArchive } from './archive.js';
-import { initAuthUI, updateAccountUI, renderGroupSection } from './auth-ui.js';
-import { startAuthListener } from './firebase.js';
-import { parseGcode, parse3mf } from './parser.js';
-import { formatHours } from './utils.js';
-import { initOnboarding, maybeShowOnboarding } from './onboarding.js';
-import { initHelp } from './help.js';
+import { settings, filaments } from './state.js?v=12';
+import { saveSettings } from './storage.js?v=12';
+import { initTabs, onPaneShow, initPickerOverlay, toast } from './ui.js?v=12';
+import { recalc, loadSettingsToForm, initStickyTotal } from './calc.js?v=12';
+import { renderFilaments, resetFilaments, initFilamentsUI } from './filaments.js?v=12';
+import { renderSpools, initSpoolsUI } from './spools.js?v=12';
+import { renderPrinters, updateActivePrinterDisplay, migrateLegacySinglePrinter, initPrintersUI } from './printers.js?v=12';
+import { renderHistory, initArchive } from './archive.js?v=12';
+import { initAuthUI, updateAccountUI, renderGroupSection } from './auth-ui.js?v=12';
+import { startAuthListener } from './firebase.js?v=12';
+import { parseGcode, parse3mf } from './parser.js?v=12';
+import { formatHours } from './utils.js?v=12';
+import { initOnboarding, maybeShowOnboarding } from './onboarding.js?v=12';
+import { initHelp } from './help.js?v=12';
 
 // ---- title-block date ----
 (function setDate() {
