@@ -41,7 +41,7 @@ export function updateActivePrinterDisplay() {
   const p = getActivePrinter();
   if (p) {
     display.textContent = p.name;
-    display.style.color = '';
+    display.classList.remove('empty');
     const bits = [];
     if (p.watts) bits.push(`${p.watts} W`);
     if (p.hourlyRate) bits.push(`$${(+p.hourlyRate).toFixed(2)}/hr`);
@@ -50,7 +50,7 @@ export function updateActivePrinterDisplay() {
     meta.textContent = bits.join(' · ');
   } else {
     display.textContent = '— none selected —';
-    display.style.color = 'var(--ink-faint)';
+    display.classList.add('empty');
     meta.textContent = loadPrinters().length === 0
       ? 'Add a printer in layer 03 first.'
       : 'Pick a printer to use its rates.';
