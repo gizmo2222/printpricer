@@ -3,12 +3,12 @@
 // Each spool now also keeps a refillHistory array — { date, grams, op } —
 // recording every refill action so users can audit consumption later.
 
-import { settings, MATERIALS, LOW_STOCK_THRESHOLD } from './state.js?v=12';
-import { loadSpools, saveSpools, loadHistory } from './storage.js?v=12';
-import { escapeHtml } from './utils.js?v=12';
-import { toast } from './ui.js?v=12';
-import { renderFilaments } from './filaments.js?v=12';
-import { logActivity } from './firebase.js?v=12';
+import { settings, MATERIALS, LOW_STOCK_THRESHOLD } from './state.js?v=13';
+import { loadSpools, saveSpools, loadHistory } from './storage.js?v=13';
+import { escapeHtml } from './utils.js?v=13';
+import { toast } from './ui.js?v=13';
+import { renderFilaments } from './filaments.js?v=13';
+import { logActivity } from './firebase.js?v=13';
 
 let editingSpoolId = null;
 let isAddingSpool = false;

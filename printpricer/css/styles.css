@@ -209,6 +209,30 @@ body::before {
 }
 .layer.active .layer-num { color: var(--blueprint); font-weight: 600; }
 
+/* Help slot at the right edge of the layer row — same height as the tabs
+   but visually a separate affordance: small square with the `?` glyph. */
+.layer-help {
+  flex: 0 0 auto;
+  width: 44px;
+  background: transparent;
+  border: none;
+  border-left: 1px solid var(--ink);
+  cursor: pointer;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--ink-faint);
+  padding: 0;
+  align-self: stretch;
+  transition: color 0.12s var(--ease-quart), background 0.12s var(--ease-quart);
+}
+.layer-help:hover,
+.layer-help:focus-visible {
+  color: var(--paper);
+  background: var(--blueprint);
+  outline: none;
+}
+
 .pane { display: none; }
 .pane.active { display: block; animation: rise 0.18s var(--ease-quart) both; }
 

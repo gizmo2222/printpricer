@@ -11,7 +11,7 @@
   <!-- Cache-buster query string is bumped on each meaningful release so
        browsers fetch the new module set instead of stale ES-module copies.
        Bump this when you ship CSS or JS changes. -->
-  <link rel="stylesheet" href="css/styles.css?v=12">
+  <link rel="stylesheet" href="css/styles.css?v=13">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
@@ -43,6 +43,7 @@
       <button class="layer"        data-pane="printers"><span class="layer-num">03</span>Printers</button>
       <button class="layer"        data-pane="settings"><span class="layer-num">04</span>Defaults</button>
       <button class="layer"        data-pane="history"><span class="layer-num">05</span>Archive</button>
+      <button class="layer-help" id="help-btn-top" type="button" aria-label="Help and instructions" data-hint="Quick start · how files are read · cost formula · keyboard shortcuts · cloud sync" data-hint-pos="below">?</button>
     </div>
 
     <!-- LAYER 01 — ESTIMATE -->
@@ -402,10 +403,7 @@
     <footer class="sheet-footer">
       <span>Print Pricer · DWG-PP-001</span>
       <span class="scale">Sheet 01 / 01</span>
-      <span style="display: flex; align-items: center; gap: 8px;">
-        <button class="help-trigger" id="help-btn" type="button" aria-label="Help and instructions" data-hint="How the app works · keyboard shortcuts · cost formula · file support">?</button>
-        Drawn locally · Synced when in a group
-      </span>
+      <span>Drawn locally · Synced when in a group</span>
     </footer>
   </div>
 
@@ -587,6 +585,6 @@
 
   <datalist id="spool-list"></datalist>
 
-  <script type="module" src="js/main.js?v=12"></script>
+  <script type="module" src="js/main.js?v=13"></script>
 </body>
 </html>
