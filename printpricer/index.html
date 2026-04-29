@@ -25,7 +25,7 @@
       <div class="title-meta">
         <div class="cell"><span class="key">Drawing</span><span class="val accent">PP-001</span></div>
         <div class="cell"><span class="key">Date</span><span class="val" id="title-date">—</span></div>
-        <div class="cell account-cell" id="account-pill" role="button" tabindex="0">
+        <div class="cell account-cell" id="account-pill" role="button" tabindex="0" data-hint="Click to sign in or create an account. Signed-in users sync across devices and can share a workshop with others via a group code." data-hint-pos="below">
           <span class="key">Owner</span>
           <span class="val"><span class="dot"></span><span id="account-who">Local mode</span><span id="sync-indicator"></span></span>
         </div>
@@ -43,7 +43,30 @@
 
     <!-- LAYER 01 — ESTIMATE -->
     <div class="pane active" id="pane-calc">
-      <label class="dropsheet" id="dropzone">
+      <div class="onboard-card" id="onboard-card" style="display:none">
+        <button class="onboard-close" id="onboard-close" aria-label="Dismiss">×</button>
+        <h3>Welcome — start here</h3>
+        <p>Print Pricer turns slicer output into a quote you can charge. Three things to set up first; the rest is automatic.</p>
+        <div class="onboard-steps">
+          <button class="onboard-step" data-onboard-jump="printers" type="button">
+            <span class="num">STEP 01</span>
+            <span class="label">Add a Printer</span>
+            <span class="hint">Wattage, hourly rate, throughput. Drives every estimate.</span>
+          </button>
+          <button class="onboard-step" data-onboard-jump="spools" type="button">
+            <span class="num">STEP 02</span>
+            <span class="label">Add a Spool <em style="font-style:normal;color:var(--ink-faint);font-weight:500">(optional)</em></span>
+            <span class="hint">Track inventory and auto-fill filament cost. Skip if you only quote occasionally.</span>
+          </button>
+          <button class="onboard-step" data-onboard-jump="calc" type="button">
+            <span class="num">STEP 03</span>
+            <span class="label">Drop a file</span>
+            <span class="hint">Drag a .gcode or .3mf below — print time and filament weight auto-fill.</span>
+          </button>
+        </div>
+      </div>
+
+      <label class="dropsheet" id="dropzone" data-hint="Drop a sliced file (.gcode / .3mf) to auto-fill print time and filament weight. Model-only 3MFs fall back to a geometry-based estimate.">
         <span class="icon"></span>
         <span class="text">
           <strong>Drop project file</strong>
@@ -60,9 +83,9 @@
         </header>
         <div class="field">
           <label>Printer</label>
-          <button type="button" class="printer-pick-row" id="pick-printer-btn">
+          <button type="button" class="printer-pick-row" id="pick-printer-btn" data-hint="Picks which printer this estimate is for. The selected printer's wattage, hourly rate, throughput, and multi-color overhead drive the cost calculation.">
             <span class="printer-name empty" id="active-printer-display">— none selected —</span>
-            <span class="printer-pick-arrow">PICK ▾</span>
+            <span class="printer-pick-arrow">▾</span>
           </button>
           <div class="printer-meta-line" id="active-printer-meta"></div>
         </div>
@@ -111,8 +134,8 @@
           <span class="value" id="bd-total">$0.00</span>
         </div>
         <div class="btn-row" style="margin-top: 18px;">
-          <button class="btn btn-stamp" id="save-quote">Stamp &amp; Archive</button>
-          <button class="btn btn-ghost" id="reset-quote">Reset Sheet</button>
+          <button class="btn btn-stamp" id="save-quote" data-hint="Saves this quote to the Archive and deducts grams from any linked spools. Reversible for 8 seconds via the undo toast.">Stamp &amp; Archive</button>
+          <button class="btn btn-ghost" id="reset-quote" data-hint="Clears the Estimate sheet — description, time, filament rows. Defaults and the active printer are kept.">Reset Sheet</button>
         </div>
       </section>
     </div>
@@ -229,8 +252,8 @@
             <div class="status-row" style="margin-top: 8px;">
               <span class="status-label">Join code</span>
             </div>
-            <div class="group-code" id="group-code-display">——————</div>
-            <div class="group-code-hint">share this code with anyone using the same printer</div>
+            <div class="group-code" id="group-code-display" data-hint="Click to copy. Anyone signed in who pastes this code into 'Join with code' becomes a group member.">——————</div>
+            <div class="group-code-hint">click to copy · share with anyone using the same printer</div>
 
             <div class="status-row" style="margin-top: 14px;">
               <span class="status-label">Members</span>
@@ -351,10 +374,23 @@
           <h2 class="block-title">Archive</h2>
           <div class="block-detail" id="block-detail-archive">Saved estimates<span class="id">A</span></div>
         </header>
+
+        <div class="archive-filter" id="archive-filter" style="display:none">
+          <input type="search" id="archive-search" placeholder="Search by name…" data-hint="Filter the list by name. Case-insensitive, matches anywhere.">
+          <select id="archive-month" data-hint="Filter to a specific month or all-time."><option value="">All months</option></select>
+          <select id="archive-sort" data-hint="Reorder the list. Default is newest first.">
+            <option value="date-desc">Newest first</option>
+            <option value="date-asc">Oldest first</option>
+            <option value="total-desc">Highest $ first</option>
+            <option value="total-asc">Lowest $ first</option>
+          </select>
+          <div class="filter-meta" id="filter-meta"></div>
+        </div>
+
         <div id="history-list"></div>
         <div class="btn-row" id="history-actions" style="display: none; margin-top: 16px;">
-          <button class="btn btn-ghost" id="export-csv">Export CSV</button>
-          <button class="btn btn-danger" id="clear-history">Clear archive</button>
+          <button class="btn btn-ghost" id="export-csv" data-hint="Download the visible (filtered) archive as a CSV — date, name, printer, hours, grams, breakdown, total. Open in Excel / Sheets / Numbers for accounting.">Export CSV</button>
+          <button class="btn btn-danger" id="clear-history" data-hint="Permanently deletes every archived estimate. Cannot be undone — export first if you want a record.">Clear archive</button>
         </div>
       </section>
     </div>
@@ -362,7 +398,10 @@
     <footer class="sheet-footer">
       <span>Print Pricer · DWG-PP-001</span>
       <span class="scale">Sheet 01 / 01</span>
-      <span>Drawn locally · Synced when in a group</span>
+      <span style="display: flex; align-items: center; gap: 8px;">
+        <button class="help-trigger" id="help-btn" type="button" aria-label="Help and instructions" data-hint="How the app works · keyboard shortcuts · cost formula · file support">?</button>
+        Drawn locally · Synced when in a group
+      </span>
     </footer>
   </div>
 
@@ -441,6 +480,93 @@
   <div class="sticky-total" id="sticky-total" aria-hidden="true">
     <span class="sticky-label">Estimated price</span>
     <span class="sticky-value" id="sticky-total-value">$0.00</span>
+  </div>
+
+  <div class="help-modal" id="help-modal" role="dialog" aria-modal="true" aria-labelledby="help-title">
+    <div class="help-panel">
+      <div class="help-head">
+        <h3 id="help-title">Print Pricer · Instructions</h3>
+        <button class="modal-close" id="help-close" aria-label="Close">×</button>
+      </div>
+
+      <div class="help-section">
+        <h4>Quick start</h4>
+        <ol>
+          <li>Open <span class="layer-name">03 Printers</span> and add at least one printer. Its wattage, hourly rate, and throughput drive every estimate.</li>
+          <li><em>(Optional)</em> Open <span class="layer-name">02 Spools</span> and add the filament you have on hand. This auto-fills the cost on the Estimate sheet and tracks remaining grams as you print.</li>
+          <li>On <span class="layer-name">01 Estimate</span>, drag a <code>.gcode</code> or <code>.3mf</code> file onto the drop zone — print time and filament weight fill in automatically. Or enter values manually.</li>
+          <li>Click <strong>Stamp &amp; Archive</strong> to save the quote. You have 8 seconds to undo.</li>
+        </ol>
+      </div>
+
+      <div class="help-section">
+        <h4>The five layers</h4>
+        <dl class="help-grid">
+          <dt>01 Estimate</dt>
+          <dd>The working sheet. Drop a file or enter values, see the cost breakdown live, stamp it.</dd>
+          <dt>02 Spools</dt>
+          <dd>Filament inventory. Color, material, $/kg, remaining grams. Spools below 50&nbsp;g are flagged low. Each carries a refill log and a consumption forecast based on your archive.</dd>
+          <dt>03 Printers</dt>
+          <dd>Your workshop fleet. Each printer has its own wattage, $/hr, throughput, and multi-color overhead. Pick one per estimate.</dd>
+          <dt>04 Defaults</dt>
+          <dd>Workspace-wide values: filament $/kg default, electricity $/kWh, failure markup, profit margin, density and fill fraction for geometry estimates. Account &amp; Group sign-in lives here too.</dd>
+          <dt>05 Archive</dt>
+          <dd>Saved estimates. Load to revisit, clone to start a similar print, print as a customer-ready quote, or export the whole list as CSV. Filter bar appears once you have 10+ entries.</dd>
+        </dl>
+      </div>
+
+      <div class="help-section">
+        <h4>What files the app reads</h4>
+        <ul>
+          <li><code>.gcode</code> from PrusaSlicer / OrcaSlicer / SuperSlicer / Cura — reads <code>; estimated printing time</code> and <code>; filament used [g]</code>.</li>
+          <li><code>.3mf</code> sliced from Bambu Studio / OrcaSlicer — reads <code>slice_info.config</code> (filament weights + prediction time) or the embedded gcode.</li>
+          <li><code>.3mf</code> model-only (downloaded from MakerWorld / Printables, project saved before slicing) — falls back to <strong>geometry-based estimation</strong>: parses the mesh, computes volume × density × fill fraction, and proportions per filament by part-volume share. ±30% accurate; tune the factors in <span class="layer-name">04 Defaults</span>.</li>
+          <li>Multi-plate 3MFs use the heaviest plate (the one most likely to be the substantive print).</li>
+        </ul>
+      </div>
+
+      <div class="help-section">
+        <h4>How the cost is calculated</h4>
+        <div class="formula-box">
+<span class="kw">filament</span>     <span class="op">=</span>  Σ ( grams ÷ 1000 × $/kg )<br>
+<span class="kw">electricity</span>  <span class="op">=</span>  ( watts ÷ 1000 ) × hours × $/kWh<br>
+<span class="kw">time cost</span>    <span class="op">=</span>  hours × $/hr<br>
+<span class="kw">subtotal</span>     <span class="op">=</span>  filament <span class="op">+</span> electricity <span class="op">+</span> time<br>
+<span class="kw">failure</span>      <span class="op">=</span>  subtotal × failure %<br>
+<span class="kw">margin</span>       <span class="op">=</span>  ( subtotal <span class="op">+</span> failure ) × margin %<br>
+<span class="kw">total</span>        <span class="op">=</span>  subtotal <span class="op">+</span> failure <span class="op">+</span> margin
+        </div>
+      </div>
+
+      <div class="help-section">
+        <h4>Keyboard shortcuts</h4>
+        <dl class="help-grid">
+          <dt><span class="kbd">1</span> – <span class="kbd">5</span></dt>
+          <dd>Switch layers (Estimate · Spools · Printers · Defaults · Archive).</dd>
+          <dt><span class="kbd">Ctrl+Enter</span></dt>
+          <dd>Stamp &amp; Archive the current estimate.</dd>
+          <dt><span class="kbd">Esc</span></dt>
+          <dd>Close any open picker, modal, or overlay.</dd>
+        </dl>
+      </div>
+
+      <div class="help-section">
+        <h4>Cloud sync &amp; group sharing</h4>
+        <p>The app works fully offline by default — everything stays in this browser's localStorage. Sign in (top-right OWNER cell, or in <span class="layer-name">04 Defaults</span>) to sync your data across devices.</p>
+        <p><strong>Groups</strong> let multiple people share the same workshop. Create a group, get a 6-character join code, and anyone signed in with that code shares your spool inventory, printer fleet, archive, and defaults — all in real time. The active printer selection stays per-device.</p>
+      </div>
+
+      <div class="help-section">
+        <h4>Tips</h4>
+        <ul>
+          <li>Linked spools auto-deduct grams when you Stamp &amp; Archive. Refill any spool by editing it and clicking <em>Refill to Xg</em>.</li>
+          <li>Filament rows show a small color swatch when linked to a spool. Type a spool name in the type/color field to link it; cost auto-fills.</li>
+          <li>Click the join code in <span class="layer-name">04 Defaults</span> to copy it.</li>
+          <li>The estimate sheet description always overwrites with the dropped file's name. Type your own after dropping if you want something different.</li>
+          <li>Sticky price tag (bottom-right corner) tracks the total whenever the main breakdown is offscreen.</li>
+        </ul>
+      </div>
+    </div>
   </div>
 
   <div class="toast" id="toast"></div>

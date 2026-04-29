@@ -37,6 +37,8 @@ jobs:
           put printpricer/js/archive.js     /home/nstrupp/metacrystal.com/printpricer/js/archive.js
           put printpricer/js/activity.js    /home/nstrupp/metacrystal.com/printpricer/js/activity.js
           put printpricer/js/main.js        /home/nstrupp/metacrystal.com/printpricer/js/main.js
+          put printpricer/js/onboarding.js  /home/nstrupp/metacrystal.com/printpricer/js/onboarding.js
+          put printpricer/js/help.js        /home/nstrupp/metacrystal.com/printpricer/js/help.js
           SFTP
 
       - name: Confirm

@@ -5,17 +5,59 @@ import { loadHistory, saveHistory, loadSpools, saveSpools, getActivePrinter } fr
 import { LOW_STOCK_THRESHOLD } from './state.js';
 import { num, fmt, escapeHtml, formatHours, toCsv, downloadFile } from './utils.js';
 import { toast, toastWithUndo, switchToPane } from './ui.js';
+import { markOnboardingComplete } from './onboarding.js';
 import { renderFilaments, setFilaments, newFilament } from './filaments.js';
 import { recalc } from './calc.js';
 import { logActivity } from './firebase.js';
 
 let saveQuoteInFlight = false; // double-tap guard
+const FILTER_THRESHOLD = 10;
+const filter = { search: '', month: '', sort: 'date-desc' };
+
+function applyFilter(rows) {
+  let out = rows.slice();
+  const q = filter.search.trim().toLowerCase();
+  if (q) out = out.filter(e => (e.name || '').toLowerCase().includes(q));
+  if (filter.month) {
+    out = out.filter(e => {
+      const d = new Date(e.date);
+      const ym = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+      return ym === filter.month;
+    });
+  }
+  out.sort((a, b) => {
+    if (filter.sort === 'date-asc')   return new Date(a.date) - new Date(b.date);
+    if (filter.sort === 'total-desc') return (b.breakdown?.total || 0) - (a.breakdown?.total || 0);
+    if (filter.sort === 'total-asc')  return (a.breakdown?.total || 0) - (b.breakdown?.total || 0);
+    return new Date(b.date) - new Date(a.date); // default: date-desc
+  });
+  return out;
+}
+
+function rebuildMonthDropdown(allRows) {
+  const sel = document.getElementById('archive-month');
+  if (!sel) return;
+  const months = new Set();
+  allRows.forEach(e => {
+    const d = new Date(e.date);
+    const ym = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    months.add(ym);
+  });
+  const sorted = [...months].sort().reverse();
+  const current = filter.month;
+  sel.innerHTML = '<option value="">All months</option>' + sorted.map(ym => {
+    const [y, m] = ym.split('-');
+    const label = new Date(+y, +m - 1, 1).toLocaleString([], { month: 'short', year: 'numeric' });
+    return `<option value="${ym}" ${ym === current ? 'selected' : ''}>${label}</option>`;
+  }).join('');
+}
 
 export function renderHistory() {
   const h = loadHistory();
   const list = document.getElementById('history-list');
   const actions = document.getElementById('history-actions');
   const callout = document.getElementById('block-detail-archive');
+  const filterEl = document.getElementById('archive-filter');
   if (!list) return;
 
   if (callout) {
@@ -29,14 +71,44 @@ export function renderHistory() {
     }
   }
 
+  // Conditional filter bar — only when 10+ entries.
+  if (filterEl) {
+    if (h.length >= FILTER_THRESHOLD) {
+      filterEl.style.display = '';
+      rebuildMonthDropdown(h);
+    } else {
+      filterEl.style.display = 'none';
+      // Reset filter state so filter doesn't silently apply when bar is hidden
+      filter.search = '';
+      filter.month = '';
+      filter.sort = 'date-desc';
+    }
+  }
+
   if (h.length === 0) {
     list.innerHTML = '<div class="empty"><strong>Empty archive</strong>Estimate a print and tap "Stamp &amp; Archive" to record it here. Saved entries can be cloned to start a similar print, exported as CSV for accounting, or printed as a customer-ready quote.</div>';
     actions.style.display = 'none';
     return;
   }
   actions.style.display = 'flex';
+
+  const visible = applyFilter(h);
+  const meta = document.getElementById('filter-meta');
+  if (meta && filterEl && filterEl.style.display !== 'none') {
+    if (visible.length === h.length) {
+      meta.textContent = `${h.length} entries`;
+    } else {
+      const filteredTotal = visible.reduce((s, e) => s + (e.breakdown?.total || 0), 0);
+      meta.textContent = `${visible.length} of ${h.length} · $${filteredTotal.toFixed(2)}`;
+    }
+  }
+
   list.innerHTML = '';
-  h.forEach(e => {
+  if (visible.length === 0) {
+    list.innerHTML = '<div class="empty" style="padding:18px 22px"><strong>No matches</strong>Try clearing the search or month filter.</div>';
+    return;
+  }
+  visible.forEach(e => {
     const d = new Date(e.date);
     const dateStr = d.toLocaleDateString() + ' · ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const item = document.createElement('div');
@@ -119,6 +191,20 @@ export function initArchive() {
     toast('Archive cleared');
   });
   document.getElementById('export-csv').addEventListener('click', exportArchiveCsv);
+
+  // Archive filter inputs (only used when count >= FILTER_THRESHOLD).
+  document.getElementById('archive-search')?.addEventListener('input', e => {
+    filter.search = e.target.value;
+    renderHistory();
+  });
+  document.getElementById('archive-month')?.addEventListener('change', e => {
+    filter.month = e.target.value;
+    renderHistory();
+  });
+  document.getElementById('archive-sort')?.addEventListener('change', e => {
+    filter.sort = e.target.value;
+    renderHistory();
+  });
 }
 
 async function stampAndArchive() {
@@ -133,9 +219,19 @@ async function stampAndArchive() {
       toast('Enter values first', true);
       return;
     }
+    const printer = getActivePrinter();
+    // Pre-stamp guard: warn if no printer is selected — electricity AND time
+    // are silently $0 in that case, which can lead to under-quoting.
+    if (!printer) {
+      const ok = confirm(
+        'No printer selected.\n\n' +
+        'Without a printer, electricity and machine time are $0 in this quote. ' +
+        'Stamp anyway?'
+      );
+      if (!ok) return;
+    }
     const name = document.getElementById('print-name').value.trim() || 'Untitled print';
     const totalGrams = filaments.reduce((s, f) => s + num(f.grams), 0);
-    const printer = getActivePrinter();
     const entry = {
       id: Date.now(),
       name,
@@ -201,6 +297,7 @@ async function stampAndArchive() {
       toastWithUndo(`Stamped & archived · ${fmt(result.total)}`, undo, 8000);
     }
     logActivity(`archived "${name}" — ${fmt(result.total)}`);
+    markOnboardingComplete(); // user has shipped a real estimate; dismiss welcome
   } finally {
     saveQuoteInFlight = false;
     btn.disabled = false;
@@ -209,8 +306,11 @@ async function stampAndArchive() {
 }
 
 function exportArchiveCsv() {
-  const h = loadHistory();
-  if (!h.length) { toast('Archive is empty', true); return; }
+  const all = loadHistory();
+  if (!all.length) { toast('Archive is empty', true); return; }
+  // CSV exports whatever the user is currently looking at (filter applied).
+  const h = applyFilter(all);
+  if (!h.length) { toast('No entries match the current filter', true); return; }
   const rows = h.map(e => ({
     date: new Date(e.date).toISOString().slice(0, 10),
     name: e.name,
@@ -232,7 +332,8 @@ function exportArchiveCsv() {
   const csv = toCsv(rows, cols);
   const filename = `printpricer-archive-${new Date().toISOString().slice(0, 10)}.csv`;
   downloadFile(filename, csv, 'text/csv;charset=utf-8');
-  toast(`Exported ${rows.length} rows to ${filename}`);
+  const ofMsg = rows.length === all.length ? '' : ` of ${all.length}`;
+  toast(`Exported ${rows.length}${ofMsg} rows to ${filename}`);
 }
 
 function printQuote(id) {

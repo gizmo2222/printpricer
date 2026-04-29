@@ -65,8 +65,8 @@ export function renderFilaments() {
         <div class="filament-name-line">
           ${swatch}
           <input type="text" list="spool-list" placeholder="PLA black" value="${escapeHtml(f.name)}" data-i="${i}" data-k="name">
+          <button type="button" class="pick-spool-btn" data-pick="${i}" data-hint="Pick a saved spool to auto-fill cost, link inventory, and show the swatch.">▾ PICK</button>
         </div>
-        <button type="button" class="pick-spool-btn" data-pick="${i}">Pick from spools</button>
         ${linkTag}
       </div>
       <div class="field">

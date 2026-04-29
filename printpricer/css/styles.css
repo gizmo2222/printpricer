@@ -368,8 +368,16 @@ body.first-load .pane.active .block:nth-child(4) { animation-delay: 0.22s; }
   opacity: 0.6; cursor: wait;
   background: var(--ink-faint); border-color: var(--ink-faint);
 }
-.btn-stamp { background: var(--rust); color: var(--paper); border-color: var(--rust); letter-spacing: 2.5px; }
-.btn-stamp:hover { background: var(--ink); border-color: var(--ink); }
+.btn-stamp {
+  background: var(--rust); color: var(--paper);
+  border-color: var(--rust); letter-spacing: 2.5px;
+  transition: all 0.15s var(--ease-quart);
+}
+.btn-stamp:hover {
+  background: var(--ink); border-color: var(--ink);
+  transform: rotate(-1.5deg) scale(1.02);
+  box-shadow: 2px 2px 0 var(--paper-shadow);
+}
 .btn-ghost { background: transparent; color: var(--ink); border: 1px solid var(--ink); }
 .btn-ghost:hover { background: var(--ink); color: var(--paper); }
 .btn-add {
@@ -402,9 +410,10 @@ body.first-load .pane.active .block:nth-child(4) { animation-delay: 0.22s; }
 }
 .breakdown-row .leader {
   flex: 1;
-  border-bottom: 1px dotted var(--ink-faint);
+  border-bottom: 1px dotted var(--ink-mid);
   transform: translateY(-3px);
   min-width: 24px;
+  opacity: 0.55;
 }
 .breakdown-row .value {
   flex: 0 0 auto; font-weight: 500;
@@ -1134,36 +1143,58 @@ select.input {
   margin-top: 4px;
 }
 
-/* ---------- sticky total bar ---------- */
+/* ---------- sticky total — stamped corner footer ----------
+   Styled as a miniature of the main .total-stamp: paper-cream background,
+   double-rule border in blueprint blue, display-caps label, mono tabular
+   value. Bottom-right corner with a slight tilt so it reads as something
+   stamped onto the desk, not a full-width banner. */
 .sticky-total {
   position: fixed;
-  bottom: 0; left: 0; right: 0;
-  background: var(--ink);
-  color: var(--paper);
-  padding: 10px 24px;
+  right: 24px;
+  bottom: 24px;
+  background: var(--paper);
+  color: var(--ink);
+  padding: 10px 18px 9px;
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
   z-index: 50;
-  transform: translateY(110%);
-  transition: transform 0.22s var(--ease-quart);
-  box-shadow: 0 -2px 0 var(--blueprint);
+  border: 2px solid var(--blueprint);
+  box-shadow: 3px 3px 0 var(--paper-shadow);
+  transform: translate(20px, 20px) rotate(-2deg) scale(0.92);
+  opacity: 0;
+  transition:
+    transform 0.24s var(--ease-quart),
+    opacity 0.18s var(--ease-quart);
   pointer-events: none;
 }
-.sticky-total.show { transform: translateY(0); }
+.sticky-total::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border: 1px solid var(--blueprint);
+  pointer-events: none;
+}
+.sticky-total.show {
+  opacity: 1;
+  transform: translate(0, 0) rotate(-2deg);
+}
 .sticky-total .sticky-label {
-  font-family: var(--condensed);
-  font-size: 11px; font-weight: 700;
+  font-family: var(--display);
+  font-size: 11px; font-weight: 800;
   letter-spacing: 1.8px;
   text-transform: uppercase;
-  color: var(--paper-shadow);
+  color: var(--blueprint);
+  line-height: 1;
 }
 .sticky-total .sticky-value {
   font-family: var(--mono);
   font-size: 22px; font-weight: 600;
-  color: var(--paper);
-  letter-spacing: 0.5px;
+  color: var(--ink);
+  letter-spacing: 0.4px;
   font-variant-numeric: tabular-nums;
+  line-height: 1.1;
 }
 
 /* ---------- recalc flash on changing values ---------- */
@@ -1226,6 +1257,328 @@ select.input {
 #sync-indicator.pending  { color: var(--blueprint); }
 #sync-indicator.complete { color: var(--moss); }
 
+/* ---------- first-run onboarding card ---------- */
+.onboard-card {
+  position: relative;
+  margin-bottom: 22px;
+  padding: 18px 22px 16px;
+  background: var(--paper);
+  border: 1.5px solid var(--moss);
+  box-shadow: 3px 3px 0 var(--paper-shadow);
+}
+.onboard-card::before {
+  content: 'WELCOME — START HERE';
+  position: absolute;
+  top: -8px; left: 14px;
+  background: var(--paper);
+  padding: 0 8px;
+  font-family: var(--condensed);
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 2px; color: var(--moss);
+}
+.onboard-card .onboard-close {
+  position: absolute;
+  top: 6px; right: 8px;
+  background: transparent; border: none;
+  font-family: var(--display);
+  font-size: 18px; font-weight: 700;
+  color: var(--ink-faint);
+  cursor: pointer; padding: 4px 8px;
+  line-height: 1;
+}
+.onboard-card .onboard-close:hover { color: var(--rust); }
+.onboard-card h3 {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 22px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--ink);
+  margin-bottom: 6px;
+}
+.onboard-card p {
+  font-family: var(--sans);
+  font-size: 13px; line-height: 1.55;
+  color: var(--ink-mid);
+  margin-bottom: 12px;
+}
+.onboard-steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.onboard-step {
+  border-left: 2px solid var(--moss);
+  padding: 6px 10px 6px 12px;
+  cursor: pointer;
+  transition: background 0.12s var(--ease-quart);
+}
+.onboard-step:hover { background: rgba(74, 106, 58, 0.06); }
+.onboard-step .num {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--moss);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  display: block;
+  margin-bottom: 1px;
+}
+.onboard-step .label {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--ink);
+  display: block;
+  margin-bottom: 2px;
+}
+.onboard-step .hint {
+  font-family: var(--sans);
+  font-size: 11px;
+  color: var(--ink-mid);
+  line-height: 1.4;
+}
+
+/* ---------- archive filter bar (only visible when count >= 10) ---------- */
+.archive-filter {
+  display: grid;
+  grid-template-columns: 1fr 140px 160px;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  background: var(--paper-dim);
+  border: 1px dashed var(--ink-faint);
+}
+.archive-filter input,
+.archive-filter select {
+  background: transparent;
+  border: none;
+  border-bottom: 1.5px solid var(--ink);
+  font-family: var(--mono);
+  font-size: 14px;
+  padding: 4px 0 3px;
+  color: var(--ink);
+  width: 100%;
+}
+.archive-filter input::placeholder { color: var(--ink-faint); font-style: italic; }
+.archive-filter input:focus,
+.archive-filter select:focus {
+  outline: none;
+  border-bottom-color: var(--blueprint);
+  background: rgba(31, 78, 122, 0.04);
+}
+.archive-filter .filter-meta {
+  grid-column: 1 / -1;
+  font-family: var(--condensed);
+  font-size: 10px; letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+/* ---------- help/instructions modal ---------- */
+.help-trigger {
+  background: transparent;
+  border: 1px solid var(--ink-faint);
+  color: var(--ink-mid);
+  width: 22px; height: 22px;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 13px;
+  border-radius: 50%;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.12s var(--ease-quart);
+}
+.help-trigger:hover {
+  background: var(--blueprint);
+  border-color: var(--blueprint);
+  color: var(--paper);
+}
+.help-modal {
+  position: fixed; inset: 0;
+  background: rgba(22, 32, 45, 0.45);
+  z-index: 350;
+  display: none;
+  align-items: center; justify-content: center;
+  padding: 20px;
+}
+.help-modal.show { display: flex; }
+.help-panel {
+  background: var(--paper);
+  border: 1.5px solid var(--ink);
+  box-shadow: 5px 5px 0 var(--paper-shadow);
+  max-width: 720px; width: 100%;
+  max-height: 92vh; overflow-y: auto;
+  padding: 28px 32px;
+  position: relative;
+}
+.help-panel::before, .help-panel::after {
+  content: '';
+  position: absolute;
+  width: 14px; height: 14px;
+  border: 1.5px solid var(--blueprint);
+}
+.help-panel::before { top: -3px; left: -3px;  border-right: none; border-bottom: none; }
+.help-panel::after  { top: -3px; right: -3px; border-left: none;  border-bottom: none; }
+.help-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  border-bottom: 1px solid var(--ink);
+  padding-bottom: 10px; margin-bottom: 20px;
+}
+.help-head h3 {
+  font-family: var(--display);
+  font-weight: 800; font-size: 28px;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--ink);
+}
+.help-section { margin-bottom: 22px; }
+.help-section:last-child { margin-bottom: 0; }
+.help-section h4 {
+  font-family: var(--condensed);
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  color: var(--blueprint);
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px dotted var(--ink-faint);
+}
+.help-section p,
+.help-section li {
+  font-family: var(--sans);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ink);
+  margin-bottom: 6px;
+}
+.help-section ol, .help-section ul {
+  padding-left: 22px;
+  margin-bottom: 8px;
+}
+.help-section .layer-name,
+.help-section code {
+  font-family: var(--mono);
+  font-size: 12px;
+  background: var(--paper-dim);
+  padding: 1px 5px;
+  color: var(--ink);
+}
+.help-section .kbd {
+  font-family: var(--mono);
+  font-size: 11px;
+  background: var(--paper-dim);
+  border: 1px solid var(--ink-faint);
+  padding: 1px 6px;
+  color: var(--ink);
+}
+.help-section .formula-box {
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.9;
+  background: rgba(74, 106, 58, 0.06);
+  border-left: 2px solid var(--moss);
+  padding: 10px 14px;
+}
+.help-section .formula-box .kw { color: var(--moss); font-weight: 600; }
+.help-section .formula-box .op { color: var(--ink-faint); }
+.help-grid {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 6px 14px;
+  font-size: 13px;
+}
+.help-grid dt {
+  font-family: var(--condensed);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  padding-top: 2px;
+}
+.help-grid dd { color: var(--ink); }
+
+/* ---------- custom drafting-style tooltip ----------
+   Uses data-hint="..." on any element. Renders an absolutely-positioned
+   note above the element on hover/focus. Falls back gracefully (the
+   data-hint attribute is also harmless if not styled). */
+[data-hint] { position: relative; }
+[data-hint]::after {
+  content: attr(data-hint);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background: var(--ink);
+  color: var(--paper);
+  padding: 6px 10px 5px;
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: 0.2px;
+  white-space: pre-wrap;
+  width: max-content;
+  max-width: 240px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.18s var(--ease-quart), transform 0.18s var(--ease-quart);
+  z-index: 400;
+  box-shadow: 2px 2px 0 var(--paper-shadow);
+  border: 1px solid var(--ink);
+}
+[data-hint]::before {
+  content: '';
+  position: absolute;
+  bottom: calc(100% + 2px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0; height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 6px solid var(--ink);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.18s var(--ease-quart);
+  z-index: 400;
+}
+[data-hint]:hover::after,
+[data-hint]:focus::after,
+[data-hint]:focus-visible::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+[data-hint]:hover::before,
+[data-hint]:focus::before,
+[data-hint]:focus-visible::before { opacity: 1; }
+[data-hint][data-hint-pos="below"]::after {
+  bottom: auto;
+  top: calc(100% + 8px);
+}
+[data-hint][data-hint-pos="below"]::before {
+  bottom: auto;
+  top: calc(100% + 2px);
+  border-top: none;
+  border-bottom: 6px solid var(--ink);
+}
+
+/* ---------- polish: filament-row pick-spool button as inline chip ---------- */
+.filament-name-line .pick-spool-btn {
+  margin-top: 0;
+  flex-shrink: 0;
+  padding: 2px 8px;
+  font-size: 9px;
+  border: 1px solid var(--ink-faint);
+}
+.filament-row .field-with-pick > .pick-spool-btn {
+  display: none;
+}
+
 /* ---------- mobile ---------- */
 @media (max-width: 720px) {
   .page-frame { padding: 18px 16px 60px; }
@@ -1250,6 +1603,20 @@ select.input {
     border-top: 1px dotted var(--ink-faint);
   }
   .spool-swatch { width: 30px; height: 30px; }
+}
+
+@media (max-width: 720px) {
+  .onboard-steps { grid-template-columns: 1fr; }
+  .archive-filter { grid-template-columns: 1fr 1fr; }
+  .archive-filter input:first-of-type { grid-column: 1 / -1; }
+  .help-panel { padding: 22px 20px; }
+  .help-grid { grid-template-columns: 1fr; gap: 2px; }
+  .help-grid dt { padding-top: 6px; }
+  .sticky-total {
+    right: 12px; bottom: 12px;
+    padding: 8px 14px 7px;
+  }
+  .sticky-total .sticky-value { font-size: 18px; }
 }
 
 @media (max-width: 420px) {

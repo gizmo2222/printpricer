@@ -12,6 +12,8 @@ import { initAuthUI, updateAccountUI, renderGroupSection } from './auth-ui.js';
 import { startAuthListener } from './firebase.js';
 import { parseGcode, parse3mf } from './parser.js';
 import { formatHours } from './utils.js';
+import { initOnboarding, maybeShowOnboarding } from './onboarding.js';
+import { initHelp } from './help.js';
 
 // ---- title-block date ----
 (function setDate() {
@@ -136,6 +138,10 @@ initSpoolsUI();
 initPrintersUI();
 initFilamentsUI();
 initArchive();
+
+// ---- onboarding + help ----
+initOnboarding();
+initHelp();
 
 // ---- keyboard shortcuts ----
 document.addEventListener('keydown', e => {
