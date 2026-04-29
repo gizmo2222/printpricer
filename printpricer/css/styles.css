@@ -139,13 +139,20 @@ body::before {
   margin-top: 4px;
 }
 .title-meta {
-  display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 1fr;
+  display: grid;
+  /* minmax(0, 1fr) lets columns shrink below their content's intrinsic
+     size; without it the OWNER cell's long email pushes its column wider
+     and squeezes the others. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-auto-rows: 1fr;
   font-family: var(--mono); font-size: 10px; color: var(--ink);
 }
 .title-meta .cell {
   padding: 6px 10px 4px;
   border-bottom: 1px solid var(--ink);
   border-right: 1px solid var(--ink);
+  overflow: hidden;
+  min-width: 0;
 }
 .title-meta .cell:nth-child(2n) { border-right: none; }
 .title-meta .cell:nth-last-child(-n+2) { border-bottom: none; }
@@ -154,7 +161,13 @@ body::before {
   letter-spacing: 1.6px; color: var(--ink-faint);
   text-transform: uppercase; display: block; margin-bottom: 1px;
 }
-.title-meta .val { font-weight: 500; letter-spacing: 0.5px; }
+.title-meta .val {
+  font-weight: 500; letter-spacing: 0.5px;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .title-meta .val.accent { color: var(--blueprint); font-weight: 600; }
 
 /* ---------- layers (tabs) ---------- */
