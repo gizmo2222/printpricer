@@ -13,10 +13,47 @@
   --blueprint-bright: #2d6ba8;
   --rust:             #a13c1f;
   --moss:             #4a6a3a;
+
   --display:    'Big Shoulders Display', 'Impact', sans-serif;
   --sans:       'IBM Plex Sans', system-ui, sans-serif;
   --condensed:  'IBM Plex Sans Condensed', 'IBM Plex Sans', sans-serif;
   --mono:       'IBM Plex Mono', 'Consolas', monospace;
+
+  /* ---- Type scale (1.25 ratio, 16px base) ----
+     Six tokens cover every role in the app. Anything else should fold into
+     the nearest token rather than introduce a new size. */
+  --text-xxs:    0.625rem;  /* 10px — IDs, micro labels, layer-num */
+  --text-xs:     0.75rem;   /* 12px — small-caps body labels, breakdown row label */
+  --text-sm:     0.875rem;  /* 14px — small body, table values, secondary buttons */
+  --text-base:   1rem;      /* 16px — body, inputs (was 15px — under the readability floor) */
+  --text-md:     1.125rem;  /* 18px — printer name, history name, dropsheet strong */
+  --text-lg:     1.375rem;  /* 22px — block titles, history price, sticky value */
+  --text-xl:     1.75rem;   /* 28px — total-stamp value, help modal title */
+  --text-display: clamp(2rem, 5vw, 3.25rem); /* page H1 only */
+
+  /* ---- Weights ----
+     Roles:
+       400 regular  — body, default fields
+       500 medium   — emphasized body, label values, breakdown values
+       600 semibold — accent values (blue), action labels
+       700 bold     — display headers (block titles, button labels, history names)
+       800 black    — reserved for the page H1, total-stamp label, modal title
+                       (the rare biggest-impact moments) */
+  --w-regular:  400;
+  --w-medium:   500;
+  --w-semibold: 600;
+  --w-bold:     700;
+  --w-black:    800;
+
+  /* ---- Letter-spacing (em units so they scale with size) ----
+     Three roles only:
+       --track-display  ≈ 0.5px on a 52px display heading
+       --track-caps     ≈ 1.5px on 12px small-caps labels
+       --track-stamp    ≈ 2.4px on 12px stamp/button caps (extra-tight pressure) */
+  --track-display:  0.012em;
+  --track-caps:     0.12em;
+  --track-stamp:    0.18em;
+
   --ease-quart: cubic-bezier(0.165, 0.84, 0.44, 1);
 }
 
@@ -24,14 +61,21 @@
   *, *::before, *::after { animation-duration: 0.001s !important; transition-duration: 0.001s !important; }
 }
 
+html { font-size: 100%; } /* respect user's browser zoom / preferred size */
 html, body {
   min-height: 100vh;
   color: var(--ink);
   font-family: var(--sans);
-  font-size: 15px;
-  line-height: 1.5;
-  font-feature-settings: 'kern', 'liga', 'tnum' off;
+  font-size: var(--text-base);
+  line-height: 1.55;
+  font-feature-settings: 'kern' on, 'liga' on, 'tnum' off;
+  font-kerning: normal;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
 }
+
+/* Numbers that need to align — invoices, breakdowns, stamps — use this. */
+.tnum { font-variant-numeric: tabular-nums; }
 
 body {
   background-color: var(--paper);
@@ -76,45 +120,6 @@ body::before {
 .corner-bl { bottom: 12px; left: 12px; }
 .corner-br { bottom: 12px; right: 12px; }
 
-/* ---------- account pill ---------- */
-.account-pill-wrap {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 10px;
-}
-.account-pill {
-  display: inline-flex;
-  align-items: center; gap: 6px;
-  padding: 4px 10px 3px;
-  background: var(--paper);
-  border: 1px solid var(--ink);
-  font-family: var(--condensed);
-  font-size: 10px; font-weight: 600;
-  letter-spacing: 1.4px; text-transform: uppercase;
-  color: var(--ink); cursor: pointer;
-  transition: all 0.12s var(--ease-quart);
-  max-width: 220px;
-}
-.account-pill:hover { background: var(--ink); color: var(--paper); }
-.account-pill .dot { width: 6px; height: 6px; background: var(--ink-faint); flex-shrink: 0; }
-.account-pill.signed-in .dot { background: var(--moss); }
-.account-pill.in-group  .dot { background: var(--blueprint); }
-.account-pill .who {
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  letter-spacing: 0.4px; font-family: var(--mono); font-size: 10px;
-  text-transform: none; font-weight: 500;
-}
-#sync-indicator {
-  font-family: var(--condensed);
-  font-size: 10px;
-  letter-spacing: 1.2px;
-  color: var(--ink-faint);
-  text-transform: uppercase;
-}
-#sync-indicator.pending { color: var(--blueprint); }
-
 /* ---------- title block ---------- */
 .title-block {
   display: grid;
@@ -127,15 +132,19 @@ body::before {
 .title-main { padding: 14px 18px; border-right: 1px solid var(--ink); }
 .title-main h1 {
   font-family: var(--display);
-  font-weight: 800;
-  font-size: clamp(32px, 5vw, 52px);
-  line-height: 0.95; letter-spacing: 0.5px;
-  text-transform: uppercase; color: var(--ink);
+  font-weight: var(--w-black);
+  font-size: var(--text-display);
+  line-height: 0.95;
+  letter-spacing: var(--track-display);
+  text-transform: uppercase;
+  color: var(--ink);
 }
 .title-main .subtitle {
   font-family: var(--condensed);
-  font-size: 12px; letter-spacing: 1.5px;
-  text-transform: uppercase; color: var(--ink-mid);
+  font-size: var(--text-xs);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+  color: var(--ink-mid);
   margin-top: 4px;
 }
 .title-meta {
@@ -145,7 +154,10 @@ body::before {
      and squeezes the others. */
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   grid-auto-rows: 1fr;
-  font-family: var(--mono); font-size: 10px; color: var(--ink);
+  font-family: var(--mono);
+  font-size: var(--text-xxs);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
 }
 .title-meta .cell {
   padding: 6px 10px 4px;
@@ -157,18 +169,24 @@ body::before {
 .title-meta .cell:nth-child(2n) { border-right: none; }
 .title-meta .cell:nth-last-child(-n+2) { border-bottom: none; }
 .title-meta .key {
-  font-family: var(--condensed); font-size: 9px; font-weight: 600;
-  letter-spacing: 1.6px; color: var(--ink-faint);
-  text-transform: uppercase; display: block; margin-bottom: 1px;
+  font-family: var(--condensed);
+  font-size: var(--text-xxs);
+  font-weight: var(--w-semibold);
+  letter-spacing: var(--track-caps);
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 1px;
 }
 .title-meta .val {
-  font-weight: 500; letter-spacing: 0.5px;
+  font-weight: var(--w-medium);
+  letter-spacing: 0.02em;
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.title-meta .val.accent { color: var(--blueprint); font-weight: 600; }
+.title-meta .val.accent { color: var(--blueprint); font-weight: var(--w-semibold); }
 
 /* ---------- layers (tabs) ---------- */
 .layers {
@@ -184,23 +202,29 @@ body::before {
   padding: 12px 14px 10px;
   cursor: pointer;
   font-family: var(--condensed);
-  font-weight: 500; font-size: 13px;
-  letter-spacing: 1.8px; text-transform: uppercase;
-  text-align: left; color: var(--ink-mid);
+  font-weight: var(--w-medium);
+  font-size: var(--text-sm);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+  text-align: left;
+  color: var(--ink-mid);
   position: relative;
   transition: color 0.15s, background 0.15s;
 }
 .layer:last-child { border-right: none; }
 .layer .layer-num {
   font-family: var(--mono);
-  font-size: 10px; color: var(--ink-faint);
-  letter-spacing: 0.5px;
-  display: block; margin-bottom: 2px;
+  font-size: var(--text-xxs);
+  color: var(--ink-faint);
+  letter-spacing: 0.05em;
+  display: block;
+  margin-bottom: 2px;
 }
 .layer:hover { color: var(--ink); background: var(--paper-dim); }
 .layer.active {
-  color: var(--ink); background: var(--paper);
-  font-weight: 700;
+  color: var(--ink);
+  background: var(--paper);
+  font-weight: var(--w-bold);
 }
 .layer.active::after {
   content: '';
@@ -219,8 +243,8 @@ body::before {
   border-left: 1px solid var(--ink);
   cursor: pointer;
   font-family: var(--display);
-  font-weight: 700;
-  font-size: 18px;
+  font-weight: var(--w-bold);
+  font-size: var(--text-md);
   color: var(--ink-faint);
   padding: 0;
   align-self: stretch;
@@ -279,19 +303,28 @@ body.first-load .pane.active .block:nth-child(4) { animation-delay: 0.22s; }
 }
 .block-title {
   font-family: var(--display);
-  font-weight: 700; font-size: 22px;
-  letter-spacing: 1.5px; text-transform: uppercase;
+  font-weight: var(--w-bold);
+  font-size: var(--text-lg);
+  line-height: 1.05;
+  letter-spacing: var(--track-display);
+  text-transform: uppercase;
   color: var(--ink);
 }
 .block-detail {
   font-family: var(--condensed);
-  font-size: 10px; letter-spacing: 2px;
-  text-transform: uppercase; color: var(--ink-faint);
-  font-weight: 600;
+  font-size: var(--text-xxs);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  font-weight: var(--w-semibold);
 }
 .block-detail .id {
-  color: var(--blueprint); font-family: var(--mono);
-  font-size: 11px; margin-left: 6px; font-weight: 600;
+  color: var(--blueprint);
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  margin-left: 6px;
+  font-weight: var(--w-semibold);
+  letter-spacing: 0;
 }
 
 /* ---------- fields ---------- */
@@ -299,9 +332,12 @@ body.first-load .pane.active .block:nth-child(4) { animation-delay: 0.22s; }
 .field:last-child { margin-bottom: 0; }
 .field > label {
   display: block;
-  font-family: var(--condensed); font-weight: 600;
-  font-size: 10px; letter-spacing: 1.8px;
-  text-transform: uppercase; color: var(--ink-faint);
+  font-family: var(--condensed);
+  font-weight: var(--w-semibold);
+  font-size: var(--text-xxs);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+  color: var(--ink-faint);
   margin-bottom: 4px;
 }
 .input, .field input, .field select {
@@ -311,7 +347,8 @@ body.first-load .pane.active .block:nth-child(4) { animation-delay: 0.22s; }
   border-bottom: 1.5px solid var(--ink);
   color: var(--ink);
   font-family: var(--mono);
-  font-size: 16px; font-weight: 500;
+  font-size: var(--text-base);
+  font-weight: var(--w-medium);
   padding: 6px 0 5px;
   transition: border-color 0.15s, background 0.15s;
 }
@@ -328,9 +365,12 @@ body.first-load .pane.active .block:nth-child(4) { animation-delay: 0.22s; }
 .suffix {
   position: absolute; right: 0; bottom: 7px;
   font-family: var(--condensed);
-  font-size: 11px; font-weight: 600;
-  letter-spacing: 1.2px; text-transform: uppercase;
-  color: var(--ink-faint); pointer-events: none;
+  font-size: var(--text-xs);
+  font-weight: var(--w-semibold);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  pointer-events: none;
 }
 .suffix-wrap input { padding-right: 50px; }
 
@@ -345,7 +385,7 @@ body.first-load .pane.active .block:nth-child(4) { animation-delay: 0.22s; }
 }
 .filament-row:last-of-type { border-bottom: none; padding-bottom: 0; }
 .filament-row .field { margin-bottom: 0; }
-.filament-row input { font-size: 15px; }
+.filament-row input { font-size: var(--text-sm); }
 .filament-row .field-with-pick { display: flex; flex-direction: column; gap: 0; }
 .filament-row .field-with-pick label { margin-bottom: 4px; }
 .filament-name-line {
@@ -370,7 +410,8 @@ body.first-load .pane.active .block:nth-child(4) { animation-delay: 0.22s; }
   color: var(--ink-mid);
   cursor: pointer;
   font-family: var(--display);
-  font-size: 18px; font-weight: 700;
+  font-size: var(--text-md);
+  font-weight: var(--w-bold);
   width: 32px; height: 32px;
   line-height: 1; padding: 0;
   transition: all 0.12s var(--ease-quart);
@@ -383,9 +424,12 @@ body.first-load .pane.active .block:nth-child(4) { animation-delay: 0.22s; }
   border: 1px solid var(--ink);
   padding: 10px 18px 9px;
   font-family: var(--condensed);
-  font-size: 13px; font-weight: 700;
-  letter-spacing: 2px; text-transform: uppercase;
-  cursor: pointer; transition: all 0.12s var(--ease-quart);
+  font-size: var(--text-sm);
+  font-weight: var(--w-bold);
+  letter-spacing: var(--track-stamp);
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.12s var(--ease-quart);
 }
 .btn:hover { background: var(--blueprint); border-color: var(--blueprint); }
 .btn:disabled, .btn.busy {
@@ -394,7 +438,8 @@ body.first-load .pane.active .block:nth-child(4) { animation-delay: 0.22s; }
 }
 .btn-stamp {
   background: var(--rust); color: var(--paper);
-  border-color: var(--rust); letter-spacing: 2.5px;
+  border-color: var(--rust);
+  letter-spacing: 0.22em;
   transition: all 0.15s var(--ease-quart);
 }
 .btn-stamp:hover {
@@ -407,7 +452,9 @@ body.first-load .pane.active .block:nth-child(4) { animation-delay: 0.22s; }
 .btn-add {
   background: transparent; color: var(--blueprint);
   border: 1px dashed var(--blueprint);
-  padding: 8px 14px; letter-spacing: 1.8px; font-size: 12px;
+  padding: 8px 14px;
+  letter-spacing: var(--track-caps);
+  font-size: var(--text-xs);
 }
 .btn-add:hover { background: var(--blueprint); color: var(--paper); border-style: solid; }
 .btn-danger {
@@ -423,13 +470,17 @@ body.first-load .pane.active .block:nth-child(4) { animation-delay: 0.22s; }
   display: flex; align-items: baseline;
   gap: 8px; padding: 6px 0;
   font-family: var(--mono);
-  font-size: 14px; font-variant-numeric: tabular-nums;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' on, 'kern' on;
 }
 .breakdown-row .label {
   flex: 0 0 auto;
   font-family: var(--condensed);
-  font-size: 12px; font-weight: 500;
-  letter-spacing: 1.4px; text-transform: uppercase;
+  font-size: var(--text-xs);
+  font-weight: var(--w-medium);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
   color: var(--ink-mid);
 }
 .breakdown-row .leader {
@@ -440,15 +491,17 @@ body.first-load .pane.active .block:nth-child(4) { animation-delay: 0.22s; }
   opacity: 0.55;
 }
 .breakdown-row .value {
-  flex: 0 0 auto; font-weight: 500;
-  color: var(--ink); letter-spacing: 0.3px;
+  flex: 0 0 auto;
+  font-weight: var(--w-medium);
+  color: var(--ink);
+  letter-spacing: 0.02em;
 }
 .breakdown-row.subtotal {
   margin-top: 6px; padding-top: 10px;
   border-top: 1px solid var(--ink);
 }
 .breakdown-row.subtotal .label,
-.breakdown-row.subtotal .value { color: var(--ink); font-weight: 600; }
+.breakdown-row.subtotal .value { color: var(--ink); font-weight: var(--w-semibold); }
 
 .total-stamp {
   margin-top: 18px;
@@ -467,15 +520,21 @@ body.first-load .pane.active .block:nth-child(4) { animation-delay: 0.22s; }
 }
 .total-stamp .label {
   font-family: var(--display);
-  font-size: 17px; font-weight: 800;
-  letter-spacing: 2px; text-transform: uppercase;
+  font-size: var(--text-md);
+  font-weight: var(--w-black);
+  letter-spacing: var(--track-stamp);
+  text-transform: uppercase;
   color: var(--blueprint);
+  line-height: 1.1;
 }
 .total-stamp .value {
   font-family: var(--mono);
-  font-size: 28px; font-weight: 600;
-  color: var(--ink); letter-spacing: 0.5px;
+  font-size: var(--text-xl);
+  font-weight: var(--w-semibold);
+  color: var(--ink);
+  letter-spacing: 0.02em;
   font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' on, 'kern' on;
 }
 
 /* ---------- dropsheet ---------- */
@@ -508,21 +567,30 @@ body.first-load .pane.active .block:nth-child(4) { animation-delay: 0.22s; }
   content: '+';
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
-  font-family: var(--display); font-weight: 800;
-  font-size: 26px; color: var(--blueprint); line-height: 1;
+  font-family: var(--display);
+  font-weight: var(--w-black);
+  font-size: var(--text-xl);
+  color: var(--blueprint);
+  line-height: 1;
 }
 .dropsheet .text { display: inline-block; vertical-align: middle; }
 .dropsheet strong {
   display: block;
-  font-family: var(--display); font-weight: 700;
-  font-size: 18px; letter-spacing: 1.5px;
-  text-transform: uppercase; color: var(--ink);
+  font-family: var(--display);
+  font-weight: var(--w-bold);
+  font-size: var(--text-md);
+  letter-spacing: var(--track-display);
+  text-transform: uppercase;
+  color: var(--ink);
 }
 .dropsheet .hint {
   font-family: var(--condensed);
-  font-size: 11px; letter-spacing: 1.6px;
-  text-transform: uppercase; color: var(--ink-faint);
-  font-weight: 500; margin-top: 2px;
+  font-size: var(--text-xs);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  font-weight: var(--w-medium);
+  margin-top: 2px;
 }
 
 /* ---------- select ---------- */
@@ -537,11 +605,13 @@ select.input {
 /* ---------- formula reference ---------- */
 .formula {
   font-family: var(--mono);
-  font-size: 12px; line-height: 1.9;
+  font-size: var(--text-xs);
+  line-height: 1.9;
   color: var(--ink-mid);
   padding: 10px 14px;
   border-left: 2px solid var(--moss);
   background: rgba(74, 106, 58, 0.05);
+  font-variant-numeric: tabular-nums;
 }
 .formula .op { color: var(--ink-faint); }
 .formula .kw { color: var(--moss); font-weight: 600; }
@@ -550,17 +620,22 @@ select.input {
 .empty {
   text-align: left;
   padding: 32px 28px;
-  font-family: var(--condensed);
-  font-size: 14px; letter-spacing: 1px;
+  font-family: var(--sans);
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  letter-spacing: 0.01em;
   color: var(--ink-faint);
   border: 1px dashed var(--ink-faint);
   background: var(--paper-dim);
 }
 .empty strong {
   display: block;
-  font-family: var(--display); font-weight: 700;
-  font-size: 22px; letter-spacing: 2px;
-  text-transform: uppercase; color: var(--ink);
+  font-family: var(--display);
+  font-weight: var(--w-bold);
+  font-size: var(--text-lg);
+  letter-spacing: var(--track-display);
+  text-transform: uppercase;
+  color: var(--ink);
   margin-bottom: 6px;
 }
 
@@ -584,21 +659,27 @@ select.input {
 }
 .history-name {
   font-family: var(--display);
-  font-weight: 700; font-size: 19px;
-  letter-spacing: 0.8px;
-  color: var(--ink); margin-bottom: 2px;
+  font-weight: var(--w-bold);
+  font-size: var(--text-md);
+  letter-spacing: var(--track-display);
+  color: var(--ink);
+  margin-bottom: 2px;
 }
 .history-meta {
   font-family: var(--mono);
-  font-size: 11px; color: var(--ink-faint);
-  letter-spacing: 0.4px;
+  font-size: var(--text-xs);
+  color: var(--ink-faint);
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
 }
 .history-price {
   font-family: var(--mono);
-  font-size: 22px; font-weight: 600;
+  font-size: var(--text-lg);
+  font-weight: var(--w-semibold);
   color: var(--blueprint);
-  letter-spacing: 0.3px;
+  letter-spacing: 0.02em;
   font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' on, 'kern' on;
   text-align: right;
 }
 .history-actions {
@@ -607,9 +688,12 @@ select.input {
 .link-btn {
   background: none; border: none;
   font-family: var(--condensed);
-  font-size: 11px; font-weight: 600;
-  letter-spacing: 1.6px; text-transform: uppercase;
-  color: var(--ink-mid); cursor: pointer; padding: 0;
+  font-size: var(--text-xs);
+  font-weight: var(--w-semibold);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+  color: var(--ink-mid);
+  cursor: pointer; padding: 0;
   transition: color 0.12s var(--ease-quart);
 }
 .link-btn:hover { color: var(--blueprint); }
@@ -623,8 +707,10 @@ select.input {
   background: var(--ink); color: var(--paper);
   padding: 10px 18px 9px;
   font-family: var(--condensed);
-  font-size: 12px; font-weight: 600;
-  letter-spacing: 1.8px; text-transform: uppercase;
+  font-size: var(--text-xs);
+  font-weight: var(--w-semibold);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
   border: 1px solid var(--ink);
   box-shadow: 3px 3px 0 var(--paper-shadow);
   opacity: 0; pointer-events: none;
@@ -639,10 +725,13 @@ select.input {
 .toast.error {
   background: var(--rust); border-color: var(--rust);
   max-width: min(720px, calc(100vw - 40px));
-  white-space: normal; text-transform: none;
-  letter-spacing: 0.3px;
-  font-family: var(--sans); font-size: 13px;
-  font-weight: 500; line-height: 1.5;
+  white-space: normal;
+  text-transform: none;
+  letter-spacing: 0.01em;
+  font-family: var(--sans);
+  font-size: var(--text-sm);
+  font-weight: var(--w-medium);
+  line-height: 1.5;
   padding: 14px 44px 14px 16px;
   cursor: pointer; text-align: left;
   position: fixed; display: block;
@@ -651,8 +740,11 @@ select.input {
   content: '×';
   position: absolute; top: 8px; right: 12px;
   font-family: var(--display);
-  font-weight: 700; font-size: 20px; line-height: 1;
-  color: var(--paper); opacity: 0.85;
+  font-weight: var(--w-bold);
+  font-size: var(--text-md);
+  line-height: 1;
+  color: var(--paper);
+  opacity: 0.85;
 }
 .toast.error:hover::after { opacity: 1; }
 .toast.stamp {
@@ -664,8 +756,10 @@ select.input {
   background: var(--paper); color: var(--ink);
   border: 1px solid var(--paper); padding: 3px 10px 2px;
   font-family: var(--condensed);
-  font-size: 11px; font-weight: 700;
-  letter-spacing: 1.6px; text-transform: uppercase;
+  font-size: var(--text-xs);
+  font-weight: var(--w-bold);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
   cursor: pointer;
 }
 .toast-undo-btn:hover { background: transparent; color: var(--paper); border-color: var(--paper); }
@@ -695,16 +789,21 @@ select.input {
 }
 .picker-head h3 {
   font-family: var(--display);
-  font-weight: 700; font-size: 22px;
-  letter-spacing: 1.5px; text-transform: uppercase;
+  font-weight: var(--w-bold);
+  font-size: var(--text-lg);
+  letter-spacing: var(--track-display);
+  text-transform: uppercase;
   color: var(--ink);
 }
 .picker-close {
   background: transparent; border: none;
   font-family: var(--display);
-  font-size: 22px; font-weight: 700;
-  cursor: pointer; color: var(--ink-mid);
-  line-height: 1; padding: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--w-bold);
+  cursor: pointer;
+  color: var(--ink-mid);
+  line-height: 1;
+  padding: 0;
 }
 .picker-close:hover { color: var(--rust); }
 .picker-list { display: flex; flex-direction: column; gap: 6px; }
@@ -730,22 +829,31 @@ select.input {
 }
 .picker-item .picker-name {
   font-family: var(--display);
-  font-weight: 700; font-size: 14px;
-  letter-spacing: 0.5px; color: var(--ink);
+  font-weight: var(--w-bold);
+  font-size: var(--text-sm);
+  letter-spacing: var(--track-display);
+  color: var(--ink);
 }
 .picker-item .picker-meta {
   font-family: var(--mono);
-  font-size: 10px; color: var(--ink-faint);
+  font-size: var(--text-xxs);
+  color: var(--ink-faint);
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
 }
 .picker-item .picker-cost {
   font-family: var(--mono);
-  font-size: 12px; font-weight: 600;
-  color: var(--blueprint); letter-spacing: 0.3px;
+  font-size: var(--text-xs);
+  font-weight: var(--w-semibold);
+  color: var(--blueprint);
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
 }
 .picker-empty {
   padding: 20px; text-align: center;
   font-family: var(--condensed);
-  font-size: 12px; letter-spacing: 1.2px;
+  font-size: var(--text-xs);
+  letter-spacing: var(--track-caps);
   color: var(--ink-faint);
 }
 
@@ -756,8 +864,11 @@ select.input {
 }
 .spool-toolbar .count {
   font-family: var(--condensed);
-  font-size: 11px; letter-spacing: 1.6px;
-  text-transform: uppercase; color: var(--ink-faint); font-weight: 600;
+  font-size: var(--text-xs);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  font-weight: var(--w-semibold);
 }
 .spool-toolbar .count strong { color: var(--ink); font-weight: 700; }
 .spool-item {
@@ -791,17 +902,22 @@ select.input {
 .spool-info { min-width: 0; }
 .spool-name {
   font-family: var(--display);
-  font-weight: 700; font-size: 18px;
-  letter-spacing: 0.5px; color: var(--ink);
-  line-height: 1.1; margin-bottom: 4px;
+  font-weight: var(--w-bold);
+  font-size: var(--text-md);
+  letter-spacing: var(--track-display);
+  color: var(--ink);
+  line-height: 1.1;
+  margin-bottom: 4px;
   overflow: hidden; text-overflow: ellipsis;
 }
 .spool-meta {
   display: flex; gap: 10px;
   align-items: center; flex-wrap: wrap;
   font-family: var(--mono);
-  font-size: 11px; color: var(--ink-mid);
-  letter-spacing: 0.3px;
+  font-size: var(--text-xs);
+  color: var(--ink-mid);
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
 }
 .material-badge {
   display: inline-block;
@@ -810,8 +926,10 @@ select.input {
   background: rgba(31, 78, 122, 0.08);
   color: var(--blueprint);
   font-family: var(--condensed);
-  font-size: 10px; font-weight: 700;
-  letter-spacing: 1.4px; text-transform: uppercase;
+  font-size: var(--text-xxs);
+  font-weight: var(--w-bold);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
 }
 .spool-stock { margin-top: 6px; }
 .stock-bar {
@@ -828,21 +946,28 @@ select.input {
 .stock-bar.low .fill { background: var(--rust); }
 .stock-amount {
   font-family: var(--mono);
-  font-size: 10px; color: var(--ink-faint);
-  letter-spacing: 0.3px; margin-top: 2px;
+  font-size: var(--text-xxs);
+  color: var(--ink-faint);
+  letter-spacing: 0.02em;
+  margin-top: 2px;
   display: flex; gap: 4px; align-items: baseline;
   flex-wrap: wrap;
+  font-variant-numeric: tabular-nums;
 }
 .stock-amount .low-tag {
   color: var(--rust);
-  font-family: var(--condensed); font-weight: 700;
-  letter-spacing: 1.4px; text-transform: uppercase;
-  font-size: 9px;
+  font-family: var(--condensed);
+  font-weight: var(--w-bold);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+  font-size: var(--text-xxs);
 }
 .stock-amount .forecast {
   color: var(--moss);
-  font-family: var(--condensed); font-weight: 600;
-  letter-spacing: 1px; font-size: 9px;
+  font-family: var(--condensed);
+  font-weight: var(--w-semibold);
+  letter-spacing: 0.08em;
+  font-size: var(--text-xxs);
 }
 .spool-actions {
   display: flex; flex-direction: column;
@@ -850,13 +975,17 @@ select.input {
 }
 .spool-cost {
   font-family: var(--mono);
-  font-weight: 600; font-size: 14px;
-  color: var(--blueprint); letter-spacing: 0.3px;
+  font-weight: var(--w-semibold);
+  font-size: var(--text-sm);
+  color: var(--blueprint);
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
 }
 .spool-cost .unit {
   color: var(--ink-faint);
   font-family: var(--condensed);
-  font-size: 9px; letter-spacing: 1.4px;
+  font-size: var(--text-xxs);
+  letter-spacing: var(--track-caps);
   margin-left: 1px;
 }
 .spool-actions .actions-row {
@@ -875,8 +1004,10 @@ select.input {
   background: var(--paper);
   padding: 0 6px;
   font-family: var(--condensed);
-  font-size: 10px; font-weight: 700;
-  letter-spacing: 2px; color: var(--blueprint);
+  font-size: var(--text-xxs);
+  font-weight: var(--w-bold);
+  letter-spacing: var(--track-stamp);
+  color: var(--blueprint);
 }
 .spool-form.adding::before { content: 'NEW'; }
 .spool-form-row {
@@ -902,19 +1033,25 @@ select.input {
   border: 1px solid var(--ink-faint);
   color: var(--ink-mid);
   font-family: var(--condensed);
-  font-size: 9px; font-weight: 600;
-  letter-spacing: 1.5px; text-transform: uppercase;
+  font-size: var(--text-xxs);
+  font-weight: var(--w-semibold);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
   cursor: pointer;
-  padding: 3px 6px; margin-top: 2px;
+  padding: 3px 6px;
+  margin-top: 2px;
   transition: all 0.12s var(--ease-quart);
 }
 .pick-spool-btn:hover { color: var(--paper); background: var(--blueprint); border-color: var(--blueprint); }
 .spool-link-tag {
   display: inline-block;
   font-family: var(--condensed);
-  font-size: 9px; font-weight: 600;
-  letter-spacing: 1.4px; text-transform: uppercase;
-  color: var(--blueprint); margin-top: 2px;
+  font-size: var(--text-xxs);
+  font-weight: var(--w-semibold);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+  color: var(--blueprint);
+  margin-top: 2px;
 }
 .spool-link-tag::before { content: '→ '; }
 
@@ -952,22 +1089,30 @@ select.input {
 }
 .modal-head h3 {
   font-family: var(--display);
-  font-weight: 800; font-size: 26px;
-  letter-spacing: 1.5px; text-transform: uppercase;
+  font-weight: var(--w-black);
+  font-size: var(--text-xl);
+  letter-spacing: var(--track-display);
+  text-transform: uppercase;
   color: var(--ink);
+  line-height: 1.05;
 }
 .modal-close {
   background: transparent; border: none;
   font-family: var(--display);
-  font-size: 24px; font-weight: 700;
-  cursor: pointer; color: var(--ink-mid);
-  line-height: 1; padding: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--w-bold);
+  cursor: pointer;
+  color: var(--ink-mid);
+  line-height: 1;
+  padding: 0;
 }
 .modal-close:hover { color: var(--rust); }
 .modal-body p {
   font-family: var(--sans);
-  font-size: 13px; color: var(--ink-mid);
-  line-height: 1.55; margin-bottom: 14px;
+  font-size: var(--text-sm);
+  color: var(--ink-mid);
+  line-height: 1.6;
+  margin-bottom: 14px;
 }
 .modal-tabs {
   display: flex; gap: 0;
@@ -979,9 +1124,12 @@ select.input {
   background: transparent; border: none;
   padding: 8px 12px;
   font-family: var(--condensed);
-  font-size: 11px; font-weight: 600;
-  letter-spacing: 1.6px; text-transform: uppercase;
-  color: var(--ink-faint); cursor: pointer;
+  font-size: var(--text-xs);
+  font-weight: var(--w-semibold);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  cursor: pointer;
   border-bottom: 2px solid transparent;
 }
 .modal-tabs button.active {
@@ -1006,50 +1154,64 @@ select.input {
 .account-status .status-row:last-child { margin-bottom: 0; }
 .account-status .status-label {
   font-family: var(--condensed);
-  font-size: 10px; font-weight: 600;
-  letter-spacing: 1.6px; text-transform: uppercase;
+  font-size: var(--text-xxs);
+  font-weight: var(--w-semibold);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
   color: var(--ink-faint);
 }
 .account-status .status-value {
   font-family: var(--mono);
-  font-size: 13px; color: var(--ink);
-  font-weight: 500; letter-spacing: 0.3px;
+  font-size: var(--text-sm);
+  color: var(--ink);
+  font-weight: var(--w-medium);
+  letter-spacing: 0.02em;
 }
 .account-status .status-value.dim { color: var(--ink-faint); font-style: italic; }
 .account-status .status-value.accent { color: var(--blueprint); font-weight: 600; }
 
 .group-code {
   font-family: var(--mono);
-  font-size: 22px; font-weight: 700;
-  letter-spacing: 4px; color: var(--blueprint);
+  font-size: var(--text-lg);
+  font-weight: var(--w-bold);
+  letter-spacing: 0.22em;
+  color: var(--blueprint);
   padding: 8px 12px;
   background: var(--paper);
   border: 1.5px dashed var(--blueprint);
   display: inline-block;
   margin-top: 4px;
-  cursor: pointer; user-select: all;
+  cursor: pointer;
+  user-select: all;
 }
 .group-code-hint {
   font-family: var(--condensed);
-  font-size: 9px; letter-spacing: 1.4px;
-  text-transform: uppercase; color: var(--ink-faint);
+  font-size: var(--text-xxs);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+  color: var(--ink-faint);
   margin-top: 2px;
 }
 .member-list { margin-top: 10px; padding-left: 0; list-style: none; }
 .member-list li {
   font-family: var(--mono);
-  font-size: 12px; color: var(--ink-mid);
-  padding: 4px 0; letter-spacing: 0.3px;
+  font-size: var(--text-xs);
+  color: var(--ink-mid);
+  padding: 4px 0;
+  letter-spacing: 0.02em;
 }
-.member-list li.you { color: var(--ink); font-weight: 600; }
+.member-list li.you { color: var(--ink); font-weight: var(--w-semibold); }
 .member-list li.you::after {
   content: ' · YOU';
   color: var(--blueprint);
   font-family: var(--condensed);
-  font-size: 9px; letter-spacing: 1.4px; font-weight: 700;
+  font-size: var(--text-xxs);
+  letter-spacing: var(--track-caps);
+  font-weight: var(--w-bold);
 }
 .auth-error {
-  font-family: var(--mono); font-size: 12px;
+  font-family: var(--mono);
+  font-size: var(--text-xs);
   color: var(--rust);
   padding: 8px 10px;
   background: rgba(161, 60, 31, 0.08);
@@ -1059,22 +1221,27 @@ select.input {
 }
 .auth-error.show { display: block; }
 .config-warning {
-  font-family: var(--sans); font-size: 13px;
+  font-family: var(--sans);
+  font-size: var(--text-sm);
   color: var(--ink);
   padding: 14px;
   background: rgba(161, 60, 31, 0.08);
   border: 1px solid var(--rust);
   margin-bottom: 14px;
-  line-height: 1.55;
+  line-height: 1.6;
 }
 .config-warning strong {
   font-family: var(--condensed);
-  letter-spacing: 1.4px; text-transform: uppercase;
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
   color: var(--rust);
+  font-weight: var(--w-bold);
 }
 .config-warning code {
-  font-family: var(--mono); font-size: 11px;
-  background: var(--paper-dim); padding: 1px 4px;
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  background: var(--paper-dim);
+  padding: 1px 4px;
 }
 
 /* ---------- activity feed ---------- */
@@ -1084,20 +1251,24 @@ select.input {
   gap: 10px;
   padding: 6px 0;
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--ink-mid);
   border-bottom: 1px dotted var(--ink-ghost);
+  font-variant-numeric: tabular-nums;
 }
 .activity-item:last-child { border-bottom: none; }
 .activity-when {
   color: var(--ink-faint);
-  letter-spacing: 0.2px;
+  letter-spacing: 0.02em;
   white-space: nowrap;
 }
 .activity-who {
-  color: var(--blueprint); font-weight: 600;
-  white-space: nowrap; max-width: 200px;
-  overflow: hidden; text-overflow: ellipsis;
+  color: var(--blueprint);
+  font-weight: var(--w-semibold);
+  white-space: nowrap;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .activity-action { color: var(--ink); }
 
@@ -1108,11 +1279,13 @@ select.input {
   border-top: 1px solid var(--ink-faint);
   display: flex; justify-content: space-between; align-items: baseline;
   font-family: var(--condensed);
-  font-size: 10px; letter-spacing: 1.8px;
-  text-transform: uppercase; color: var(--ink-faint);
+  font-size: var(--text-xxs);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+  color: var(--ink-faint);
   flex-wrap: wrap; gap: 8px;
 }
-.sheet-footer .scale { color: var(--blueprint); font-weight: 600; }
+.sheet-footer .scale { color: var(--blueprint); font-weight: var(--w-semibold); }
 
 /* ---------- normalized printer pick row ---------- */
 .printer-pick-row {
@@ -1121,7 +1294,8 @@ select.input {
   border: none;
   border-bottom: 1.5px solid var(--ink);
   font-family: var(--mono);
-  font-size: 16px; font-weight: 500;
+  font-size: var(--text-base);
+  font-weight: var(--w-medium);
   padding: 6px 0 5px;
   text-align: left;
   cursor: pointer;
@@ -1139,32 +1313,36 @@ select.input {
 }
 .printer-pick-row .printer-name {
   font-family: var(--display);
-  font-size: 18px; font-weight: 700;
-  letter-spacing: 0.5px;
+  font-size: var(--text-md);
+  font-weight: var(--w-bold);
+  letter-spacing: var(--track-display);
   text-transform: uppercase;
   color: var(--ink);
 }
 .printer-pick-row .printer-name.empty {
-  color: var(--ink-faint); font-style: italic;
-  font-weight: 500; letter-spacing: 0;
+  color: var(--ink-faint);
+  font-style: italic;
+  font-weight: var(--w-medium);
+  letter-spacing: 0;
   text-transform: none;
   font-family: var(--sans);
-  font-size: 14px;
+  font-size: var(--text-sm);
 }
 .printer-pick-row .printer-pick-arrow {
   font-family: var(--display);
-  font-size: 14px;
+  font-size: var(--text-sm);
   color: var(--ink-faint);
-  letter-spacing: 1px;
+  letter-spacing: 0.05em;
 }
 .printer-pick-row:hover .printer-pick-arrow,
 .printer-pick-row:focus .printer-pick-arrow { color: var(--blueprint); }
 .printer-meta-line {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--ink-faint);
-  letter-spacing: 0.3px;
+  letter-spacing: 0.02em;
   margin-top: 4px;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ---------- sticky total — stamped corner footer ----------
@@ -1206,18 +1384,21 @@ select.input {
 }
 .sticky-total .sticky-label {
   font-family: var(--display);
-  font-size: 11px; font-weight: 800;
-  letter-spacing: 1.8px;
+  font-size: var(--text-xs);
+  font-weight: var(--w-black);
+  letter-spacing: var(--track-stamp);
   text-transform: uppercase;
   color: var(--blueprint);
   line-height: 1;
 }
 .sticky-total .sticky-value {
   font-family: var(--mono);
-  font-size: 22px; font-weight: 600;
+  font-size: var(--text-lg);
+  font-weight: var(--w-semibold);
   color: var(--ink);
-  letter-spacing: 0.4px;
+  letter-spacing: 0.02em;
   font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' on, 'kern' on;
   line-height: 1.1;
 }
 
@@ -1272,8 +1453,8 @@ select.input {
 /* sync indicator inside the title-block account cell */
 #sync-indicator {
   font-family: var(--mono);
-  font-size: 9px;
-  letter-spacing: 0.5px;
+  font-size: var(--text-xxs);
+  letter-spacing: 0.05em;
   color: var(--ink-faint);
   text-transform: lowercase;
   margin-left: 4px;
@@ -1297,32 +1478,37 @@ select.input {
   background: var(--paper);
   padding: 0 8px;
   font-family: var(--condensed);
-  font-size: 10px; font-weight: 700;
-  letter-spacing: 2px; color: var(--moss);
+  font-size: var(--text-xxs);
+  font-weight: var(--w-bold);
+  letter-spacing: var(--track-stamp);
+  color: var(--moss);
 }
 .onboard-card .onboard-close {
   position: absolute;
   top: 6px; right: 8px;
   background: transparent; border: none;
   font-family: var(--display);
-  font-size: 18px; font-weight: 700;
+  font-size: var(--text-md);
+  font-weight: var(--w-bold);
   color: var(--ink-faint);
-  cursor: pointer; padding: 4px 8px;
+  cursor: pointer;
+  padding: 4px 8px;
   line-height: 1;
 }
 .onboard-card .onboard-close:hover { color: var(--rust); }
 .onboard-card h3 {
   font-family: var(--display);
-  font-weight: 800;
-  font-size: 22px;
-  letter-spacing: 1px;
+  font-weight: var(--w-black);
+  font-size: var(--text-lg);
+  letter-spacing: var(--track-display);
   text-transform: uppercase;
   color: var(--ink);
   margin-bottom: 6px;
 }
 .onboard-card p {
   font-family: var(--sans);
-  font-size: 13px; line-height: 1.55;
+  font-size: var(--text-sm);
+  line-height: 1.6;
   color: var(--ink-mid);
   margin-bottom: 12px;
 }
@@ -1340,18 +1526,18 @@ select.input {
 .onboard-step:hover { background: rgba(74, 106, 58, 0.06); }
 .onboard-step .num {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: var(--text-xxs);
   color: var(--moss);
-  font-weight: 600;
-  letter-spacing: 0.5px;
+  font-weight: var(--w-semibold);
+  letter-spacing: 0.05em;
   display: block;
   margin-bottom: 1px;
 }
 .onboard-step .label {
   font-family: var(--display);
-  font-weight: 700;
-  font-size: 14px;
-  letter-spacing: 0.5px;
+  font-weight: var(--w-bold);
+  font-size: var(--text-sm);
+  letter-spacing: var(--track-display);
   text-transform: uppercase;
   color: var(--ink);
   display: block;
@@ -1359,9 +1545,9 @@ select.input {
 }
 .onboard-step .hint {
   font-family: var(--sans);
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--ink-mid);
-  line-height: 1.4;
+  line-height: 1.5;
 }
 
 /* ---------- archive filter bar (only visible when count >= 10) ---------- */
@@ -1380,7 +1566,7 @@ select.input {
   border: none;
   border-bottom: 1.5px solid var(--ink);
   font-family: var(--mono);
-  font-size: 14px;
+  font-size: var(--text-sm);
   padding: 4px 0 3px;
   color: var(--ink);
   width: 100%;
@@ -1395,9 +1581,11 @@ select.input {
 .archive-filter .filter-meta {
   grid-column: 1 / -1;
   font-family: var(--condensed);
-  font-size: 10px; letter-spacing: 1.2px;
+  font-size: var(--text-xxs);
+  letter-spacing: var(--track-caps);
   text-transform: uppercase;
   color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ---------- help/instructions modal ---------- */
@@ -1407,8 +1595,8 @@ select.input {
   color: var(--ink-mid);
   width: 22px; height: 22px;
   font-family: var(--display);
-  font-weight: 700;
-  font-size: 13px;
+  font-weight: var(--w-bold);
+  font-size: var(--text-sm);
   border-radius: 50%;
   cursor: pointer;
   line-height: 1;
@@ -1456,16 +1644,20 @@ select.input {
 }
 .help-head h3 {
   font-family: var(--display);
-  font-weight: 800; font-size: 28px;
-  letter-spacing: 1.5px; text-transform: uppercase;
+  font-weight: var(--w-black);
+  font-size: var(--text-xl);
+  letter-spacing: var(--track-display);
+  text-transform: uppercase;
   color: var(--ink);
+  line-height: 1.05;
 }
 .help-section { margin-bottom: 22px; }
 .help-section:last-child { margin-bottom: 0; }
 .help-section h4 {
   font-family: var(--condensed);
-  font-size: 11px; font-weight: 700;
-  letter-spacing: 1.8px;
+  font-size: var(--text-xs);
+  font-weight: var(--w-bold);
+  letter-spacing: var(--track-stamp);
   text-transform: uppercase;
   color: var(--blueprint);
   margin-bottom: 8px;
@@ -1475,8 +1667,8 @@ select.input {
 .help-section p,
 .help-section li {
   font-family: var(--sans);
-  font-size: 13px;
-  line-height: 1.6;
+  font-size: var(--text-sm);
+  line-height: 1.65;
   color: var(--ink);
   margin-bottom: 6px;
 }
@@ -1487,14 +1679,14 @@ select.input {
 .help-section .layer-name,
 .help-section code {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--text-xs);
   background: var(--paper-dim);
   padding: 1px 5px;
   color: var(--ink);
 }
 .help-section .kbd {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--text-xs);
   background: var(--paper-dim);
   border: 1px solid var(--ink-faint);
   padding: 1px 6px;
@@ -1502,30 +1694,31 @@ select.input {
 }
 .help-section .formula-box {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--text-xs);
   line-height: 1.9;
   background: rgba(74, 106, 58, 0.06);
   border-left: 2px solid var(--moss);
   padding: 10px 14px;
+  font-variant-numeric: tabular-nums;
 }
 .help-section .formula-box .kw { color: var(--moss); font-weight: 600; }
 .help-section .formula-box .op { color: var(--ink-faint); }
 .help-grid {
   display: grid;
-  grid-template-columns: 90px 1fr;
+  grid-template-columns: 100px 1fr;
   gap: 6px 14px;
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 .help-grid dt {
   font-family: var(--condensed);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 1.4px;
+  font-size: var(--text-xxs);
+  font-weight: var(--w-bold);
+  letter-spacing: var(--track-caps);
   text-transform: uppercase;
   color: var(--ink-faint);
   padding-top: 2px;
 }
-.help-grid dd { color: var(--ink); }
+.help-grid dd { color: var(--ink); line-height: 1.55; }
 
 /* ---------- custom drafting-style tooltip ----------
    Uses data-hint="..." on any element. Renders an absolutely-positioned
@@ -1542,10 +1735,10 @@ select.input {
   color: var(--paper);
   padding: 6px 10px 5px;
   font-family: var(--sans);
-  font-size: 11px;
-  font-weight: 500;
-  line-height: 1.4;
-  letter-spacing: 0.2px;
+  font-size: var(--text-xs);
+  font-weight: var(--w-medium);
+  line-height: 1.45;
+  letter-spacing: 0.01em;
   white-space: pre-wrap;
   width: max-content;
   max-width: 240px;
@@ -1596,7 +1789,7 @@ select.input {
   margin-top: 0;
   flex-shrink: 0;
   padding: 2px 8px;
-  font-size: 9px;
+  font-size: var(--text-xxs);
   border: 1px solid var(--ink-faint);
 }
 .filament-row .field-with-pick > .pick-spool-btn {
@@ -1612,10 +1805,14 @@ select.input {
   .filament-row { grid-template-columns: 1fr 70px 70px 28px; gap: 10px; }
   .input-row    { grid-template-columns: 1fr; gap: 14px; }
   .input-row-3  { grid-template-columns: 1fr; gap: 10px; }
-  .layer { padding: 10px 8px 8px; font-size: 11px; letter-spacing: 1.2px; }
-  .layer .layer-num { font-size: 9px; }
+  .layer {
+    padding: 10px 8px 8px;
+    font-size: var(--text-xs);
+    letter-spacing: 0.1em;
+  }
+  .layer .layer-num { font-size: var(--text-xxs); }
   .total-stamp { flex-direction: column; align-items: flex-start; gap: 4px; }
-  .total-stamp .value { font-size: 24px; }
+  .total-stamp .value { font-size: 1.5rem; }
   .spool-form-row, .spool-form-row.three { grid-template-columns: 1fr 1fr; }
   .spool-item { grid-template-columns: 30px 1fr; }
   .spool-actions {
@@ -1640,12 +1837,12 @@ select.input {
     right: 12px; bottom: 12px;
     padding: 8px 14px 7px;
   }
-  .sticky-total .sticky-value { font-size: 18px; }
+  .sticky-total .sticky-value { font-size: var(--text-md); }
 }
 
 @media (max-width: 420px) {
   .page-frame { padding: 14px 12px 60px; }
-  body { font-size: 14px; }
+  body { font-size: var(--text-sm); }
   .filament-row {
     grid-template-columns: 1fr 60px 28px;
     gap: 8px;
@@ -1654,8 +1851,14 @@ select.input {
     grid-column: 1 / 3;
   }
   .layer .layer-num { display: inline; margin-right: 4px; }
-  .layer { line-height: 1.1; padding: 8px 4px 6px; font-size: 10px; letter-spacing: 0.8px; }
-  .input, .field input, .field select { font-size: 16px; /* prevent iOS zoom */ }
+  .layer {
+    line-height: 1.1;
+    padding: 8px 4px 6px;
+    font-size: var(--text-xxs);
+    letter-spacing: 0.08em;
+  }
+  /* Inputs always 16px on mobile to prevent iOS auto-zoom on focus */
+  .input, .field input, .field select { font-size: 1rem; }
   .history-item { grid-template-columns: 1fr; gap: 8px; }
   .history-price { text-align: left; }
   .history-actions { flex-wrap: wrap; }
