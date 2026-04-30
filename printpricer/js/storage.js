@@ -7,9 +7,9 @@
 import {
   SETTINGS_KEY, HISTORY_KEY, SPOOLS_KEY, PRINTERS_KEY, PRODUCTS_KEY, ACTIVE_PRINTER_KEY,
   settings, state, isInCloudMode,
-} from './state.js?v=18';
-import { updateSyncIndicator } from './ui.js?v=18';
-import { fb } from './firebase.js?v=18';
+} from './state.js?v=19';
+import { updateSyncIndicator } from './ui.js?v=19';
+import { fb } from './firebase.js?v=19';
 
 // ---------- read helpers ----------
 

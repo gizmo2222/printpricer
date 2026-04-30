@@ -11,14 +11,14 @@
 // products (a "set" of N prints) is left for a future iteration —
 // represent those for now as N separate products with a shared name prefix.
 
-import { settings, filaments, addons } from './state.js?v=18';
-import { loadProducts, saveProducts, loadPrinters, getActivePrinter, saveActivePrinterId } from './storage.js?v=18';
-import { num, fmt, escapeHtml, formatHours } from './utils.js?v=18';
-import { toast, switchToPane } from './ui.js?v=18';
-import { setFilaments, newFilament, renderFilaments } from './filaments.js?v=18';
-import { recalc } from './calc.js?v=18';
-import { updateActivePrinterDisplay } from './printers.js?v=18';
-import { logActivity } from './firebase.js?v=18';
+import { settings, filaments, addons } from './state.js?v=19';
+import { loadProducts, saveProducts, loadPrinters, getActivePrinter, saveActivePrinterId } from './storage.js?v=19';
+import { num, fmt, escapeHtml, formatHours, toCsv, downloadFile } from './utils.js?v=19';
+import { toast, switchToPane } from './ui.js?v=19';
+import { setFilaments, newFilament, renderFilaments } from './filaments.js?v=19';
+import { recalc } from './calc.js?v=19';
+import { updateActivePrinterDisplay } from './printers.js?v=19';
+import { logActivity } from './firebase.js?v=19';
 
 let editingProductId = null;
 let isAddingProduct = false;
@@ -29,8 +29,10 @@ export function renderProducts() {
   const container = document.getElementById('products-grid');
   const count = document.getElementById('product-count');
   const formContainer = document.getElementById('product-form-container');
+  const actions = document.getElementById('products-actions');
   if (!container) return;
   const products = loadProducts();
+  if (actions) actions.style.display = products.length ? 'flex' : 'none';
 
   // Earn the block-detail callout
   const callout = document.getElementById('block-detail-products');
@@ -85,6 +87,7 @@ export function renderProducts() {
         <div class="actions-row">
           <button class="link-btn" data-quote-product="${escapeHtml(String(p.id))}">Quote</button>
           <button class="link-btn" data-edit-product="${escapeHtml(String(p.id))}">Edit</button>
+          <button class="link-btn" data-print-product="${escapeHtml(String(p.id))}">Print</button>
           <button class="link-btn danger" data-del-product="${escapeHtml(String(p.id))}">Delete</button>
         </div>
       </div>
@@ -102,6 +105,9 @@ export function renderProducts() {
       isAddingProduct = false;
       renderProducts();
     });
+  });
+  container.querySelectorAll('[data-print-product]').forEach(btn => {
+    btn.addEventListener('click', e => printProduct(e.target.dataset.printProduct));
   });
   container.querySelectorAll('[data-del-product]').forEach(btn => {
     btn.addEventListener('click', e => {
@@ -399,6 +405,259 @@ export function saveEstimateAsProduct() {
   logActivity(`saved product "${name}"`);
 }
 
+// ---------- shared totals helper ----------
+//
+// Light-weight totals for a product: filament grams + cost, BOM total/count.
+// Used by the print spec sheet and CSV export so the per-product math is
+// computed in one place. Does NOT compute the full priced quote — for that
+// the user clicks Quote and the Estimate sheet's recalc() does it with all
+// of Defaults + the active printer in scope.
+function computeProductTotals(p) {
+  const filGrams = (p.filaments || []).reduce((s, f) => s + num(f.grams), 0);
+  const filCost  = (p.filaments || []).reduce((s, f) => s + (num(f.grams) / 1000) * num(f.costPerKg), 0);
+  const bom = p.bom || [];
+  const bomCost  = bom.reduce((s, b) => s + (num(b.qty) * num(b.unitCost)), 0);
+  return { filGrams, filCost, bomCost, bomCount: bom.length };
+}
+
+// ---------- per-product print: workshop spec sheet ----------
+//
+// A build sheet for the workshop floor — what to print, what filament to
+// load, what hardware to grab. Includes a checkbox column on the BOM for
+// kitting. NOT a customer quote — that's the Archive's print action, which
+// shows a clean total without internal markup math.
+function printProduct(id) {
+  const p = loadProducts().find(x => String(x.id) === String(id));
+  if (!p) return;
+  const w = window.open('', '_blank');
+  if (!w) { toast('Popup blocked — allow popups to print', true); return; }
+
+  const printer = loadPrinters().find(x => String(x.id) === String(p.printerId));
+  const t = computeProductTotals(p);
+
+  const filRows = (p.filaments || []).map(f => `
+    <tr>
+      <td>${escapeHtml(f.name || 'Filament')}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums">${num(f.grams).toFixed(1)}&nbsp;g</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums">$${num(f.costPerKg).toFixed(2)}/kg</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums">$${((num(f.grams) / 1000) * num(f.costPerKg)).toFixed(2)}</td>
+    </tr>
+  `).join('');
+
+  const bomRows = (p.bom || []).map(b => `
+    <tr>
+      <td style="width: 22px"><span class="check"></span></td>
+      <td>${escapeHtml(b.name || '')}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums">${num(b.qty).toFixed(0)}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums">$${num(b.unitCost).toFixed(2)}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums">$${(num(b.qty) * num(b.unitCost)).toFixed(2)}</td>
+    </tr>
+  `).join('');
+
+  const biz = settings.businessName || '';
+  const issued = new Date();
+
+  w.document.write(`<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<title>Spec · ${escapeHtml(p.name)}</title>
+<style>
+  body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #16202d; max-width: 720px; margin: 32px auto; padding: 0 24px; }
+  .head { display:flex; justify-content:space-between; align-items:flex-end; border-bottom: 2px solid #16202d; padding-bottom: 10px; margin-bottom: 18px; }
+  .head .stamp { font-size: 10px; letter-spacing: 1.6px; text-transform: uppercase; color: #6a7585; }
+  h1 { font-size: 24px; letter-spacing: 0.5px; margin: 0 0 2px; }
+  .target { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .target small { display:block; font-size: 10px; letter-spacing: 1.4px; text-transform: uppercase; color: #6a7585; font-weight: 400; }
+  .meta-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 18px 0 24px; padding: 12px; background: #f5efdc; border: 1px dashed #b8a878; }
+  .meta-cell .k { font-size: 9px; letter-spacing: 1.4px; text-transform: uppercase; color: #6a7585; margin-bottom: 2px; }
+  .meta-cell .v { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  h2 { font-size: 13px; letter-spacing: 1.6px; text-transform: uppercase; color: #1f4e7a; border-bottom: 1px solid #d4cdb8; padding-bottom: 4px; margin: 24px 0 8px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 7px 8px; border-bottom: 1px solid #e8e0c8; text-align: left; font-size: 13px; }
+  th { font-size: 10px; letter-spacing: 1.4px; text-transform: uppercase; color: #6a7585; }
+  tfoot td { border-top: 1.5px solid #16202d; border-bottom: none; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .check { display:inline-block; width: 14px; height: 14px; border: 1.5px solid #16202d; }
+  .notes { background: #f5efdc; border-left: 3px solid #1f4e7a; padding: 8px 12px; font-size: 13px; line-height: 1.5; margin: 14px 0; }
+  .footer { margin-top: 36px; font-size: 11px; color: #6a7585; letter-spacing: 0.5px; }
+  @media print { body { margin: 12mm; max-width: none; } }
+</style></head><body>
+
+<div class="head">
+  <div>
+    <div class="stamp">Workshop spec · build sheet</div>
+    <h1>${escapeHtml(p.name)}</h1>
+  </div>
+  ${p.sellPrice ? `<div class="target">$${(+p.sellPrice).toFixed(2)}<small>Target sell</small></div>` : ''}
+</div>
+
+${p.notes ? `<div class="notes">${escapeHtml(p.notes)}</div>` : ''}
+
+<div class="meta-grid">
+  <div class="meta-cell"><div class="k">Printer</div><div class="v">${escapeHtml(printer?.name || '— any —')}</div></div>
+  <div class="meta-cell"><div class="k">Print time</div><div class="v">${p.hours ? formatHours(+p.hours) : '—'}</div></div>
+  <div class="meta-cell"><div class="k">Filament</div><div class="v">${t.filGrams.toFixed(1)} g</div></div>
+  <div class="meta-cell"><div class="k">Labor</div><div class="v">${p.laborMinutes ? `${num(p.laborMinutes)} min` : '—'}</div></div>
+</div>
+
+${filRows ? `<h2>Filaments to load</h2>
+<table>
+  <thead><tr><th>Color / type</th><th style="text-align:right">Grams</th><th style="text-align:right">$ / kg</th><th style="text-align:right">Cost</th></tr></thead>
+  <tbody>${filRows}</tbody>
+  <tfoot><tr><td colspan="3" style="text-align:right">Filament total</td><td style="text-align:right">$${t.filCost.toFixed(2)}</td></tr></tfoot>
+</table>` : ''}
+
+${bomRows ? `<h2>Bill of materials · kitting checklist</h2>
+<table>
+  <thead><tr><th></th><th>Item</th><th style="text-align:right">Qty</th><th style="text-align:right">Unit $</th><th style="text-align:right">Total</th></tr></thead>
+  <tbody>${bomRows}</tbody>
+  <tfoot><tr><td colspan="4" style="text-align:right">BOM total</td><td style="text-align:right">$${t.bomCost.toFixed(2)}</td></tr></tfoot>
+</table>` : ''}
+
+${(p.packagingCost || p.shippingCost) ? `<h2>Add-ons</h2>
+<table>
+  ${p.packagingCost ? `<tr><td>Packaging</td><td style="text-align:right;font-variant-numeric:tabular-nums">$${num(p.packagingCost).toFixed(2)}</td></tr>` : ''}
+  ${p.shippingCost  ? `<tr><td>Default shipping (passthrough)</td><td style="text-align:right;font-variant-numeric:tabular-nums">$${num(p.shippingCost).toFixed(2)}</td></tr>` : ''}
+</table>` : ''}
+
+<div class="footer">
+  ${biz ? escapeHtml(biz) + ' · ' : ''}Printed ${issued.toLocaleDateString()} ${issued.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · Print Pricer
+</div>
+
+<script>window.onload = () => setTimeout(() => window.print(), 100);<\/script>
+</body></html>`);
+  w.document.close();
+}
+
+// ---------- print catalog: all products on one sheet ----------
+function printProductCatalog() {
+  const all = loadProducts();
+  if (!all.length) { toast('Catalog is empty', true); return; }
+  const w = window.open('', '_blank');
+  if (!w) { toast('Popup blocked — allow popups to print', true); return; }
+
+  const printers = loadPrinters();
+  const biz = settings.businessName || '';
+  const bizEmail = settings.businessEmail || '';
+  const bizNotes = settings.businessNotes || '';
+  const issued = new Date();
+
+  // Sort: sell price desc, then alpha (so a customer skim hits the high-ticket items first)
+  const sorted = all.slice().sort((a, b) => {
+    const ap = +a.sellPrice || 0, bp = +b.sellPrice || 0;
+    if (bp !== ap) return bp - ap;
+    return (a.name || '').localeCompare(b.name || '');
+  });
+
+  const rows = sorted.map(p => {
+    const printer = printers.find(x => String(x.id) === String(p.printerId));
+    const t = computeProductTotals(p);
+    return `
+      <tr>
+        <td><strong>${escapeHtml(p.name)}</strong>${p.notes ? `<div class="sub">${escapeHtml(p.notes)}</div>` : ''}</td>
+        <td>${escapeHtml(printer?.name || '—')}</td>
+        <td style="text-align:right;font-variant-numeric:tabular-nums">${p.hours ? formatHours(+p.hours) : '—'}</td>
+        <td style="text-align:right;font-variant-numeric:tabular-nums">${t.filGrams ? t.filGrams.toFixed(1) + ' g' : '—'}</td>
+        <td style="text-align:right;font-variant-numeric:tabular-nums">${t.bomCount || '—'}</td>
+        <td style="text-align:right;font-variant-numeric:tabular-nums;font-weight:700">${p.sellPrice ? '$' + (+p.sellPrice).toFixed(2) : '—'}</td>
+      </tr>
+    `;
+  }).join('');
+
+  const bizHeader = biz
+    ? `<div class="biz">
+        <div class="biz-name">${escapeHtml(biz)}</div>
+        ${bizNotes ? `<div class="biz-notes">${escapeHtml(bizNotes)}</div>` : ''}
+        ${bizEmail ? `<div class="biz-email">${escapeHtml(bizEmail)}</div>` : ''}
+      </div>`
+    : '';
+
+  const totalCatalogValue = sorted.reduce((s, p) => s + (+p.sellPrice || 0), 0);
+
+  w.document.write(`<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<title>Product Catalog</title>
+<style>
+  body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #16202d; max-width: 820px; margin: 32px auto; padding: 0 24px; }
+  .biz { margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1.5px solid #16202d; }
+  .biz-name { font-size: 22px; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 2px; }
+  .biz-notes { color: #6a7585; font-size: 13px; line-height: 1.5; }
+  .biz-email { color: #1f4e7a; font-size: 13px; margin-top: 4px; }
+  h1 { font-size: 26px; letter-spacing: 1px; margin-bottom: 4px; }
+  .sub { color: #6a7585; font-size: 12px; letter-spacing: 0.4px; margin-top: 2px; }
+  .stamp { color: #6a7585; font-size: 11px; letter-spacing: 1.4px; text-transform: uppercase; margin-bottom: 18px; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+  th, td { padding: 9px 10px; border-bottom: 1px solid #e8e0c8; text-align: left; font-size: 13px; vertical-align: top; }
+  th { font-size: 10px; letter-spacing: 1.4px; text-transform: uppercase; color: #6a7585; border-bottom: 1.5px solid #16202d; }
+  tfoot td { border-top: 1.5px solid #16202d; border-bottom: none; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .footer { margin-top: 32px; font-size: 11px; color: #6a7585; letter-spacing: 0.5px; }
+  @media print { body { margin: 12mm; max-width: none; } }
+</style></head><body>
+
+${bizHeader}
+
+<h1>Product Catalog</h1>
+<div class="stamp">${sorted.length} product${sorted.length !== 1 ? 's' : ''} · Issued ${issued.toLocaleDateString()}</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>Product</th>
+      <th>Printer</th>
+      <th style="text-align:right">Print time</th>
+      <th style="text-align:right">Filament</th>
+      <th style="text-align:right">BOM</th>
+      <th style="text-align:right">Target</th>
+    </tr>
+  </thead>
+  <tbody>${rows}</tbody>
+  <tfoot>
+    <tr><td colspan="5" style="text-align:right">Catalog total (target prices)</td><td style="text-align:right">$${totalCatalogValue.toFixed(2)}</td></tr>
+  </tfoot>
+</table>
+
+<div class="footer">
+  ${biz ? escapeHtml(biz) + ' · ' : ''}Generated ${issued.toLocaleDateString()} ${issued.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · Print Pricer
+</div>
+
+<script>window.onload = () => setTimeout(() => window.print(), 100);<\/script>
+</body></html>`);
+  w.document.close();
+}
+
+// ---------- export catalog as CSV ----------
+function exportProductsCsv() {
+  const all = loadProducts();
+  if (!all.length) { toast('Catalog is empty', true); return; }
+  const printers = loadPrinters();
+  const rows = all.map(p => {
+    const printer = printers.find(x => String(x.id) === String(p.printerId));
+    const t = computeProductTotals(p);
+    return {
+      name: p.name,
+      notes: p.notes || '',
+      sell_price: (+p.sellPrice || 0).toFixed(2),
+      printer: printer?.name || '',
+      hours: (+p.hours || 0).toFixed(3),
+      total_grams: t.filGrams.toFixed(2),
+      filament_cost: t.filCost.toFixed(2),
+      filaments: (p.filaments || []).map(f => `${f.name}:${num(f.grams).toFixed(1)}g@$${num(f.costPerKg).toFixed(2)}`).join('; '),
+      labor_minutes: num(p.laborMinutes).toFixed(0),
+      packaging: num(p.packagingCost).toFixed(2),
+      shipping: num(p.shippingCost).toFixed(2),
+      bom_count: t.bomCount,
+      bom_total: t.bomCost.toFixed(2),
+      bom_items: (p.bom || []).map(b => `${b.name}:${num(b.qty).toFixed(0)}@$${num(b.unitCost).toFixed(2)}`).join('; '),
+    };
+  });
+  const cols = [
+    'name','notes','sell_price','printer','hours','total_grams','filament_cost','filaments',
+    'labor_minutes','packaging','shipping','bom_count','bom_total','bom_items',
+  ];
+  const csv = toCsv(rows, cols);
+  const filename = `printpricer-products-${new Date().toISOString().slice(0, 10)}.csv`;
+  downloadFile(filename, csv, 'text/csv;charset=utf-8');
+  toast(`Exported ${rows.length} product${rows.length !== 1 ? 's' : ''} to ${filename}`);
+}
+
 export function initProductsUI() {
   document.getElementById('product-add-btn')?.addEventListener('click', () => {
     if (isAddingProduct) return;
@@ -407,4 +666,6 @@ export function initProductsUI() {
     renderProducts();
   });
   document.getElementById('save-as-product')?.addEventListener('click', saveEstimateAsProduct);
+  document.getElementById('export-products-csv')?.addEventListener('click', exportProductsCsv);
+  document.getElementById('print-products-catalog')?.addEventListener('click', printProductCatalog);
 }

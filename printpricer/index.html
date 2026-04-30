@@ -11,7 +11,7 @@
   <!-- Cache-buster query string is bumped on each meaningful release so
        browsers fetch the new module set instead of stale ES-module copies.
        Bump this when you ship CSS or JS changes. -->
-  <link rel="stylesheet" href="css/styles.css?v=18">
+  <link rel="stylesheet" href="css/styles.css?v=19">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
@@ -257,6 +257,10 @@
         </div>
         <div id="product-form-container"></div>
         <div id="products-grid"></div>
+        <div class="btn-row" id="products-actions" style="display: none; margin-top: var(--space-4);">
+          <button class="btn" id="export-products-csv" data-hint="Download the catalog as a CSV — name, sell price, printer, time, filament summary, BOM total. Open in Excel / Sheets / Numbers.">Export CSV</button>
+          <button class="btn" id="print-products-catalog" data-hint="Open a printable catalog page — every product on one sheet with its target price, printer, time, filament, and BOM count. For your records or a customer-facing list.">Print catalog</button>
+        </div>
       </section>
 
       <section class="block">
@@ -267,7 +271,8 @@
         </header>
         <div class="formula" style="font-family: var(--sans); font-size: 13px; line-height: 1.65;">
           A <span class="kw">product</span> is a saved Estimate template — name, default printer, print time, filament rows, labor minutes, packaging, default shipping, plus a <span class="kw">bill of materials</span> (hardware, magnets, screws, mailers — anything that isn't filament).<br><br>
-          Click <span class="kw">Quote</span> on any product to load it into the Estimate sheet for instant pricing. The BOM total auto-rolls into the Packaging line so failure markup and margin apply to it. From the Estimate sheet, click <span class="kw">Save as Product</span> to add the current setup to your catalog.
+          Click <span class="kw">Quote</span> on any product to load it into the Estimate sheet for instant pricing. The BOM total auto-rolls into the Packaging line so failure markup and margin apply to it. From the Estimate sheet, click <span class="kw">Save as Product</span> to add the current setup to your catalog.<br><br>
+          The per-product <span class="kw">Print</span> button generates a workshop spec sheet — printer, time, filaments to load, BOM checklist — for use when you actually make the item.
         </div>
       </section>
     </div>
@@ -750,6 +755,6 @@
 
   <datalist id="spool-list"></datalist>
 
-  <script type="module" src="js/main.js?v=18"></script>
+  <script type="module" src="js/main.js?v=19"></script>
 </body>
 </html>
