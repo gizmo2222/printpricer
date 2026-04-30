@@ -1,20 +1,20 @@
 // Entry point: wire everything up after the DOM is ready.
 
-import { settings, filaments, addons } from './state.js?v=28';
-import { saveSettings } from './storage.js?v=28';
-import { initTabs, onPaneShow, initPickerOverlay, toast } from './ui.js?v=28';
-import { recalc, loadSettingsToForm, initStickyTotal } from './calc.js?v=28';
-import { renderFilaments, resetFilaments, initFilamentsUI } from './filaments.js?v=28';
-import { renderSpools, initSpoolsUI } from './spools.js?v=28';
-import { renderPrinters, updateActivePrinterDisplay, migrateLegacySinglePrinter, initPrintersUI } from './printers.js?v=28';
-import { renderHistory, initArchive } from './archive.js?v=28';
-import { renderProducts, initProductsUI, saveEstimateAsProduct, printEstimate } from './products.js?v=28';
-import { initAuthUI, updateAccountUI, renderGroupSection } from './auth-ui.js?v=28';
-import { startAuthListener } from './firebase.js?v=28';
-import { parseGcode, parse3mf } from './parser.js?v=28';
-import { formatHours, escapeHtml, resizeImageToDataUrl } from './utils.js?v=28';
-import { initOnboarding, maybeShowOnboarding } from './onboarding.js?v=28';
-import { initHelp } from './help.js?v=28';
+import { settings, filaments, addons } from './state.js?v=29';
+import { saveSettings } from './storage.js?v=29';
+import { initTabs, onPaneShow, initPickerOverlay, toast } from './ui.js?v=29';
+import { recalc, loadSettingsToForm, initStickyTotal } from './calc.js?v=29';
+import { renderFilaments, resetFilaments, initFilamentsUI } from './filaments.js?v=29';
+import { renderSpools, initSpoolsUI } from './spools.js?v=29';
+import { renderPrinters, updateActivePrinterDisplay, migrateLegacySinglePrinter, initPrintersUI } from './printers.js?v=29';
+import { renderHistory, initArchive } from './archive.js?v=29';
+import { renderProducts, initProductsUI, saveEstimateAsProduct, printEstimate } from './products.js?v=29';
+import { initAuthUI, updateAccountUI, renderGroupSection } from './auth-ui.js?v=29';
+import { startAuthListener } from './firebase.js?v=29';
+import { parseGcode, parse3mf } from './parser.js?v=29';
+import { formatHours, escapeHtml, resizeImageToDataUrl } from './utils.js?v=29';
+import { initOnboarding, maybeShowOnboarding } from './onboarding.js?v=29';
+import { initHelp } from './help.js?v=29';
 
 // ---- title-block date ----
 (function setDate() {
@@ -160,8 +160,9 @@ function renderPhotos() {
   if (!photoRow) return;
   const photos = Array.isArray(addons.photos) ? addons.photos : [];
   const cells = photos.map((src, i) => `
-    <div class="photo-cell" data-i="${i}">
+    <div class="photo-cell${i === 0 ? ' is-primary' : ''}" data-i="${i}" draggable="true" title="Drag to reorder${i === 0 ? ' · this is the primary photo (catalog thumbnail)' : ''}">
       <img src="${escapeHtml(src)}" alt="">
+      ${i === 0 ? '<span class="photo-primary-badge">primary</span>' : ''}
       <span class="photo-remove-btn" data-photo-remove="${i}" role="button" tabindex="0" aria-label="Remove photo">×</span>
     </div>
   `).join('');
@@ -204,6 +205,54 @@ photoInput?.addEventListener('change', async e => {
       toast(err.message || `Could not load ${file.name}`, true);
     }
   }
+  renderPhotos();
+});
+
+// Drag-and-drop reorder. The first photo in the array is the "primary"
+// (used as the catalog thumbnail). Reordering = changing which photo
+// is first. Delegated handlers stay valid across re-renders.
+let dragFromIdx = null;
+photoRow?.addEventListener('dragstart', e => {
+  const cell = e.target.closest('.photo-cell');
+  if (!cell) return;
+  dragFromIdx = +cell.dataset.i;
+  cell.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+  // Setting any data is required for drag to actually start in some browsers
+  try { e.dataTransfer.setData('text/plain', String(dragFromIdx)); } catch {}
+});
+photoRow?.addEventListener('dragend', e => {
+  const cell = e.target.closest('.photo-cell');
+  if (cell) cell.classList.remove('dragging');
+  // Clear lingering drag-over highlight on every cell
+  photoRow.querySelectorAll('.photo-cell.drag-over').forEach(c => c.classList.remove('drag-over'));
+  dragFromIdx = null;
+});
+photoRow?.addEventListener('dragover', e => {
+  const cell = e.target.closest('.photo-cell');
+  if (!cell || dragFromIdx === null) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  // Highlight only the hovered drop target
+  photoRow.querySelectorAll('.photo-cell.drag-over').forEach(c => {
+    if (c !== cell) c.classList.remove('drag-over');
+  });
+  if (+cell.dataset.i !== dragFromIdx) cell.classList.add('drag-over');
+});
+photoRow?.addEventListener('dragleave', e => {
+  const cell = e.target.closest('.photo-cell');
+  if (cell) cell.classList.remove('drag-over');
+});
+photoRow?.addEventListener('drop', e => {
+  e.preventDefault();
+  const cell = e.target.closest('.photo-cell');
+  if (!cell || dragFromIdx === null) return;
+  const toIdx = +cell.dataset.i;
+  if (toIdx === dragFromIdx) return;
+  if (!Array.isArray(addons.photos)) return;
+  const [moved] = addons.photos.splice(dragFromIdx, 1);
+  addons.photos.splice(toIdx, 0, moved);
+  dragFromIdx = null;
   renderPhotos();
 });
 

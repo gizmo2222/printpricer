@@ -14,14 +14,14 @@
 // This module owns the editingProductId state and the catalog list. The
 // Estimate sheet's input wiring + smart save buttons live in main.js.
 
-import { settings, filaments, addons, MARKETPLACE_PRESETS } from './state.js?v=28';
-import { loadProducts, saveProducts, loadPrinters, getActivePrinter, saveActivePrinterId } from './storage.js?v=28';
-import { num, fmt, escapeHtml, formatHours, toCsv, downloadFile } from './utils.js?v=28';
-import { toast, switchToPane } from './ui.js?v=28';
-import { setFilaments, newFilament, renderFilaments } from './filaments.js?v=28';
-import { recalc } from './calc.js?v=28';
-import { updateActivePrinterDisplay } from './printers.js?v=28';
-import { logActivity } from './firebase.js?v=28';
+import { settings, filaments, addons, MARKETPLACE_PRESETS } from './state.js?v=29';
+import { loadProducts, saveProducts, loadPrinters, getActivePrinter, saveActivePrinterId } from './storage.js?v=29';
+import { num, fmt, escapeHtml, formatHours, toCsv, downloadFile } from './utils.js?v=29';
+import { toast, switchToPane } from './ui.js?v=29';
+import { setFilaments, newFilament, renderFilaments } from './filaments.js?v=29';
+import { recalc } from './calc.js?v=29';
+import { updateActivePrinterDisplay } from './printers.js?v=29';
+import { logActivity } from './firebase.js?v=29';
 
 // ---------- edit-mode state (module-private) ----------
 
@@ -509,8 +509,15 @@ function printSpecSheet(p) {
   .breakdown td:last-child { text-align: right; }
   /* Subtotal row: heavy ink line ABOVE only — matches the on-screen
      Estimate sheet's .breakdown-row.subtotal which uses border-top alone.
-     The cell's default light bottom-border stays for row rhythm. */
-  .breakdown tr.sub td { border-top: 1.5px solid #16202d; font-weight: 700; padding-top: 8px; }
+     2px and !important to defeat any cascade weirdness with the default
+     border-bottom on adjacent cells (border-collapse mode merges adjacent
+     borders; the heaviest wins, but only if specificity is unambiguous). */
+  .breakdown tr.sub td {
+    border-top: 2px solid #16202d !important;
+    border-bottom: 1px solid #e8e0c8;
+    font-weight: 700;
+    padding-top: 8px;
+  }
   .estimated-stamp { display:flex; justify-content:space-between; align-items:baseline; margin-top: 12px; padding: 10px 12px; background: #f5efdc; border: 2px solid #16202d; }
   .estimated-stamp .label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #16202d; font-weight: 800; }
   .estimated-stamp .value { font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; color: #16202d; }
