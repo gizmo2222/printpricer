@@ -1,20 +1,20 @@
 // Entry point: wire everything up after the DOM is ready.
 
-import { settings, filaments, addons } from './state.js?v=22';
-import { saveSettings } from './storage.js?v=22';
-import { initTabs, onPaneShow, initPickerOverlay, toast } from './ui.js?v=22';
-import { recalc, loadSettingsToForm, initStickyTotal } from './calc.js?v=22';
-import { renderFilaments, resetFilaments, initFilamentsUI } from './filaments.js?v=22';
-import { renderSpools, initSpoolsUI } from './spools.js?v=22';
-import { renderPrinters, updateActivePrinterDisplay, migrateLegacySinglePrinter, initPrintersUI } from './printers.js?v=22';
-import { renderHistory, initArchive } from './archive.js?v=22';
-import { renderProducts, initProductsUI, saveEstimateAsProduct } from './products.js?v=22';
-import { initAuthUI, updateAccountUI, renderGroupSection } from './auth-ui.js?v=22';
-import { startAuthListener } from './firebase.js?v=22';
-import { parseGcode, parse3mf } from './parser.js?v=22';
-import { formatHours, escapeHtml } from './utils.js?v=22';
-import { initOnboarding, maybeShowOnboarding } from './onboarding.js?v=22';
-import { initHelp } from './help.js?v=22';
+import { settings, filaments, addons } from './state.js?v=23';
+import { saveSettings } from './storage.js?v=23';
+import { initTabs, onPaneShow, initPickerOverlay, toast } from './ui.js?v=23';
+import { recalc, loadSettingsToForm, initStickyTotal } from './calc.js?v=23';
+import { renderFilaments, resetFilaments, initFilamentsUI } from './filaments.js?v=23';
+import { renderSpools, initSpoolsUI } from './spools.js?v=23';
+import { renderPrinters, updateActivePrinterDisplay, migrateLegacySinglePrinter, initPrintersUI } from './printers.js?v=23';
+import { renderHistory, initArchive } from './archive.js?v=23';
+import { renderProducts, initProductsUI, saveEstimateAsProduct } from './products.js?v=23';
+import { initAuthUI, updateAccountUI, renderGroupSection } from './auth-ui.js?v=23';
+import { startAuthListener } from './firebase.js?v=23';
+import { parseGcode, parse3mf } from './parser.js?v=23';
+import { formatHours, escapeHtml, resizeImageToDataUrl } from './utils.js?v=23';
+import { initOnboarding, maybeShowOnboarding } from './onboarding.js?v=23';
+import { initHelp } from './help.js?v=23';
 
 // ---- title-block date ----
 (function setDate() {
@@ -145,6 +145,60 @@ document.getElementById('print-notes')?.addEventListener('input', e => {
 });
 document.getElementById('print-target-price')?.addEventListener('input', e => {
   addons.sellPrice = e.target.value; recalc();
+});
+
+// ---- estimate sheet photo upload ----
+//
+// Click anywhere on .photo-slot opens the file picker. New file → resize
+// to ~800px JPEG data URL → addons.photo. The × overlay (when a photo is
+// set) removes it without re-opening the picker.
+const photoSlot   = document.getElementById('photo-slot');
+const photoInput  = document.getElementById('photo-input');
+const photoThumb  = document.getElementById('photo-thumb');
+const photoRemove = document.getElementById('photo-remove');
+
+function renderPhoto() {
+  if (!photoSlot || !photoThumb || !photoRemove) return;
+  if (addons.photo) {
+    photoSlot.classList.add('has-photo');
+    photoThumb.src = addons.photo;
+    photoThumb.hidden = false;
+    photoRemove.hidden = false;
+  } else {
+    photoSlot.classList.remove('has-photo');
+    photoThumb.src = '';
+    photoThumb.hidden = true;
+    photoRemove.hidden = true;
+  }
+}
+// Other modules (archive load, product load, reset) replace addons.photo
+// and dispatch this event to refresh the preview.
+document.addEventListener('photo:render', renderPhoto);
+
+photoSlot?.addEventListener('click', e => {
+  // Don't reopen the picker when the user clicks the × overlay.
+  if (e.target.closest('#photo-remove')) return;
+  photoInput?.click();
+});
+photoRemove?.addEventListener('click', e => {
+  e.stopPropagation();
+  addons.photo = '';
+  renderPhoto();
+});
+photoRemove?.addEventListener('keydown', e => {
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); photoRemove.click(); }
+});
+photoInput?.addEventListener('change', async e => {
+  const file = e.target.files?.[0];
+  e.target.value = ''; // allow re-selecting the same file
+  if (!file) return;
+  try {
+    const dataUrl = await resizeImageToDataUrl(file);
+    addons.photo = dataUrl;
+    renderPhoto();
+  } catch (err) {
+    toast(err.message || 'Could not load photo', true);
+  }
 });
 
 // ---- estimate sheet add-ons (labor, packaging, shipping) ----

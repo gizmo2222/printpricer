@@ -14,14 +14,14 @@
 // This module owns the editingProductId state and the catalog list. The
 // Estimate sheet's input wiring + smart save buttons live in main.js.
 
-import { settings, filaments, addons, MARKETPLACE_PRESETS } from './state.js?v=22';
-import { loadProducts, saveProducts, loadPrinters, getActivePrinter, saveActivePrinterId } from './storage.js?v=22';
-import { num, fmt, escapeHtml, formatHours, toCsv, downloadFile } from './utils.js?v=22';
-import { toast, switchToPane } from './ui.js?v=22';
-import { setFilaments, newFilament, renderFilaments } from './filaments.js?v=22';
-import { recalc } from './calc.js?v=22';
-import { updateActivePrinterDisplay } from './printers.js?v=22';
-import { logActivity } from './firebase.js?v=22';
+import { settings, filaments, addons, MARKETPLACE_PRESETS } from './state.js?v=23';
+import { loadProducts, saveProducts, loadPrinters, getActivePrinter, saveActivePrinterId } from './storage.js?v=23';
+import { num, fmt, escapeHtml, formatHours, toCsv, downloadFile } from './utils.js?v=23';
+import { toast, switchToPane } from './ui.js?v=23';
+import { setFilaments, newFilament, renderFilaments } from './filaments.js?v=23';
+import { recalc } from './calc.js?v=23';
+import { updateActivePrinterDisplay } from './printers.js?v=23';
+import { logActivity } from './firebase.js?v=23';
 
 // ---------- edit-mode state (module-private) ----------
 
@@ -110,8 +110,11 @@ export function renderProducts() {
     item.className = 'spool-item' + (isEditing ? ' editing' : '');
     const totalGrams = (p.filaments || []).reduce((s, f) => s + (+f.grams || 0), 0);
     const bomCount = (p.bom || []).length;
+    const thumbHtml = p.photo
+      ? `<img class="product-photo-thumb" src="${escapeHtml(p.photo)}" alt="">`
+      : `<div class="spool-swatch" style="background: var(--paper-deep)"></div>`;
     item.innerHTML = `
-      <div class="spool-swatch" style="background: var(--paper-deep)"></div>
+      ${thumbHtml}
       <div class="spool-info">
         <div class="spool-name"></div>
         <div class="spool-meta">
@@ -161,7 +164,7 @@ function loadProductIntoEstimate(id) {
   const p = loadProducts().find(x => String(x.id) === String(id));
   if (!p) return;
 
-  // Description, notes, target sell price
+  // Description, notes, target sell price, photo
   document.getElementById('print-name').value = p.name;
   const notesEl = document.getElementById('print-notes');
   if (notesEl) notesEl.value = p.notes || '';
@@ -169,6 +172,8 @@ function loadProductIntoEstimate(id) {
   if (targetEl) targetEl.value = p.sellPrice || '';
   addons.notes     = p.notes     || '';
   addons.sellPrice = p.sellPrice || '';
+  addons.photo     = p.photo     || '';
+  document.dispatchEvent(new CustomEvent('photo:render'));
 
   // Time
   const hrs  = Math.floor(+p.hours || 0);
@@ -230,6 +235,7 @@ export function saveEstimateAsProduct({ asNew = false } = {}) {
     name,
     notes:     addons.notes     || '',
     sellPrice: addons.sellPrice || '',
+    photo:     addons.photo     || '',
     printerId: printer ? String(printer.id) : '',
     hours: num(document.getElementById('time-h').value) + num(document.getElementById('time-m').value) / 60,
     laborMinutes:  addons.laborMinutes  || '',
@@ -453,7 +459,10 @@ function printProduct(id) {
   .net-panel td.rust { color: #a13c1f; }
   .net-panel tr.net-row td { border-top: 1.5px solid #4a6a3a; color: #4a6a3a; font-size: 16px; font-weight: 700; }
   .footer { margin-top: 36px; font-size: 11px; color: #6a7585; letter-spacing: 0.5px; }
-  @media print { body { margin: 12mm; max-width: none; } }
+  /* Product photo on the spec sheet — sits between the head and meta grid */
+  .product-photo { margin: 16px 0 8px; text-align: center; }
+  .product-photo img { display: inline-block; max-width: 100%; max-height: 320px; border: 1px solid #16202d; }
+  @media print { body { margin: 12mm; max-width: none; } .product-photo img { max-height: 280px; } }
 </style></head><body>
 
 <div class="head">
@@ -463,6 +472,8 @@ function printProduct(id) {
   </div>
   ${p.sellPrice ? `<div class="target">$${(+p.sellPrice).toFixed(2)}<small>Target sell</small></div>` : ''}
 </div>
+
+${p.photo ? `<div class="product-photo"><img src="${escapeHtml(p.photo)}" alt=""></div>` : ''}
 
 ${p.notes ? `<div class="notes">${escapeHtml(p.notes)}</div>` : ''}
 

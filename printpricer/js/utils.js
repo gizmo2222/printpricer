@@ -89,3 +89,42 @@ export function downloadFile(filename, content, mime = 'text/plain;charset=utf-8
   a.click();
   setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 100);
 }
+
+// Resize an image File to a JPEG data URL with a max long-edge dimension.
+// We store photos as data URLs in localStorage / Firestore; resizing here
+// keeps each photo to ~50–200KB so we don't blow past the 1MB Firestore
+// document limit even with multiple products in a group.
+export function resizeImageToDataUrl(file, maxDim = 800, quality = 0.82) {
+  return new Promise((resolve, reject) => {
+    if (!file || !file.type?.startsWith('image/')) {
+      reject(new Error('Not an image file'));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Could not read file'));
+    reader.onload = e => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('Could not load image'));
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxDim || height > maxDim) {
+          const scale = Math.min(maxDim / width, maxDim / height);
+          width  = Math.round(width  * scale);
+          height = Math.round(height * scale);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width  = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        try {
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        } catch (err) {
+          reject(err);
+        }
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}

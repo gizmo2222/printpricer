@@ -150,4 +150,7 @@ export const addons = {
   bom: [],
   notes: '',
   sellPrice: '',
+  // Optional product photo as a JPEG data URL (resized to ~800px on the
+  // long edge). Saved with archive entries and product templates.
+  photo: '',
 };

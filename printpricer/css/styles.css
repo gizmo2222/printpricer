@@ -1143,6 +1143,81 @@ select.input {
 }
 .spool-link-tag::before { content: '→ '; }
 
+/* ---------- product photo control (Estimate sheet) ----------
+   Compact dashed slot when empty (looks like an +Add affordance);
+   inline thumbnail with × remove overlay when set. Saved with archive
+   entries and product templates as a JPEG data URL. */
+.photo-field { margin-top: var(--space-3); }
+.photo-slot {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 60px;
+  background: transparent;
+  border: 1px dashed var(--ink-faint);
+  cursor: pointer;
+  transition: all 0.15s var(--ease-quart);
+  padding: var(--space-3);
+  font-family: var(--condensed);
+}
+.photo-slot:hover { border-color: var(--blueprint); background: var(--paper-dim); }
+.photo-slot.has-photo {
+  padding: 0;
+  min-height: auto;
+  border-style: solid;
+  border-color: var(--ink-faint);
+  background: var(--paper-dim);
+}
+.photo-slot.has-photo:hover { border-color: var(--blueprint); }
+.photo-slot .photo-placeholder {
+  font-family: var(--condensed);
+  font-size: var(--text-xs);
+  font-weight: var(--w-semibold);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+  color: var(--blueprint);
+}
+.photo-slot.has-photo .photo-placeholder { display: none; }
+.photo-thumb {
+  display: block;
+  max-width: 100%;
+  max-height: 240px;
+  object-fit: contain;
+  margin: 0 auto;
+}
+.photo-remove-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--rust);
+  color: var(--paper);
+  font-size: 16px;
+  font-weight: var(--w-bold);
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+  border: 1.5px solid var(--paper);
+  transition: transform 0.12s var(--ease-quart);
+}
+.photo-remove-btn:hover { transform: scale(1.08); }
+
+/* Catalog row thumbnail — replaces the spool-swatch placeholder */
+.spool-item .product-photo-thumb {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border: 1px solid var(--ink-faint);
+  flex-shrink: 0;
+  background: var(--paper-dim);
+}
+
 /* ---------- BOM block: collapsed by default, expand-on-demand ----------
    The vast majority of estimates don't include hardware. Show only a
    compact "+ Add hardware" affordance until the user actually adds one.

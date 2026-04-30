@@ -8,18 +8,18 @@ import {
   CLOUD_ENABLED, FIREBASE_CONFIG,
   SPOOLS_KEY, HISTORY_KEY, PRINTERS_KEY, PRODUCTS_KEY, SETTINGS_KEY,
   defaultSettings, settings, state, isInCloudMode,
-} from './state.js?v=22';
-import { rafDebounce, generateJoinCode } from './utils.js?v=22';
-import { activePane } from './ui.js?v=22';
-import { renderSpools } from './spools.js?v=22';
-import { renderPrinters, updateActivePrinterDisplay } from './printers.js?v=22';
-import { renderProducts } from './products.js?v=22';
-import { renderHistory } from './archive.js?v=22';
-import { renderActivity } from './activity.js?v=22';
-import { renderFilaments } from './filaments.js?v=22';
-import { recalc, loadSettingsToForm } from './calc.js?v=22';
-import { renderGroupSection, updateAccountUI } from './auth-ui.js?v=22';
-import { loadHistory, loadSpools, loadPrinters, loadProducts, seedGroupCollection } from './storage.js?v=22';
+} from './state.js?v=23';
+import { rafDebounce, generateJoinCode } from './utils.js?v=23';
+import { activePane } from './ui.js?v=23';
+import { renderSpools } from './spools.js?v=23';
+import { renderPrinters, updateActivePrinterDisplay } from './printers.js?v=23';
+import { renderProducts } from './products.js?v=23';
+import { renderHistory } from './archive.js?v=23';
+import { renderActivity } from './activity.js?v=23';
+import { renderFilaments } from './filaments.js?v=23';
+import { recalc, loadSettingsToForm } from './calc.js?v=23';
+import { renderGroupSection, updateAccountUI } from './auth-ui.js?v=23';
+import { loadHistory, loadSpools, loadPrinters, loadProducts, seedGroupCollection } from './storage.js?v=23';
 
 export let fb = null;
 

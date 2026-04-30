@@ -1,15 +1,15 @@
 // Archive (saved estimates) — list, load, clone, delete, CSV export, print.
 
-import { settings, filaments, addons } from './state.js?v=22';
-import { loadHistory, saveHistory, loadSpools, saveSpools, getActivePrinter } from './storage.js?v=22';
-import { LOW_STOCK_THRESHOLD } from './state.js?v=22';
-import { num, fmt, escapeHtml, formatHours, toCsv, downloadFile } from './utils.js?v=22';
-import { toast, toastWithUndo, switchToPane } from './ui.js?v=22';
-import { markOnboardingComplete } from './onboarding.js?v=22';
-import { renderFilaments, setFilaments, newFilament } from './filaments.js?v=22';
-import { recalc } from './calc.js?v=22';
-import { logActivity } from './firebase.js?v=22';
-import { clearEditingMode } from './products.js?v=22';
+import { settings, filaments, addons } from './state.js?v=23';
+import { loadHistory, saveHistory, loadSpools, saveSpools, getActivePrinter } from './storage.js?v=23';
+import { LOW_STOCK_THRESHOLD } from './state.js?v=23';
+import { num, fmt, escapeHtml, formatHours, toCsv, downloadFile } from './utils.js?v=23';
+import { toast, toastWithUndo, switchToPane } from './ui.js?v=23';
+import { markOnboardingComplete } from './onboarding.js?v=23';
+import { renderFilaments, setFilaments, newFilament } from './filaments.js?v=23';
+import { recalc } from './calc.js?v=23';
+import { logActivity } from './firebase.js?v=23';
+import { clearEditingMode } from './products.js?v=23';
 
 let saveQuoteInFlight = false; // double-tap guard
 const FILTER_THRESHOLD = 10;
@@ -152,6 +152,7 @@ function applyEntryToSheet(e) {
   addons.shippingCost  = a.shippingCost  != null ? String(a.shippingCost)  : '';
   addons.notes         = a.notes     != null ? String(a.notes)     : '';
   addons.sellPrice     = a.sellPrice != null ? String(a.sellPrice) : '';
+  addons.photo         = a.photo     || '';
   addons.bom = (a.bom || []).map(b => ({
     name: b.name || '',
     qty:  b.qty != null ? String(b.qty) : '',
@@ -166,6 +167,7 @@ function applyEntryToSheet(e) {
   if (targetEl) targetEl.value = addons.sellPrice;
   renderFilaments();
   document.dispatchEvent(new CustomEvent('bom:render'));
+  document.dispatchEvent(new CustomEvent('photo:render'));
   recalc();
 }
 
@@ -211,10 +213,12 @@ export function initArchive() {
     addons.shippingCost  = '';
     addons.notes     = '';
     addons.sellPrice = '';
+    addons.photo     = '';
     addons.bom = [];
     setFilaments([newFilament()]);
     renderFilaments();
     document.dispatchEvent(new CustomEvent('bom:render'));
+    document.dispatchEvent(new CustomEvent('photo:render'));
     clearEditingMode();
     recalc();
   });
@@ -281,6 +285,7 @@ async function stampAndArchive() {
         shippingCost:  num(addons.shippingCost),
         notes:     addons.notes     || '',
         sellPrice: addons.sellPrice || '',
+        photo:     addons.photo     || '',
         bom: (addons.bom || []).map(b => ({
           name: b.name || '',
           qty: num(b.qty),
