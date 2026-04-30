@@ -14,14 +14,14 @@
 // This module owns the editingProductId state and the catalog list. The
 // Estimate sheet's input wiring + smart save buttons live in main.js.
 
-import { settings, filaments, addons, MARKETPLACE_PRESETS } from './state.js?v=25';
-import { loadProducts, saveProducts, loadPrinters, getActivePrinter, saveActivePrinterId } from './storage.js?v=25';
-import { num, fmt, escapeHtml, formatHours, toCsv, downloadFile } from './utils.js?v=25';
-import { toast, switchToPane } from './ui.js?v=25';
-import { setFilaments, newFilament, renderFilaments } from './filaments.js?v=25';
-import { recalc } from './calc.js?v=25';
-import { updateActivePrinterDisplay } from './printers.js?v=25';
-import { logActivity } from './firebase.js?v=25';
+import { settings, filaments, addons, MARKETPLACE_PRESETS } from './state.js?v=26';
+import { loadProducts, saveProducts, loadPrinters, getActivePrinter, saveActivePrinterId } from './storage.js?v=26';
+import { num, fmt, escapeHtml, formatHours, toCsv, downloadFile } from './utils.js?v=26';
+import { toast, switchToPane } from './ui.js?v=26';
+import { setFilaments, newFilament, renderFilaments } from './filaments.js?v=26';
+import { recalc } from './calc.js?v=26';
+import { updateActivePrinterDisplay } from './printers.js?v=26';
+import { logActivity } from './firebase.js?v=26';
 
 // ---------- edit-mode state (module-private) ----------
 
@@ -486,14 +486,62 @@ function printProduct(id) {
   /* Product photo on the spec sheet — sits between the head and meta grid */
   .product-photo { margin: 16px 0 8px; text-align: center; }
   .product-photo img { display: inline-block; max-width: 100%; max-height: 320px; border: 1px solid #16202d; }
-  /* @media print — strip cream/sand backgrounds for ink-friendly printing.
-     Borders and ink stay; structural rules are preserved. */
+  /* @media print — strip backgrounds AND condense to fit on one page.
+     Screen view is unchanged; this block re-tightens every dimension so a
+     typical product (1-3 filaments, 0-5 BOM items, full breakdown) fits
+     within letter or A4 with 8mm margins. */
   @media print {
-    @page { margin: 12mm; size: auto; }
-    body { margin: 0; padding: 0; max-width: none; background: white !important; }
+    @page { margin: 8mm; size: auto; }
+    body {
+      margin: 0; padding: 0; max-width: none;
+      background: white !important;
+      font-size: 10.5px;
+      line-height: 1.35;
+    }
     .meta-grid, .notes, .estimated-stamp, .target-cmp { background: white !important; }
-    h2 { color: #16202d !important; } /* blueprint sometimes prints washed-out on color printers; flip to ink */
-    .product-photo img { max-height: 280px; }
+    /* Header — smaller title, tighter rule */
+    .head { padding-bottom: 5px; margin-bottom: 8px; border-bottom-width: 1.5px; }
+    .head .stamp { font-size: 8px; letter-spacing: 1.2px; }
+    h1 { font-size: 17px; margin-bottom: 1px; }
+    .target { font-size: 18px; }
+    .target small { font-size: 8px; letter-spacing: 1.1px; }
+    /* Photo — much smaller in print */
+    .product-photo { margin: 6px 0 4px; }
+    .product-photo img { max-height: 130px; }
+    /* Notes — tighter padding */
+    .notes { padding: 5px 9px; font-size: 10.5px; margin: 6px 0; line-height: 1.35; }
+    /* Meta grid — tight cells */
+    .meta-grid { padding: 6px 8px; gap: 8px; margin: 8px 0 10px; border-style: solid; border-color: #d4cdb8; }
+    .meta-cell .k { font-size: 7.5px; letter-spacing: 1.1px; margin-bottom: 0; }
+    .meta-cell .v { font-size: 11px; }
+    /* Section headings — small, tight margins, ink-black (blueprint can
+       wash out on low-cyan printers) */
+    h2 {
+      color: #16202d !important;
+      font-size: 9.5px;
+      letter-spacing: 1.4px;
+      margin: 8px 0 3px;
+      padding-bottom: 2px;
+    }
+    /* Tables — tight cells */
+    table { margin: 0 0 2px; }
+    th, td { padding: 2.5px 6px !important; font-size: 10.5px !important; }
+    th { font-size: 7.5px !important; letter-spacing: 1.1px !important; }
+    .check { width: 10px; height: 10px; border-width: 1px; }
+    /* Breakdown — tight */
+    .breakdown td { font-size: 10.5px; }
+    /* Estimated stamp — smaller and tighter */
+    .estimated-stamp { padding: 6px 10px; margin-top: 6px; border-width: 1.5px; }
+    .estimated-stamp .label { font-size: 9px; letter-spacing: 1.6px; }
+    .estimated-stamp .value { font-size: 18px; }
+    /* Target compare — single tight line */
+    .target-cmp { padding: 3px 10px; font-size: 10px; margin-top: 3px; }
+    /* Marketplace net panel — tight */
+    .net-panel { margin-top: 5px; }
+    .net-panel td { padding: 3px 6px; }
+    .net-panel tr.net-row td { font-size: 12px; }
+    /* Footer — small, single line */
+    .footer { margin-top: 10px; font-size: 9px; letter-spacing: 0.4px; }
     section, h2, table { page-break-inside: avoid; }
   }
 </style></head><body>

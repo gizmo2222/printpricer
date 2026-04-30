@@ -1,20 +1,20 @@
 // Entry point: wire everything up after the DOM is ready.
 
-import { settings, filaments, addons } from './state.js?v=25';
-import { saveSettings } from './storage.js?v=25';
-import { initTabs, onPaneShow, initPickerOverlay, toast } from './ui.js?v=25';
-import { recalc, loadSettingsToForm, initStickyTotal } from './calc.js?v=25';
-import { renderFilaments, resetFilaments, initFilamentsUI } from './filaments.js?v=25';
-import { renderSpools, initSpoolsUI } from './spools.js?v=25';
-import { renderPrinters, updateActivePrinterDisplay, migrateLegacySinglePrinter, initPrintersUI } from './printers.js?v=25';
-import { renderHistory, initArchive } from './archive.js?v=25';
-import { renderProducts, initProductsUI, saveEstimateAsProduct } from './products.js?v=25';
-import { initAuthUI, updateAccountUI, renderGroupSection } from './auth-ui.js?v=25';
-import { startAuthListener } from './firebase.js?v=25';
-import { parseGcode, parse3mf } from './parser.js?v=25';
-import { formatHours, escapeHtml, resizeImageToDataUrl } from './utils.js?v=25';
-import { initOnboarding, maybeShowOnboarding } from './onboarding.js?v=25';
-import { initHelp } from './help.js?v=25';
+import { settings, filaments, addons } from './state.js?v=26';
+import { saveSettings } from './storage.js?v=26';
+import { initTabs, onPaneShow, initPickerOverlay, toast } from './ui.js?v=26';
+import { recalc, loadSettingsToForm, initStickyTotal } from './calc.js?v=26';
+import { renderFilaments, resetFilaments, initFilamentsUI } from './filaments.js?v=26';
+import { renderSpools, initSpoolsUI } from './spools.js?v=26';
+import { renderPrinters, updateActivePrinterDisplay, migrateLegacySinglePrinter, initPrintersUI } from './printers.js?v=26';
+import { renderHistory, initArchive } from './archive.js?v=26';
+import { renderProducts, initProductsUI, saveEstimateAsProduct } from './products.js?v=26';
+import { initAuthUI, updateAccountUI, renderGroupSection } from './auth-ui.js?v=26';
+import { startAuthListener } from './firebase.js?v=26';
+import { parseGcode, parse3mf } from './parser.js?v=26';
+import { formatHours, escapeHtml, resizeImageToDataUrl } from './utils.js?v=26';
+import { initOnboarding, maybeShowOnboarding } from './onboarding.js?v=26';
+import { initHelp } from './help.js?v=26';
 
 // ---- title-block date ----
 (function setDate() {
