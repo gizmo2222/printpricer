@@ -94,6 +94,33 @@ html, body {
 /* Numbers that need to align — invoices, breakdowns, stamps — use this. */
 .tnum { font-variant-numeric: tabular-nums; }
 
+/* ---- Universal keyboard-focus ring ----
+   We don't blanket-disable browser focus indicators (good for accessibility),
+   but the default rings are styled inconsistently across browsers. Use a
+   single blueprint-blue 2px ring for every interactive surface, applied via
+   :focus-visible so mouse users don't see it. */
+:focus { outline: none; }
+:focus-visible {
+  outline: 2px solid var(--blueprint);
+  outline-offset: 2px;
+}
+button:focus-visible,
+.layer:focus-visible,
+.layer-help:focus-visible,
+.account-cell:focus-visible,
+.dropsheet:focus-visible,
+.printer-pick-row:focus-visible {
+  outline: 2px solid var(--blueprint);
+  outline-offset: 2px;
+}
+/* Inputs use border-bottom focus state instead of an outline ring — keep that
+   pattern but make sure focus-visible specifically reinforces it. */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none; /* the field's own border-bottom + bg tint already signals focus */
+}
+
 body {
   background-color: var(--paper);
   background-image:
@@ -230,7 +257,7 @@ body::before {
   text-align: left;
   color: var(--ink-mid);
   position: relative;
-  transition: color 0.15s, background 0.15s;
+  transition: color 0.15s var(--ease-quart), background 0.15s var(--ease-quart);
 }
 .layer:last-child { border-right: none; }
 .layer .layer-num {
@@ -374,7 +401,7 @@ body.first-load .pane.active .block:nth-child(4) { animation-delay: 0.22s; }
   font-size: var(--text-base);
   font-weight: var(--w-medium);
   padding: 6px 0 5px;
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color 0.15s var(--ease-quart), background 0.15s var(--ease-quart);
 }
 .field input::placeholder { color: var(--ink-faint); font-style: italic; }
 .input:focus, .field input:focus, .field select:focus {
@@ -514,7 +541,7 @@ body.first-load .pane.active .block:nth-child(4) { animation-delay: 0.22s; }
   border-bottom: 1px dotted var(--ink-mid);
   transform: translateY(-3px);
   min-width: 24px;
-  opacity: 0.55;
+  opacity: 0.78;
 }
 .breakdown-row .value {
   flex: 0 0 auto;
@@ -1356,7 +1383,7 @@ select.input {
   justify-content: space-between;
   align-items: center;
   color: var(--ink);
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color 0.15s var(--ease-quart), background 0.15s var(--ease-quart);
 }
 .printer-pick-row:hover,
 .printer-pick-row:focus {
@@ -1394,7 +1421,7 @@ select.input {
   font-size: var(--text-xs);
   color: var(--ink-faint);
   letter-spacing: 0.02em;
-  margin-top: 4px;
+  margin-top: var(--space-2); /* breathe slightly off the printer name above */
   font-variant-numeric: tabular-nums;
 }
 

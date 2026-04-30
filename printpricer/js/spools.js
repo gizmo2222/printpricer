@@ -3,12 +3,12 @@
 // Each spool now also keeps a refillHistory array — { date, grams, op } —
 // recording every refill action so users can audit consumption later.
 
-import { settings, MATERIALS, LOW_STOCK_THRESHOLD } from './state.js?v=15';
-import { loadSpools, saveSpools, loadHistory } from './storage.js?v=15';
-import { escapeHtml } from './utils.js?v=15';
-import { toast } from './ui.js?v=15';
-import { renderFilaments } from './filaments.js?v=15';
-import { logActivity } from './firebase.js?v=15';
+import { settings, MATERIALS, LOW_STOCK_THRESHOLD } from './state.js?v=16';
+import { loadSpools, saveSpools, loadHistory } from './storage.js?v=16';
+import { escapeHtml } from './utils.js?v=16';
+import { toast } from './ui.js?v=16';
+import { renderFilaments } from './filaments.js?v=16';
+import { logActivity } from './firebase.js?v=16';
 
 let editingSpoolId = null;
 let isAddingSpool = false;
@@ -71,7 +71,7 @@ export function renderSpools() {
           <div class="stock-bar ${isLow ? 'low' : ''}"><div class="fill" style="width: ${pct.toFixed(1)}%"></div></div>
           <div class="stock-amount">
             <strong style="color:var(--ink);font-weight:600">${s.remainingGrams}g</strong>
-            <span>/ ${s.spoolGrams}g remaining</span>
+            <span>remaining${s.remainingGrams < s.spoolGrams ? ` of ${s.spoolGrams}g` : ''}</span>
             ${isLow ? '<span class="low-tag">· low</span>' : ''}
             ${forecast ? `<span class="forecast">${forecast}</span>` : ''}
           </div>
