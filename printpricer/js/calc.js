@@ -4,9 +4,9 @@
 //   - sticky total bar visibility
 //   - earned block-detail callouts on Estimate sheet headers
 
-import { settings, filaments, addons, MARKETPLACE_PRESETS } from './state.js?v=24';
-import { getActivePrinter } from './storage.js?v=24';
-import { num, fmt, formatHours } from './utils.js?v=24';
+import { settings, filaments, addons, MARKETPLACE_PRESETS } from './state.js?v=25';
+import { getActivePrinter } from './storage.js?v=25';
+import { num, fmt, formatHours } from './utils.js?v=25';
 
 const flashTargets = ['bd-filament','bd-power','bd-time','bd-labor','bd-packaging','bd-bom','bd-shipping','bd-subtotal','bd-failure','bd-margin','bd-total','bd-fees','bd-net','sticky-total-value'];
 const lastValues = {};

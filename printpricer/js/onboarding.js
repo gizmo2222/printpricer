@@ -9,8 +9,8 @@
 //
 // Steps are click-to-jump links to the relevant layers.
 
-import { loadPrinters, loadSpools } from './storage.js?v=24';
-import { switchToPane } from './ui.js?v=24';
+import { loadPrinters, loadSpools } from './storage.js?v=25';
+import { switchToPane } from './ui.js?v=25';
 
 const ONBOARD_KEY = 'printpricer:onboarded';
 

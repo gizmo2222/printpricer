@@ -14,14 +14,14 @@
 // This module owns the editingProductId state and the catalog list. The
 // Estimate sheet's input wiring + smart save buttons live in main.js.
 
-import { settings, filaments, addons, MARKETPLACE_PRESETS } from './state.js?v=24';
-import { loadProducts, saveProducts, loadPrinters, getActivePrinter, saveActivePrinterId } from './storage.js?v=24';
-import { num, fmt, escapeHtml, formatHours, toCsv, downloadFile } from './utils.js?v=24';
-import { toast, switchToPane } from './ui.js?v=24';
-import { setFilaments, newFilament, renderFilaments } from './filaments.js?v=24';
-import { recalc } from './calc.js?v=24';
-import { updateActivePrinterDisplay } from './printers.js?v=24';
-import { logActivity } from './firebase.js?v=24';
+import { settings, filaments, addons, MARKETPLACE_PRESETS } from './state.js?v=25';
+import { loadProducts, saveProducts, loadPrinters, getActivePrinter, saveActivePrinterId } from './storage.js?v=25';
+import { num, fmt, escapeHtml, formatHours, toCsv, downloadFile } from './utils.js?v=25';
+import { toast, switchToPane } from './ui.js?v=25';
+import { setFilaments, newFilament, renderFilaments } from './filaments.js?v=25';
+import { recalc } from './calc.js?v=25';
+import { updateActivePrinterDisplay } from './printers.js?v=25';
+import { logActivity } from './firebase.js?v=25';
 
 // ---------- edit-mode state (module-private) ----------
 
@@ -354,19 +354,26 @@ function computeProductBreakdown(p) {
   };
 }
 
-// ---------- per-product print: full Estimate-sheet replica ----------
+// ---------- per-product print: clean spec sheet ----------
 //
-// Mirrors the on-screen Estimate sheet 1:1 — same fonts, same drafting
-// aesthetic (corner brackets, blueprint structural rules, leader-dot
-// breakdown rows, blueprint total-stamp). Block-by-block:
-//   01 Print          — printer, description, photo, notes, target, time
-//   02 Filaments      — filament rows
-//   03 Add-ons        — labor minutes / packaging / shipping (raw values)
-//   04 Bill of Materials — BOM rows
-//   05 Cost Breakdown — full breakdown + total stamp + vs-target + net
+// One-page printable: workshop build sheet + full cost breakdown.
+// Clean Helvetica look, not the drafting aesthetic — the sheet is
+// meant to print legibly on plain paper. Sections, in order:
+//   - Header (title + target sell price)
+//   - Photo (if set)
+//   - Notes (if set)
+//   - Meta grid: printer / time / filament / labor minutes
+//   - Filaments to load (table)
+//   - Add-ons (labor / packaging / shipping — raw values, mirrors
+//     the Estimate sheet's Add-ons block)
+//   - Bill of materials kitting checklist (table)
+//   - Cost breakdown (full math: filament/electricity/machine/labor/
+//     packaging/BOM/subtotal/failure/margin/+shipping)
+//   - Estimated price stamp
+//   - Target comparison + marketplace fees + Net to you (when set)
 //
-// On print: backgrounds strip to white (paper texture is decorative);
-// borders and ink stay so structure is preserved.
+// @media print rules strip the cream/sand backgrounds so actual
+// paper printers don't waste ink on decorative fills.
 
 function printProduct(id) {
   const p = loadProducts().find(x => String(x.id) === String(id));
@@ -376,505 +383,174 @@ function printProduct(id) {
 
   const r = computeProductBreakdown(p);
 
-  // Filament rows — leader-dot pattern matching the Estimate sheet
-  const filRows = (p.filaments || []).map(f => {
-    const cost = (num(f.grams) / 1000) * num(f.costPerKg);
-    return `
-    <div class="bd-row">
-      <span class="bd-label">${escapeHtml(f.name || 'Filament')}</span>
-      <span class="bd-leader"></span>
-      <span class="bd-meta">${num(f.grams).toFixed(1)}&nbsp;g · $${num(f.costPerKg).toFixed(2)}/kg</span>
-      <span class="bd-value">$${cost.toFixed(2)}</span>
-    </div>`;
-  }).join('');
+  const filRows = (p.filaments || []).map(f => `
+    <tr>
+      <td>${escapeHtml(f.name || 'Filament')}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums">${num(f.grams).toFixed(1)}&nbsp;g</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums">$${num(f.costPerKg).toFixed(2)}/kg</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums">$${((num(f.grams) / 1000) * num(f.costPerKg)).toFixed(2)}</td>
+    </tr>
+  `).join('');
 
-  // BOM rows
-  const bomRows = (p.bom || []).map(b => {
-    const cost = num(b.qty) * num(b.unitCost);
-    return `
-    <div class="bd-row">
-      <span class="bd-label">${escapeHtml(b.name || '')}</span>
-      <span class="bd-leader"></span>
-      <span class="bd-meta">${num(b.qty).toFixed(0)} × $${num(b.unitCost).toFixed(2)}</span>
-      <span class="bd-value">$${cost.toFixed(2)}</span>
-    </div>`;
-  }).join('');
+  const bomRows = (p.bom || []).map(b => `
+    <tr>
+      <td style="width: 22px"><span class="check"></span></td>
+      <td>${escapeHtml(b.name || '')}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums">${num(b.qty).toFixed(0)}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums">$${num(b.unitCost).toFixed(2)}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums">$${(num(b.qty) * num(b.unitCost)).toFixed(2)}</td>
+    </tr>
+  `).join('');
 
-  // Cost-breakdown rows — leader-dot pattern, packaging/BOM/shipping hidden
-  // when zero (mirrors bd-*-row hidden behavior on the Estimate sheet)
-  const bdRow = (label, val) =>
-    `<div class="bd-row"><span class="bd-label">${label}</span><span class="bd-leader"></span><span class="bd-value">$${val.toFixed(2)}</span></div>`;
-  const breakdownRows = [
-    bdRow('Filament',     r.filCost),
-    bdRow('Electricity',  r.electricity),
-    bdRow('Machine time', r.timeCost),
-    r.laborCost     > 0 ? bdRow('Labor',          r.laborCost)     : '',
-    r.packagingCost > 0 ? bdRow('Packaging',      r.packagingCost) : '',
-    r.bomCost       > 0 ? bdRow('Hardware / BOM', r.bomCost)       : '',
-    `<div class="bd-row sub"><span class="bd-label">Subtotal</span><span class="bd-leader"></span><span class="bd-value">$${r.subtotal.toFixed(2)}</span></div>`,
-    bdRow(`Failure markup (${r.failurePct}%)`, r.failureAmt),
-    bdRow(`Profit margin (${r.marginPct}%)`,   r.marginAmt),
-    r.shippingCost > 0 ? bdRow('+ Shipping (passthrough)', r.shippingCost) : '',
-  ].filter(Boolean).join('');
-
-  // Add-ons: shown as a labeled block matching the Estimate sheet's input row
+  // Add-ons section — labor minutes / packaging / shipping shown as raw
+  // values. Mirrors the Estimate sheet's Add-ons block. Renders only when
+  // any of the three is non-zero (an empty Add-ons section adds noise).
   const hasAddons = num(p.laborMinutes) > 0 || num(p.packagingCost) > 0 || num(p.shippingCost) > 0;
-  const addonsBlock = hasAddons ? `
-    <section class="block">
-      <span class="bl"></span><span class="br"></span>
-      <header class="block-head">
-        <h2 class="block-title">Add-ons</h2>
-        <div class="block-detail">Labor · packaging · shipping<span class="id">C</span></div>
-      </header>
-      <div class="addon-row">
-        <div class="addon-cell"><div class="addon-k">Labor minutes</div><div class="addon-v">${p.laborMinutes ? num(p.laborMinutes).toFixed(0) + ' min' : '—'}</div></div>
-        <div class="addon-cell"><div class="addon-k">Packaging</div><div class="addon-v">${p.packagingCost ? '$' + num(p.packagingCost).toFixed(2) : '—'}</div></div>
-        <div class="addon-cell"><div class="addon-k">Shipping</div><div class="addon-v">${p.shippingCost ? '$' + num(p.shippingCost).toFixed(2) : '—'}</div></div>
-      </div>
-    </section>` : '';
+  const addonsRows = hasAddons ? [
+    num(p.laborMinutes)  > 0 ? `<tr><td>Labor</td><td style="text-align:right;font-variant-numeric:tabular-nums">${num(p.laborMinutes).toFixed(0)} min</td></tr>` : '',
+    num(p.packagingCost) > 0 ? `<tr><td>Packaging</td><td style="text-align:right;font-variant-numeric:tabular-nums">$${num(p.packagingCost).toFixed(2)}</td></tr>` : '',
+    num(p.shippingCost)  > 0 ? `<tr><td>Default shipping (passthrough)</td><td style="text-align:right;font-variant-numeric:tabular-nums">$${num(p.shippingCost).toFixed(2)}</td></tr>` : '',
+  ].filter(Boolean).join('') : '';
 
-  const bomBlock = bomRows ? `
-    <section class="block">
-      <span class="bl"></span><span class="br"></span>
-      <header class="block-head">
-        <h2 class="block-title">Bill of Materials</h2>
-        <div class="block-detail">${(p.bom || []).length} item${(p.bom || []).length !== 1 ? 's' : ''} · $${r.bomCost.toFixed(2)}<span class="id">D</span></div>
-      </header>
-      <div class="bd">${bomRows}</div>
-    </section>` : '';
+  // Cost breakdown rows — full math, mirrors the on-screen Estimate sheet.
+  // Packaging/BOM/Shipping rows hidden when zero (matches bd-*-row hidden
+  // behavior). Labor always shown when laborCost > 0.
+  const breakdownRows = [
+    `<tr><td>Filament</td><td>$${r.filCost.toFixed(2)}</td></tr>`,
+    `<tr><td>Electricity</td><td>$${r.electricity.toFixed(2)}</td></tr>`,
+    `<tr><td>Machine time</td><td>$${r.timeCost.toFixed(2)}</td></tr>`,
+    r.laborCost     > 0 ? `<tr><td>Labor</td><td>$${r.laborCost.toFixed(2)}</td></tr>` : '',
+    r.packagingCost > 0 ? `<tr><td>Packaging</td><td>$${r.packagingCost.toFixed(2)}</td></tr>` : '',
+    r.bomCost       > 0 ? `<tr><td>Hardware / BOM</td><td>$${r.bomCost.toFixed(2)}</td></tr>` : '',
+    `<tr class="sub"><td>Subtotal</td><td>$${r.subtotal.toFixed(2)}</td></tr>`,
+    `<tr><td>Failure markup (${r.failurePct}%)</td><td>$${r.failureAmt.toFixed(2)}</td></tr>`,
+    `<tr><td>Profit margin (${r.marginPct}%)</td><td>$${r.marginAmt.toFixed(2)}</td></tr>`,
+    r.shippingCost  > 0 ? `<tr><td>+ Shipping (passthrough)</td><td>$${r.shippingCost.toFixed(2)}</td></tr>` : '',
+  ].filter(Boolean).join('');
 
   // Target comparison — only if user set a target sell price
   const targetCompare = (r.targetDelta != null) ? `
     <div class="target-cmp ${r.targetDelta >= 0 ? 'over' : 'under'}">
-      <span class="t-k">vs target</span>
-      <span class="t-v">Target $${r.target.toFixed(2)} · ${r.targetDelta >= 0 ? '+' : '−'}$${Math.abs(r.targetDelta).toFixed(2)}</span>
+      <span>Target $${r.target.toFixed(2)}</span>
+      <span>${r.targetDelta >= 0 ? '+' : '−'}$${Math.abs(r.targetDelta).toFixed(2)} ${r.targetDelta >= 0 ? 'over' : 'under'}</span>
     </div>` : '';
 
   // Marketplace net — only when a marketplace is selected and fees > 0
   const marketplacePanel = (r.presetKey !== 'none' && r.feeAmt > 0) ? `
-    <div class="net-panel">
-      <div class="bd-row"><span class="bd-label">${escapeHtml(r.preset.label)} fees</span><span class="bd-leader"></span><span class="bd-value rust">−$${r.feeAmt.toFixed(2)}</span></div>
-      <div class="bd-row net"><span class="bd-label">Net to you</span><span class="bd-leader"></span><span class="bd-value">$${r.net.toFixed(2)}</span></div>
-    </div>` : '';
+    <table class="net-panel">
+      <tr><td>${escapeHtml(r.preset.label)} fees</td><td class="rust">−$${r.feeAmt.toFixed(2)}</td></tr>
+      <tr class="net-row"><td>Net to you</td><td>$${r.net.toFixed(2)}</td></tr>
+    </table>` : '';
 
-  const biz       = settings.businessName  || '';
-  const bizEmail  = settings.businessEmail || '';
-  const bizNotes  = settings.businessNotes || '';
-  const issued    = new Date();
-  const issuedStr = `${issued.getFullYear()}.${String(issued.getMonth()+1).padStart(2,'0')}.${String(issued.getDate()).padStart(2,'0')}`;
-  const dwgNum    = `PP-${String(p.id).slice(-4)}`;
+  const biz = settings.businessName || '';
+  const issued = new Date();
 
   w.document.write(`<!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8">
+<html><head><meta charset="UTF-8">
 <title>Spec · ${escapeHtml(p.name)}</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  /* ---- Tokens (mirror :root in styles.css) ---- */
-  :root {
-    --paper:        #f0e8d3;
-    --paper-dim:    #e7decd;
-    --paper-deep:   #ddd0b4;
-    --paper-shadow: #c9bb9a;
-    --ink:          #16202d;
-    --ink-mid:      #4a5562;
-    --ink-faint:    #837b67;
-    --blueprint:    #1f4e7a;
-    --rust:         #a13c1f;
-    --moss:         #4a6a3a;
-    --display:    'Big Shoulders Display', 'Impact', sans-serif;
-    --sans:       'IBM Plex Sans', system-ui, sans-serif;
-    --condensed:  'IBM Plex Sans Condensed', 'IBM Plex Sans', sans-serif;
-    --mono:       'IBM Plex Mono', 'Consolas', monospace;
-    --track-display: 0.012em;
-    --track-caps:    0.12em;
-    --track-stamp:   0.18em;
-  }
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: var(--sans);
-    font-size: 14px;
-    line-height: 1.55;
-    color: var(--ink);
-    background: var(--paper);
-    max-width: 800px;
-    margin: 24px auto;
-    padding: 16px 24px 32px;
-  }
-
-  /* ---- Title block ---- */
-  .title-block {
-    display: grid;
-    grid-template-columns: 1fr 240px;
-    border: 1.5px solid var(--ink);
-    background: var(--paper-dim);
-    margin-bottom: 24px;
-  }
-  .title-main { padding: 12px 16px; border-right: 1px solid var(--ink); }
-  .title-main h1 {
-    font-family: var(--display);
-    font-weight: 800;
-    font-size: 38px;
-    line-height: 0.95;
-    letter-spacing: var(--track-display);
-    text-transform: uppercase;
-    color: var(--ink);
-    margin-bottom: 4px;
-  }
-  .title-main .subtitle {
-    font-family: var(--condensed);
-    font-size: 11px;
-    letter-spacing: var(--track-caps);
-    text-transform: uppercase;
-    color: var(--ink-mid);
-  }
-  .title-meta {
-    display: grid;
-    grid-template-columns: minmax(0,1fr) minmax(0,1fr);
-    grid-auto-rows: 1fr;
-    font-family: var(--mono);
-    font-size: 10px;
-  }
-  .title-meta .cell {
-    padding: 6px 10px 4px;
-    border-bottom: 1px solid var(--ink);
-    border-right: 1px solid var(--ink);
-    overflow: hidden;
-  }
-  .title-meta .cell:nth-child(2n)         { border-right: none; }
-  .title-meta .cell:nth-last-child(-n+2)  { border-bottom: none; }
-  .title-meta .key {
-    font-family: var(--condensed);
-    font-size: 9px;
-    font-weight: 600;
-    letter-spacing: var(--track-caps);
-    color: var(--ink-faint);
-    text-transform: uppercase;
-    display: block;
-    margin-bottom: 1px;
-  }
-  .title-meta .val { font-weight: 500; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .title-meta .val.accent { color: var(--blueprint); font-weight: 600; }
-
-  /* ---- Block (corner-bracket card) ---- */
-  .block {
-    position: relative;
-    padding: 20px;
-    margin-bottom: 20px;
-    background: var(--paper);
-    border: 1px solid var(--ink);
-    page-break-inside: avoid;
-  }
-  .block::before, .block::after, .block > .br, .block > .bl {
-    content: ''; position: absolute;
-    width: 10px; height: 10px;
-    border: 1.5px solid var(--blueprint);
-  }
-  .block::before { top: -3px;    left: -3px;  border-right: none; border-bottom: none; }
-  .block::after  { top: -3px;    right: -3px; border-left:  none; border-bottom: none; }
-  .block > .br   { bottom: -3px; right: -3px; border-left:  none; border-top:    none; }
-  .block > .bl   { bottom: -3px; left: -3px;  border-right: none; border-top:    none; }
-
-  .block-head {
-    display: flex; align-items: baseline; justify-content: space-between;
-    gap: 16px;
-    margin-bottom: 14px;
-    padding-bottom: 6px;
-    border-bottom: 1px solid var(--ink);
-  }
-  .block-title {
-    font-family: var(--display);
-    font-weight: 700;
-    font-size: 22px;
-    line-height: 1.05;
-    letter-spacing: var(--track-display);
-    text-transform: uppercase;
-    color: var(--ink);
-  }
-  .block-detail {
-    font-family: var(--condensed);
-    font-size: 10px;
-    letter-spacing: var(--track-caps);
-    text-transform: uppercase;
-    color: var(--ink-faint);
-    font-weight: 600;
-  }
-  .block-detail .id {
-    color: var(--blueprint);
-    font-family: var(--mono);
-    font-size: 12px;
-    margin-left: 6px;
-    font-weight: 600;
-    letter-spacing: 0;
-  }
-
-  /* ---- Field rows (Print block) ---- */
-  .field { margin-bottom: 12px; }
-  .field-label {
-    font-family: var(--condensed);
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: var(--track-caps);
-    text-transform: uppercase;
-    color: var(--ink-faint);
-    display: block;
-    margin-bottom: 2px;
-  }
-  .field-val { font-size: 15px; font-weight: 500; color: var(--ink); }
-  .field-val.dim { color: var(--ink-faint); font-style: italic; }
-  .field-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 12px; }
-
-  /* ---- Photo (in Print block) ---- */
-  .photo-wrap { margin-top: 4px; }
-  .photo-wrap img {
-    display: block; max-width: 100%; max-height: 280px; object-fit: contain;
-    border: 1px solid var(--ink); background: var(--paper-dim);
-  }
-
-  /* ---- Add-ons block ---- */
-  .addon-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-  .addon-cell { padding: 6px 0; }
-  .addon-k {
-    font-family: var(--condensed);
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: var(--track-caps);
-    text-transform: uppercase;
-    color: var(--ink-faint);
-    margin-bottom: 2px;
-  }
-  .addon-v { font-family: var(--mono); font-size: 15px; font-weight: 500; }
-
-  /* ---- Breakdown rows ---- */
-  .bd { display: flex; flex-direction: column; }
-  .bd-row {
-    display: flex; align-items: baseline; gap: 8px;
-    padding: 5px 0;
-    font-family: var(--mono);
-    font-size: 13px;
-    font-variant-numeric: tabular-nums;
-  }
-  .bd-label {
-    flex: 0 0 auto;
-    font-family: var(--condensed);
-    font-size: 11px;
-    font-weight: 500;
-    letter-spacing: var(--track-caps);
-    text-transform: uppercase;
-    color: var(--ink-mid);
-  }
-  .bd-leader {
-    flex: 1;
-    border-bottom: 1px dotted var(--ink-mid);
-    transform: translateY(-3px);
-    min-width: 24px;
-    opacity: 0.78;
-  }
-  .bd-meta {
-    flex: 0 0 auto;
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--ink-faint);
-    margin-right: 4px;
-  }
-  .bd-value { flex: 0 0 auto; font-weight: 500; color: var(--ink); }
-  .bd-value.rust { color: var(--rust); }
-  .bd-row.sub {
-    margin-top: 6px;
-    padding-top: 8px;
-    border-top: 1px solid var(--ink);
-  }
-  .bd-row.sub .bd-label,
-  .bd-row.sub .bd-value { color: var(--ink); font-weight: 600; }
-  .bd-row.net {
-    margin-top: 4px;
-    padding-top: 6px;
-    border-top: 1.5px solid var(--moss);
-  }
-  .bd-row.net .bd-label { color: var(--moss); font-weight: 700; }
-  .bd-row.net .bd-value { color: var(--moss); font-weight: 700; font-size: 15px; }
-
-  /* ---- Total stamp (mirrors .total-stamp on screen) ---- */
-  .total-stamp {
-    margin-top: 14px;
-    padding: 12px 16px;
-    border: 2px solid var(--blueprint);
-    background: var(--paper-dim);
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    gap: 12px;
-    position: relative;
-  }
-  .total-stamp::before {
-    content: ''; position: absolute; inset: 3px;
-    border: 1px solid var(--blueprint);
-    pointer-events: none;
-  }
-  .total-stamp .label {
-    font-family: var(--display);
-    font-size: 18px;
-    font-weight: 800;
-    letter-spacing: var(--track-stamp);
-    text-transform: uppercase;
-    color: var(--blueprint);
-    line-height: 1.1;
-  }
-  .total-stamp .value {
-    font-family: var(--mono);
-    font-size: 28px;
-    font-weight: 600;
-    color: var(--ink);
-    font-variant-numeric: tabular-nums;
-    letter-spacing: 0.01em;
-  }
-
-  /* ---- Target compare ---- */
-  .target-cmp {
-    display: flex; justify-content: space-between; align-items: baseline;
-    margin-top: 10px;
-    padding: 8px 12px;
-    background: var(--paper-dim);
-    border-left: 2px solid var(--ink-faint);
-    font-family: var(--mono);
-  }
-  .target-cmp.over  { border-left-color: var(--moss); }
-  .target-cmp.under { border-left-color: var(--rust); }
-  .target-cmp .t-k {
-    font-family: var(--condensed);
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: var(--track-caps);
-    text-transform: uppercase;
-    color: var(--ink-faint);
-  }
-  .target-cmp .t-v { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink-mid); }
-  .target-cmp.over  .t-v { color: var(--moss); }
-  .target-cmp.under .t-v { color: var(--rust); }
-
-  /* ---- Net-after-fees panel ---- */
+  body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #16202d; max-width: 720px; margin: 32px auto; padding: 0 24px; background: #f5efdc; }
+  .head { display:flex; justify-content:space-between; align-items:flex-end; border-bottom: 2px solid #16202d; padding-bottom: 10px; margin-bottom: 18px; }
+  .head .stamp { font-size: 10px; letter-spacing: 1.6px; text-transform: uppercase; color: #6a7585; }
+  h1 { font-size: 24px; letter-spacing: 0.5px; margin: 0 0 2px; }
+  .target { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .target small { display:block; font-size: 10px; letter-spacing: 1.4px; text-transform: uppercase; color: #6a7585; font-weight: 400; }
+  .meta-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 18px 0 24px; padding: 12px; background: #f5efdc; border: 1px dashed #b8a878; }
+  .meta-cell .k { font-size: 9px; letter-spacing: 1.4px; text-transform: uppercase; color: #6a7585; margin-bottom: 2px; }
+  .meta-cell .v { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  h2 { font-size: 13px; letter-spacing: 1.6px; text-transform: uppercase; color: #1f4e7a; border-bottom: 1px solid #d4cdb8; padding-bottom: 4px; margin: 24px 0 8px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 7px 8px; border-bottom: 1px solid #e8e0c8; text-align: left; font-size: 13px; }
+  th { font-size: 10px; letter-spacing: 1.4px; text-transform: uppercase; color: #6a7585; }
+  tfoot td { border-top: 1.5px solid #16202d; border-bottom: none; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .check { display:inline-block; width: 14px; height: 14px; border: 1.5px solid #16202d; }
+  .notes { background: #f5efdc; border-left: 3px solid #1f4e7a; padding: 8px 12px; font-size: 13px; line-height: 1.5; margin: 14px 0; }
+  /* Cost breakdown table — mirrors the Estimate sheet's leader-dot rows */
+  .breakdown td { font-variant-numeric: tabular-nums; }
+  .breakdown td:last-child { text-align: right; }
+  .breakdown tr.sub td { border-top: 1px solid #16202d; border-bottom: 1px solid #16202d; font-weight: 700; }
+  .estimated-stamp { display:flex; justify-content:space-between; align-items:baseline; margin-top: 12px; padding: 10px 12px; background: #f5efdc; border: 2px solid #16202d; }
+  .estimated-stamp .label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #16202d; font-weight: 800; }
+  .estimated-stamp .value { font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; color: #16202d; }
+  /* Target comparison — green when over target, rust when under */
+  .target-cmp { display:flex; justify-content:space-between; margin-top: 8px; padding: 6px 12px; background: #f5efdc; font-family: 'IBM Plex Mono', Consolas, monospace; font-size: 12px; border-left: 2px solid #837b67; }
+  .target-cmp.over  { border-left-color: #4a6a3a; color: #4a6a3a; }
+  .target-cmp.under { border-left-color: #a13c1f; color: #a13c1f; }
+  /* Marketplace net panel */
   .net-panel { margin-top: 12px; }
-
-  /* ---- Footer ---- */
-  .footer {
-    margin-top: 28px;
-    padding-top: 12px;
-    border-top: 1px solid var(--ink-faint);
-    font-family: var(--condensed);
-    font-size: 11px;
-    letter-spacing: 0.04em;
-    color: var(--ink-faint);
-    text-transform: uppercase;
-    display: flex; justify-content: space-between;
-  }
-
-  /* ---- Print: strip backgrounds, keep ink + structural rules ---- */
+  .net-panel td { padding: 6px 8px; font-variant-numeric: tabular-nums; }
+  .net-panel td:last-child { text-align: right; }
+  .net-panel td.rust { color: #a13c1f; }
+  .net-panel tr.net-row td { border-top: 1.5px solid #4a6a3a; color: #4a6a3a; font-size: 16px; font-weight: 700; }
+  .footer { margin-top: 36px; font-size: 11px; color: #6a7585; letter-spacing: 0.5px; }
+  /* Product photo on the spec sheet — sits between the head and meta grid */
+  .product-photo { margin: 16px 0 8px; text-align: center; }
+  .product-photo img { display: inline-block; max-width: 100%; max-height: 320px; border: 1px solid #16202d; }
+  /* @media print — strip cream/sand backgrounds for ink-friendly printing.
+     Borders and ink stay; structural rules are preserved. */
   @media print {
     @page { margin: 12mm; size: auto; }
-    body {
-      max-width: none;
-      margin: 0;
-      padding: 0;
-      background: white !important;
-    }
-    .title-block,
-    .block,
-    .total-stamp,
-    .target-cmp,
-    .photo-wrap img {
-      background: white !important;
-    }
-    .total-stamp::before { display: none; } /* the inset double-rule reads muddy in print */
-    .block, .title-block { box-shadow: none !important; }
-    .block { page-break-inside: avoid; }
-    .footer { color: var(--ink-faint); }
+    body { margin: 0; padding: 0; max-width: none; background: white !important; }
+    .meta-grid, .notes, .estimated-stamp, .target-cmp { background: white !important; }
+    h2 { color: #16202d !important; } /* blueprint sometimes prints washed-out on color printers; flip to ink */
+    .product-photo img { max-height: 280px; }
+    section, h2, table { page-break-inside: avoid; }
   }
 </style></head><body>
 
-<div class="title-block">
-  <div class="title-main">
-    <h1>${escapeHtml(p.name || 'Untitled product')}</h1>
-    <div class="subtitle">Filament · Time · Power · Margin</div>
+<div class="head">
+  <div>
+    <div class="stamp">Workshop spec · build sheet</div>
+    <h1>${escapeHtml(p.name)}</h1>
   </div>
-  <div class="title-meta">
-    <div class="cell"><span class="key">Drawing</span><span class="val accent">${escapeHtml(dwgNum)}</span></div>
-    <div class="cell"><span class="key">Date</span><span class="val">${issuedStr}</span></div>
-    <div class="cell"><span class="key">Owner</span><span class="val">${escapeHtml(biz || 'Local')}</span></div>
-    <div class="cell"><span class="key">Sheet</span><span class="val">01 / 01</span></div>
-  </div>
+  ${p.sellPrice ? `<div class="target">$${(+p.sellPrice).toFixed(2)}<small>Target sell</small></div>` : ''}
 </div>
 
-<section class="block">
-  <span class="bl"></span><span class="br"></span>
-  <header class="block-head">
-    <h2 class="block-title">Print</h2>
-    <div class="block-detail">${escapeHtml((r.printer?.name || 'No printer').toUpperCase())}<span class="id">A</span></div>
-  </header>
-  <div class="field">
-    <span class="field-label">Printer</span>
-    <span class="field-val ${r.printer ? '' : 'dim'}">${escapeHtml(r.printer?.name || '— none selected —')}</span>
-  </div>
-  <div class="field">
-    <span class="field-label">Description</span>
-    <span class="field-val">${escapeHtml(p.name || '—')}</span>
-  </div>
-  ${p.photo ? `<div class="field">
-    <span class="field-label">Photo</span>
-    <div class="photo-wrap"><img src="${escapeHtml(p.photo)}" alt=""></div>
-  </div>` : ''}
-  ${(p.notes || p.sellPrice) ? `<div class="field-grid-2">
-    <div class="field">
-      <span class="field-label">Notes</span>
-      <span class="field-val ${p.notes ? '' : 'dim'}">${escapeHtml(p.notes || '—')}</span>
-    </div>
-    <div class="field">
-      <span class="field-label">Target sell price</span>
-      <span class="field-val ${p.sellPrice ? '' : 'dim'}">${p.sellPrice ? '$' + (+p.sellPrice).toFixed(2) : '—'}</span>
-    </div>
-  </div>` : ''}
-  <div class="field-grid-2">
-    <div class="field">
-      <span class="field-label">Print time — hours</span>
-      <span class="field-val">${Math.floor(r.hours)}</span>
-    </div>
-    <div class="field">
-      <span class="field-label">Print time — minutes</span>
-      <span class="field-val">${Math.round((r.hours - Math.floor(r.hours)) * 60)}</span>
-    </div>
-  </div>
-</section>
+${p.photo ? `<div class="product-photo"><img src="${escapeHtml(p.photo)}" alt=""></div>` : ''}
 
-${filRows ? `<section class="block">
-  <span class="bl"></span><span class="br"></span>
-  <header class="block-head">
-    <h2 class="block-title">Filaments</h2>
-    <div class="block-detail">${(p.filaments || []).length} · ${r.filGrams.toFixed(1)} G<span class="id">B</span></div>
-  </header>
-  <div class="bd">${filRows}</div>
-</section>` : ''}
+${p.notes ? `<div class="notes">${escapeHtml(p.notes)}</div>` : ''}
 
-${addonsBlock}
-${bomBlock}
+<div class="meta-grid">
+  <div class="meta-cell"><div class="k">Printer</div><div class="v">${escapeHtml(r.printer?.name || '— any —')}</div></div>
+  <div class="meta-cell"><div class="k">Print time</div><div class="v">${r.hours > 0 ? formatHours(r.hours) : '—'}</div></div>
+  <div class="meta-cell"><div class="k">Filament</div><div class="v">${r.filGrams.toFixed(1)} g</div></div>
+  <div class="meta-cell"><div class="k">Labor</div><div class="v">${p.laborMinutes ? `${num(p.laborMinutes)} min` : '—'}</div></div>
+</div>
 
-<section class="block">
-  <span class="bl"></span><span class="br"></span>
-  <header class="block-head">
-    <h2 class="block-title">Cost Breakdown</h2>
-    <div class="block-detail">${r.hours > 0 ? formatHours(r.hours).replace(/\s/g,'').toUpperCase() : 'Estimate summary'}<span class="id">E</span></div>
-  </header>
-  <div class="bd">${breakdownRows}</div>
-  <div class="total-stamp">
-    <span class="label">Estimated price</span>
-    <span class="value">$${r.total.toFixed(2)}</span>
-  </div>
-  ${targetCompare}
-  ${marketplacePanel}
-</section>
+${filRows ? `<h2>Filaments to load</h2>
+<table>
+  <thead><tr><th>Color / type</th><th style="text-align:right">Grams</th><th style="text-align:right">$ / kg</th><th style="text-align:right">Cost</th></tr></thead>
+  <tbody>${filRows}</tbody>
+  <tfoot><tr><td colspan="3" style="text-align:right">Filament total</td><td style="text-align:right">$${r.filCost.toFixed(2)}</td></tr></tfoot>
+</table>` : ''}
+
+${addonsRows ? `<h2>Add-ons</h2>
+<table>
+  ${addonsRows}
+</table>` : ''}
+
+${bomRows ? `<h2>Bill of materials · kitting checklist</h2>
+<table>
+  <thead><tr><th></th><th>Item</th><th style="text-align:right">Qty</th><th style="text-align:right">Unit $</th><th style="text-align:right">Total</th></tr></thead>
+  <tbody>${bomRows}</tbody>
+  <tfoot><tr><td colspan="4" style="text-align:right">BOM total</td><td style="text-align:right">$${r.bomCost.toFixed(2)}</td></tr></tfoot>
+</table>` : ''}
+
+<h2>Cost breakdown</h2>
+<table class="breakdown">
+  <tbody>${breakdownRows}</tbody>
+</table>
+
+<div class="estimated-stamp">
+  <span class="label">Estimated price</span>
+  <span class="value">$${r.total.toFixed(2)}</span>
+</div>
+
+${targetCompare}
+${marketplacePanel}
 
 <div class="footer">
-  <span>${escapeHtml(biz || 'Print Pricer')}${bizEmail ? ' · ' + escapeHtml(bizEmail) : ''}</span>
-  <span>${issuedStr}${r.printer ? '' : ' · No printer set — electricity & machine time $0.00'}</span>
+  ${biz ? escapeHtml(biz) + ' · ' : ''}Printed ${issued.toLocaleDateString()} ${issued.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · Print Pricer ${r.printer ? '' : '· No printer set — electricity & machine time shown as $0.00'}
 </div>
 
 <script>window.onload = () => setTimeout(() => window.print(), 100);<\/script>
