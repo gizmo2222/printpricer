@@ -11,7 +11,7 @@
   <!-- Cache-buster query string is bumped on each meaningful release so
        browsers fetch the new module set instead of stale ES-module copies.
        Bump this when you ship CSS or JS changes. -->
-  <link rel="stylesheet" href="css/styles.css?v=20">
+  <link rel="stylesheet" href="css/styles.css?v=21">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
@@ -143,7 +143,7 @@
         <span class="bl"></span><span class="br"></span>
         <header class="block-head">
           <h2 class="block-title">Add-ons</h2>
-          <div class="block-detail" id="block-detail-addons">Labor &middot; packaging &middot; shipping<span class="id">C</span></div>
+          <div class="block-detail" id="block-detail-addons">Labor · packaging · shipping<span class="id">C</span></div>
         </header>
         <div class="input-row-3">
           <div class="field">
@@ -170,17 +170,23 @@
         </div>
       </section>
 
-      <section class="block">
+      <section class="block bom-block collapsed">
         <span class="bl"></span><span class="br"></span>
         <header class="block-head">
           <h2 class="block-title">Bill of Materials</h2>
-          <div class="block-detail" id="block-detail-bom">Hardware &middot; consumables<span class="id">D</span></div>
+          <div class="block-detail" id="block-detail-bom">Hardware · consumables<span class="id">D</span></div>
         </header>
-        <p style="font-family: var(--sans); font-size: var(--text-xs); color: var(--ink-faint); line-height: 1.5; margin-bottom: var(--space-3);">
-          Hardware, magnets, screws, mailers — anything the listing includes that isn't filament. Adds to subtotal so failure markup and margin apply.
-        </p>
-        <div id="bom-rows"></div>
-        <button class="btn btn-add" id="add-bom-row" style="margin-top: 14px;">+ Add item</button>
+        <button type="button" class="bom-expand" id="bom-expand-btn" data-hint="Adds a bill of materials line to this estimate. Useful when the listing includes hardware, magnets, mailers — anything that isn't filament. BOM total adds to subtotal, so failure markup and margin apply.">
+          <span class="bom-expand-cta">+ Add hardware</span>
+          <span class="bom-expand-sub">bill of materials · magnets, screws, mailers</span>
+        </button>
+        <div class="bom-expanded">
+          <p style="font-family: var(--sans); font-size: var(--text-xs); color: var(--ink-faint); line-height: 1.5; margin-bottom: var(--space-3);">
+            Hardware, magnets, screws, mailers — anything the listing includes that isn't filament. Adds to subtotal so failure markup and margin apply.
+          </p>
+          <div id="bom-rows"></div>
+          <button class="btn btn-add" id="add-bom-row" style="margin-top: 14px;">+ Add item</button>
+        </div>
       </section>
 
       <section class="block">
@@ -216,8 +222,13 @@
         <div class="btn-row" style="margin-top: 18px;">
           <button class="btn btn-stamp" id="save-quote" data-hint="Saves this quote to the Archive and deducts grams from any linked spools. Reversible for 8 seconds via the undo toast.">Stamp &amp; Archive</button>
           <button class="btn" id="update-product" style="display:none" data-hint="Save your edits back to this product template. Use this when you want the catalog entry to reflect the current state of the sheet.">Update product</button>
-          <button class="btn btn-ghost" id="save-as-product" data-hint="Save the current Estimate as a new reusable Product template — name, time, filaments, add-ons, BOM. Open it later from layer 04 to re-quote with one click.">Save as new product</button>
-          <button class="btn btn-ghost" id="reset-quote" data-hint="Clears the Estimate sheet — description, notes, time, filament rows, BOM, add-ons. Defaults and the active printer are kept.">Reset Sheet</button>
+          <button class="btn btn-ghost" id="save-as-product" data-hint="Save the current Estimate as a reusable Product template. Open it later from layer 04 to re-quote with one click.">Save as Product</button>
+          <button class="btn btn-ghost btn-quiet" id="reset-quote" data-hint="Clears the Estimate sheet — description, notes, time, filament rows, BOM, add-ons. Defaults and the active printer are kept.">Reset Sheet</button>
+        </div>
+        <div class="edit-mode-hint" id="edit-mode-hint" style="display:none">
+          Update overwrites this product
+          <span class="sep">·</span>
+          Save as Product creates a copy
         </div>
       </section>
     </div>
@@ -548,7 +559,7 @@
         </div>
         <div class="field">
           <label>Tagline / address / notes</label>
-          <input type="text" id="s-biz-notes" placeholder="e.g. Custom 3D prints &middot; Portland, OR">
+          <input type="text" id="s-biz-notes" placeholder="e.g. Custom 3D prints · Portland, OR">
         </div>
       </section>
 
@@ -794,6 +805,6 @@
 
   <datalist id="spool-list"></datalist>
 
-  <script type="module" src="js/main.js?v=20"></script>
+  <script type="module" src="js/main.js?v=21"></script>
 </body>
 </html>

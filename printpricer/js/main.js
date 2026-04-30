@@ -1,20 +1,20 @@
 // Entry point: wire everything up after the DOM is ready.
 
-import { settings, filaments, addons } from './state.js?v=20';
-import { saveSettings } from './storage.js?v=20';
-import { initTabs, onPaneShow, initPickerOverlay, toast } from './ui.js?v=20';
-import { recalc, loadSettingsToForm, initStickyTotal } from './calc.js?v=20';
-import { renderFilaments, resetFilaments, initFilamentsUI } from './filaments.js?v=20';
-import { renderSpools, initSpoolsUI } from './spools.js?v=20';
-import { renderPrinters, updateActivePrinterDisplay, migrateLegacySinglePrinter, initPrintersUI } from './printers.js?v=20';
-import { renderHistory, initArchive } from './archive.js?v=20';
-import { renderProducts, initProductsUI, saveEstimateAsProduct } from './products.js?v=20';
-import { initAuthUI, updateAccountUI, renderGroupSection } from './auth-ui.js?v=20';
-import { startAuthListener } from './firebase.js?v=20';
-import { parseGcode, parse3mf } from './parser.js?v=20';
-import { formatHours, escapeHtml } from './utils.js?v=20';
-import { initOnboarding, maybeShowOnboarding } from './onboarding.js?v=20';
-import { initHelp } from './help.js?v=20';
+import { settings, filaments, addons } from './state.js?v=21';
+import { saveSettings } from './storage.js?v=21';
+import { initTabs, onPaneShow, initPickerOverlay, toast } from './ui.js?v=21';
+import { recalc, loadSettingsToForm, initStickyTotal } from './calc.js?v=21';
+import { renderFilaments, resetFilaments, initFilamentsUI } from './filaments.js?v=21';
+import { renderSpools, initSpoolsUI } from './spools.js?v=21';
+import { renderPrinters, updateActivePrinterDisplay, migrateLegacySinglePrinter, initPrintersUI } from './printers.js?v=21';
+import { renderHistory, initArchive } from './archive.js?v=21';
+import { renderProducts, initProductsUI, saveEstimateAsProduct } from './products.js?v=21';
+import { initAuthUI, updateAccountUI, renderGroupSection } from './auth-ui.js?v=21';
+import { startAuthListener } from './firebase.js?v=21';
+import { parseGcode, parse3mf } from './parser.js?v=21';
+import { formatHours, escapeHtml } from './utils.js?v=21';
+import { initOnboarding, maybeShowOnboarding } from './onboarding.js?v=21';
+import { initHelp } from './help.js?v=21';
 
 // ---- title-block date ----
 (function setDate() {
@@ -165,11 +165,22 @@ document.getElementById('addon-shipping').addEventListener('input', e => {
 // state in lockstep so cloud syncs and product loads can fully replace
 // addons.bom and dispatch a 'bom:render' event to refresh the UI.
 
+// Collapse the BOM block when there are no items. Once the user adds even
+// one item the full block reveals; if they later remove every row the block
+// re-collapses (a clean default for the common one-off-quote case).
+function updateBomCollapseState() {
+  const block = document.querySelector('.bom-block');
+  if (!block) return;
+  const isEmpty = !addons.bom || addons.bom.length === 0;
+  block.classList.toggle('collapsed', isEmpty);
+}
+
 function renderBomRows() {
   const wrap = document.getElementById('bom-rows');
   if (!wrap) return;
+  updateBomCollapseState();
   if (!addons.bom || addons.bom.length === 0) {
-    wrap.innerHTML = '<div class="bom-empty">No items yet — click + Add item.</div>';
+    wrap.innerHTML = '';
     return;
   }
   wrap.innerHTML = addons.bom.map((b, i) => `
@@ -206,7 +217,7 @@ function wireBomEvents() {
   });
 }
 
-document.getElementById('add-bom-row')?.addEventListener('click', () => {
+function addBomRowAndFocus() {
   if (!Array.isArray(addons.bom)) addons.bom = [];
   addons.bom.push({ name: '', qty: '', unitCost: '' });
   renderBomRows();
@@ -215,7 +226,11 @@ document.getElementById('add-bom-row')?.addEventListener('click', () => {
   const last = wrap?.querySelector('.bom-row:last-child input[data-bom-k="name"]');
   last?.focus();
   recalc();
-});
+}
+// "+ Add item" inside the expanded block
+document.getElementById('add-bom-row')?.addEventListener('click', addBomRowAndFocus);
+// "+ Add hardware" CTA shown when block is collapsed (empty BOM)
+document.getElementById('bom-expand-btn')?.addEventListener('click', addBomRowAndFocus);
 
 // Other modules (products.js loadProductIntoEstimate, archive.js applyEntryToSheet)
 // fully replace addons.bom and dispatch this event to trigger a re-render.

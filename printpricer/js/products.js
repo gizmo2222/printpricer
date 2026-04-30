@@ -14,14 +14,14 @@
 // This module owns the editingProductId state and the catalog list. The
 // Estimate sheet's input wiring + smart save buttons live in main.js.
 
-import { settings, filaments, addons } from './state.js?v=20';
-import { loadProducts, saveProducts, loadPrinters, getActivePrinter, saveActivePrinterId } from './storage.js?v=20';
-import { num, fmt, escapeHtml, formatHours, toCsv, downloadFile } from './utils.js?v=20';
-import { toast, switchToPane } from './ui.js?v=20';
-import { setFilaments, newFilament, renderFilaments } from './filaments.js?v=20';
-import { recalc } from './calc.js?v=20';
-import { updateActivePrinterDisplay } from './printers.js?v=20';
-import { logActivity } from './firebase.js?v=20';
+import { settings, filaments, addons } from './state.js?v=21';
+import { loadProducts, saveProducts, loadPrinters, getActivePrinter, saveActivePrinterId } from './storage.js?v=21';
+import { num, fmt, escapeHtml, formatHours, toCsv, downloadFile } from './utils.js?v=21';
+import { toast, switchToPane } from './ui.js?v=21';
+import { setFilaments, newFilament, renderFilaments } from './filaments.js?v=21';
+import { recalc } from './calc.js?v=21';
+import { updateActivePrinterDisplay } from './printers.js?v=21';
+import { logActivity } from './firebase.js?v=21';
 
 // ---------- edit-mode state (module-private) ----------
 
@@ -61,10 +61,13 @@ function updateEditingBannerUI() {
 }
 
 function updateSaveButtonsUI() {
-  // The "Update product" button only appears when actively editing a
-  // product. "Save as new product" is always visible.
-  const upd = document.getElementById('update-product');
-  if (upd) upd.style.display = editingProductId ? '' : 'none';
+  // The "Update product" button + the disambiguator hint only appear when
+  // actively editing a product. "Save as Product" stays always visible
+  // (it always means "create a new product from current sheet").
+  const upd  = document.getElementById('update-product');
+  const hint = document.getElementById('edit-mode-hint');
+  if (upd)  upd.style.display  = editingProductId ? '' : 'none';
+  if (hint) hint.style.display = editingProductId ? '' : 'none';
 }
 
 // ---------- list view ----------
