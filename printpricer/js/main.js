@@ -1,19 +1,19 @@
 // Entry point: wire everything up after the DOM is ready.
 
-import { settings, filaments } from './state.js?v=14';
-import { saveSettings } from './storage.js?v=14';
-import { initTabs, onPaneShow, initPickerOverlay, toast } from './ui.js?v=14';
-import { recalc, loadSettingsToForm, initStickyTotal } from './calc.js?v=14';
-import { renderFilaments, resetFilaments, initFilamentsUI } from './filaments.js?v=14';
-import { renderSpools, initSpoolsUI } from './spools.js?v=14';
-import { renderPrinters, updateActivePrinterDisplay, migrateLegacySinglePrinter, initPrintersUI } from './printers.js?v=14';
-import { renderHistory, initArchive } from './archive.js?v=14';
-import { initAuthUI, updateAccountUI, renderGroupSection } from './auth-ui.js?v=14';
-import { startAuthListener } from './firebase.js?v=14';
-import { parseGcode, parse3mf } from './parser.js?v=14';
-import { formatHours } from './utils.js?v=14';
-import { initOnboarding, maybeShowOnboarding } from './onboarding.js?v=14';
-import { initHelp } from './help.js?v=14';
+import { settings, filaments } from './state.js?v=15';
+import { saveSettings } from './storage.js?v=15';
+import { initTabs, onPaneShow, initPickerOverlay, toast } from './ui.js?v=15';
+import { recalc, loadSettingsToForm, initStickyTotal } from './calc.js?v=15';
+import { renderFilaments, resetFilaments, initFilamentsUI } from './filaments.js?v=15';
+import { renderSpools, initSpoolsUI } from './spools.js?v=15';
+import { renderPrinters, updateActivePrinterDisplay, migrateLegacySinglePrinter, initPrintersUI } from './printers.js?v=15';
+import { renderHistory, initArchive } from './archive.js?v=15';
+import { initAuthUI, updateAccountUI, renderGroupSection } from './auth-ui.js?v=15';
+import { startAuthListener } from './firebase.js?v=15';
+import { parseGcode, parse3mf } from './parser.js?v=15';
+import { formatHours } from './utils.js?v=15';
+import { initOnboarding, maybeShowOnboarding } from './onboarding.js?v=15';
+import { initHelp } from './help.js?v=15';
 
 // ---- title-block date ----
 (function setDate() {
