@@ -1,20 +1,20 @@
 // Entry point: wire everything up after the DOM is ready.
 
-import { settings, filaments, addons } from './state.js?v=29';
-import { saveSettings } from './storage.js?v=29';
-import { initTabs, onPaneShow, initPickerOverlay, toast } from './ui.js?v=29';
-import { recalc, loadSettingsToForm, initStickyTotal } from './calc.js?v=29';
-import { renderFilaments, resetFilaments, initFilamentsUI } from './filaments.js?v=29';
-import { renderSpools, initSpoolsUI } from './spools.js?v=29';
-import { renderPrinters, updateActivePrinterDisplay, migrateLegacySinglePrinter, initPrintersUI } from './printers.js?v=29';
-import { renderHistory, initArchive } from './archive.js?v=29';
-import { renderProducts, initProductsUI, saveEstimateAsProduct, printEstimate } from './products.js?v=29';
-import { initAuthUI, updateAccountUI, renderGroupSection } from './auth-ui.js?v=29';
-import { startAuthListener } from './firebase.js?v=29';
-import { parseGcode, parse3mf } from './parser.js?v=29';
-import { formatHours, escapeHtml, resizeImageToDataUrl } from './utils.js?v=29';
-import { initOnboarding, maybeShowOnboarding } from './onboarding.js?v=29';
-import { initHelp } from './help.js?v=29';
+import { settings, filaments, addons } from './state.js?v=30';
+import { saveSettings } from './storage.js?v=30';
+import { initTabs, onPaneShow, initPickerOverlay, toast } from './ui.js?v=30';
+import { recalc, loadSettingsToForm, initStickyTotal } from './calc.js?v=30';
+import { renderFilaments, resetFilaments, initFilamentsUI } from './filaments.js?v=30';
+import { renderSpools, initSpoolsUI } from './spools.js?v=30';
+import { renderPrinters, updateActivePrinterDisplay, migrateLegacySinglePrinter, initPrintersUI } from './printers.js?v=30';
+import { renderHistory, initArchive } from './archive.js?v=30';
+import { renderProducts, initProductsUI, saveEstimateAsProduct, printEstimate } from './products.js?v=30';
+import { initAuthUI, updateAccountUI, renderGroupSection } from './auth-ui.js?v=30';
+import { startAuthListener } from './firebase.js?v=30';
+import { parseGcode, parse3mf } from './parser.js?v=30';
+import { formatHours, escapeHtml, resizeImageToDataUrl } from './utils.js?v=30';
+import { initOnboarding, maybeShowOnboarding } from './onboarding.js?v=30';
+import { initHelp } from './help.js?v=30';
 
 // ---- title-block date ----
 (function setDate() {
@@ -159,23 +159,44 @@ const photoInput = document.getElementById('photo-input');
 function renderPhotos() {
   if (!photoRow) return;
   const photos = Array.isArray(addons.photos) ? addons.photos : [];
-  const cells = photos.map((src, i) => `
-    <div class="photo-cell${i === 0 ? ' is-primary' : ''}" data-i="${i}" draggable="true" title="Drag to reorder${i === 0 ? ' · this is the primary photo (catalog thumbnail)' : ''}">
+  const total = photos.length;
+  const cells = photos.map((src, i) => {
+    const ariaLabel = i === 0
+      ? `Primary photo (catalog thumbnail) — photo 1 of ${total}`
+      : `Photo ${i + 1} of ${total}`;
+    return `
+    <div class="photo-cell${i === 0 ? ' is-primary' : ''}" data-i="${i}" draggable="true"
+         role="listitem"
+         aria-label="${ariaLabel}"
+         ${i === 0 ? 'aria-current="true"' : ''}
+         title="Drag to reorder, or use ←/→ buttons${i === 0 ? ' · this is the primary photo (catalog thumbnail)' : ''}">
       <img src="${escapeHtml(src)}" alt="">
-      ${i === 0 ? '<span class="photo-primary-badge">primary</span>' : ''}
+      ${i === 0 ? '<span class="photo-primary-badge" aria-hidden="true">primary</span>' : ''}
       <span class="photo-remove-btn" data-photo-remove="${i}" role="button" tabindex="0" aria-label="Remove photo">×</span>
+      <span class="photo-move-btn photo-move-left"  data-photo-move-left="${i}"  role="button" tabindex="0" aria-label="Move photo left"  ${i === 0         ? 'aria-disabled="true"' : ''}>←</span>
+      <span class="photo-move-btn photo-move-right" data-photo-move-right="${i}" role="button" tabindex="0" aria-label="Move photo right" ${i === total - 1 ? 'aria-disabled="true"' : ''}>→</span>
     </div>
-  `).join('');
+  `;
+  }).join('');
   photoRow.innerHTML = cells + `
     <button type="button" class="photo-add" id="photo-add-btn" aria-label="Add photo">+ ADD<br>PHOTO</button>
   `;
+  // Set role="list" on the container so the photo-cell listitems are announced as a group
+  photoRow.setAttribute('role', 'list');
 }
 // Other modules (archive load, product load, reset) replace addons.photos
 // and dispatch this event to refresh the preview.
 document.addEventListener('photo:render', renderPhotos);
 
-// Delegated click handler — covers both the +Add button and per-photo
-// × remove buttons. Stays valid across re-renders.
+// Delegated click handler — covers the +Add button, per-photo × remove,
+// and the ←/→ reorder buttons. Stays valid across re-renders.
+function movePhoto(fromIdx, toIdx) {
+  if (!Array.isArray(addons.photos)) return;
+  if (toIdx < 0 || toIdx >= addons.photos.length) return;
+  const [moved] = addons.photos.splice(fromIdx, 1);
+  addons.photos.splice(toIdx, 0, moved);
+  renderPhotos();
+}
 photoRow?.addEventListener('click', e => {
   const removeBtn = e.target.closest('[data-photo-remove]');
   if (removeBtn) {
@@ -187,9 +208,31 @@ photoRow?.addEventListener('click', e => {
     }
     return;
   }
+  const moveLeft = e.target.closest('[data-photo-move-left]');
+  if (moveLeft && moveLeft.getAttribute('aria-disabled') !== 'true') {
+    e.stopPropagation();
+    const i = +moveLeft.dataset.photoMoveLeft;
+    movePhoto(i, i - 1);
+    return;
+  }
+  const moveRight = e.target.closest('[data-photo-move-right]');
+  if (moveRight && moveRight.getAttribute('aria-disabled') !== 'true') {
+    e.stopPropagation();
+    const i = +moveRight.dataset.photoMoveRight;
+    movePhoto(i, i + 1);
+    return;
+  }
   if (e.target.closest('#photo-add-btn')) {
     photoInput?.click();
   }
+});
+// Keyboard activation for the role="button" spans (×, ←, →) — Enter/Space
+// triggers the same flow as click since these aren't real <button>s.
+photoRow?.addEventListener('keydown', e => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  if (!e.target.closest('[data-photo-remove], [data-photo-move-left], [data-photo-move-right]')) return;
+  e.preventDefault();
+  e.target.click();
 });
 
 photoInput?.addEventListener('change', async e => {
@@ -213,6 +256,13 @@ photoInput?.addEventListener('change', async e => {
 // is first. Delegated handlers stay valid across re-renders.
 let dragFromIdx = null;
 photoRow?.addEventListener('dragstart', e => {
+  // Don't initiate a drag when the user is grabbing one of the small
+  // overlay buttons (×, ←, →). They're inside .photo-cell but should
+  // behave as buttons, not as drag handles.
+  if (e.target.closest('[data-photo-remove], [data-photo-move-left], [data-photo-move-right]')) {
+    e.preventDefault();
+    return;
+  }
   const cell = e.target.closest('.photo-cell');
   if (!cell) return;
   dragFromIdx = +cell.dataset.i;

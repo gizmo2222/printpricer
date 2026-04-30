@@ -1181,7 +1181,7 @@ select.input {
 }
 .photo-cell .photo-primary-badge {
   position: absolute;
-  bottom: 2px;
+  top: 2px;
   left: 2px;
   background: var(--blueprint);
   color: var(--paper);
@@ -1194,6 +1194,32 @@ select.input {
   pointer-events: none;
   border: 1px solid var(--paper);
 }
+
+/* Reorder buttons — ←/→ in the bottom corners of each photo cell.
+   Keyboard + touch alternative to drag-and-drop (drag still works). */
+.photo-cell .photo-move-btn {
+  position: absolute;
+  bottom: 2px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--blueprint);
+  color: var(--paper);
+  font-size: 14px;
+  font-weight: var(--w-bold);
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+  border: 1.5px solid var(--paper);
+  pointer-events: auto;
+  transition: transform 0.12s var(--ease-quart);
+}
+.photo-cell .photo-move-btn:hover { transform: scale(1.08); }
+.photo-cell .photo-move-btn[aria-disabled="true"] { display: none; }
+.photo-cell .photo-move-left  { left:  2px; }
+.photo-cell .photo-move-right { right: 2px; }
 .photo-cell .photo-remove-btn {
   position: absolute;
   top: 4px;
