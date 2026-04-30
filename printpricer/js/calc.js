@@ -4,11 +4,11 @@
 //   - sticky total bar visibility
 //   - earned block-detail callouts on Estimate sheet headers
 
-import { settings, filaments } from './state.js?v=16';
-import { getActivePrinter } from './storage.js?v=16';
-import { num, fmt, formatHours } from './utils.js?v=16';
+import { settings, filaments, addons, MARKETPLACE_PRESETS } from './state.js?v=17';
+import { getActivePrinter } from './storage.js?v=17';
+import { num, fmt, formatHours } from './utils.js?v=17';
 
-const flashTargets = ['bd-filament','bd-power','bd-time','bd-subtotal','bd-failure','bd-margin','bd-total','sticky-total-value'];
+const flashTargets = ['bd-filament','bd-power','bd-time','bd-labor','bd-packaging','bd-shipping','bd-subtotal','bd-failure','bd-margin','bd-total','bd-fees','bd-net','sticky-total-value'];
 const lastValues = {};
 
 function setValue(id, str) {
@@ -28,6 +28,26 @@ function setValue(id, str) {
   }
 }
 
+// Resolve marketplace fees from settings into a flat shape. Returns the
+// computed fee for a given gross price.
+function computeFees(price) {
+  const presetKey = settings.marketplacePreset || 'none';
+  let preset = MARKETPLACE_PRESETS[presetKey] || MARKETPLACE_PRESETS.none;
+  if (presetKey === 'custom') {
+    preset = {
+      listingFee:  num(settings.marketplaceCustomListing),
+      txnPct:      num(settings.marketplaceCustomTxnPct),
+      paymentPct:  num(settings.marketplaceCustomPaymentPct),
+      paymentFlat: num(settings.marketplaceCustomPaymentFlat),
+    };
+  }
+  const fee = preset.listingFee
+            + price * (preset.txnPct / 100)
+            + price * (preset.paymentPct / 100)
+            + preset.paymentFlat;
+  return { fee, preset, presetKey };
+}
+
 export function recalc() {
   const hours = num(document.getElementById('time-h')?.value)
     + num(document.getElementById('time-m')?.value) / 60;
@@ -43,31 +63,60 @@ export function recalc() {
   const rate = printer ? num(printer.hourlyRate) : 0;
   const timeCost = hours * rate;
 
-  const subtotal = filamentCost + electricity + timeCost;
+  // Add-ons: labor, packaging, shipping
+  const laborMinutes = num(addons.laborMinutes);
+  const laborRate    = num(settings.laborRate);
+  const laborCost    = (laborMinutes / 60) * laborRate;
+  const packagingCost = num(addons.packagingCost);
+  const shippingCost  = num(addons.shippingCost);
+
+  // COGS (subtotal): everything except shipping (passthrough) and fees (deduction)
+  const subtotal = filamentCost + electricity + timeCost + laborCost + packagingCost;
 
   const failurePct = num(settings.failurePct);
   const marginPct  = num(settings.marginPct);
   const failureAmt = subtotal * (failurePct / 100);
   const afterFailure = subtotal + failureAmt;
   const marginAmt = afterFailure * (marginPct / 100);
-  const total = afterFailure + marginAmt;
+  const beforeShipping = afterFailure + marginAmt;
+  // Shipping is a passthrough — added at the end, not marked up
+  const total = beforeShipping + shippingCost;
 
-  setValue('bd-filament', fmt(filamentCost));
-  setValue('bd-power',    fmt(electricity));
-  setValue('bd-time',     fmt(timeCost));
-  setValue('bd-subtotal', fmt(subtotal));
-  setValue('bd-failure',  fmt(failureAmt));
-  setValue('bd-margin',   fmt(marginAmt));
-  setValue('bd-total',    fmt(total));
+  // Marketplace fees subtract from net (what you actually keep)
+  const { fee: feeAmt, preset, presetKey } = computeFees(total);
+  const net = total - feeAmt;
+
+  setValue('bd-filament',  fmt(filamentCost));
+  setValue('bd-power',     fmt(electricity));
+  setValue('bd-time',      fmt(timeCost));
+  setValue('bd-labor',     fmt(laborCost));
+  setValue('bd-packaging', fmt(packagingCost));
+  setValue('bd-shipping',  fmt(shippingCost));
+  setValue('bd-subtotal',  fmt(subtotal));
+  setValue('bd-failure',   fmt(failureAmt));
+  setValue('bd-margin',    fmt(marginAmt));
+  setValue('bd-total',     fmt(total));
+  setValue('bd-fees',      '−' + fmt(feeAmt));
+  setValue('bd-net',       fmt(net));
   setValue('sticky-total-value', fmt(total));
 
   document.getElementById('bd-failure-label').textContent = `Failure markup (${failurePct}%)`;
   document.getElementById('bd-margin-label').textContent  = `Profit margin (${marginPct}%)`;
+  document.getElementById('bd-fees-label').textContent    = `${preset.label} fees`;
+
+  // Show/hide rows that have zero values to keep the breakdown tidy
+  document.getElementById('bd-labor-row')?.toggleAttribute('hidden', laborCost === 0);
+  document.getElementById('bd-packaging-row')?.toggleAttribute('hidden', packagingCost === 0);
+  document.getElementById('bd-shipping-row')?.toggleAttribute('hidden', shippingCost === 0);
+  // Show the net-after-fees panel only if a marketplace is actually selected and there are fees
+  const netPanel = document.getElementById('net-after-fees');
+  if (netPanel) netPanel.style.display = (presetKey !== 'none' && feeAmt > 0) ? '' : 'none';
 
   updateBlockCallouts({ hours, totalGrams: filaments.reduce((s, f) => s + num(f.grams), 0), total });
   updateStickyTotal(total);
 
-  return { hours, filamentCost, electricity, timeCost, subtotal, failureAmt, marginAmt, total };
+  return { hours, filamentCost, electricity, timeCost, laborCost, packagingCost, shippingCost,
+           subtotal, failureAmt, marginAmt, total, feeAmt, net };
 }
 
 // Callouts on the right side of each block header — earned, not decorative.
@@ -141,8 +190,20 @@ export function initStickyTotal() {
 export function loadSettingsToForm() {
   document.getElementById('s-filament-cost').value = settings.filamentCost;
   document.getElementById('s-kwh').value           = settings.kwh;
+  document.getElementById('s-labor-rate').value    = settings.laborRate || '';
   document.getElementById('s-failure').value       = settings.failurePct;
   document.getElementById('s-margin').value        = settings.marginPct;
   document.getElementById('s-est-density').value   = settings.estDensity || '';
   document.getElementById('s-est-fill').value      = settings.estFillPct || '';
+  document.getElementById('s-marketplace').value   = settings.marketplacePreset || 'none';
+  document.getElementById('s-mp-listing').value    = settings.marketplaceCustomListing || '';
+  document.getElementById('s-mp-txn').value        = settings.marketplaceCustomTxnPct || '';
+  document.getElementById('s-mp-pay-pct').value    = settings.marketplaceCustomPaymentPct || '';
+  document.getElementById('s-mp-pay-flat').value   = settings.marketplaceCustomPaymentFlat || '';
+  document.getElementById('s-biz-name').value      = settings.businessName || '';
+  document.getElementById('s-biz-email').value     = settings.businessEmail || '';
+  document.getElementById('s-biz-notes').value     = settings.businessNotes || '';
+  // Toggle visibility of the custom marketplace inputs
+  document.getElementById('marketplace-custom').style.display =
+    settings.marketplacePreset === 'custom' ? '' : 'none';
 }

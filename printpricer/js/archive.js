@@ -1,14 +1,14 @@
 // Archive (saved estimates) — list, load, clone, delete, CSV export, print.
 
-import { settings, filaments } from './state.js?v=16';
-import { loadHistory, saveHistory, loadSpools, saveSpools, getActivePrinter } from './storage.js?v=16';
-import { LOW_STOCK_THRESHOLD } from './state.js?v=16';
-import { num, fmt, escapeHtml, formatHours, toCsv, downloadFile } from './utils.js?v=16';
-import { toast, toastWithUndo, switchToPane } from './ui.js?v=16';
-import { markOnboardingComplete } from './onboarding.js?v=16';
-import { renderFilaments, setFilaments, newFilament } from './filaments.js?v=16';
-import { recalc } from './calc.js?v=16';
-import { logActivity } from './firebase.js?v=16';
+import { settings, filaments, addons } from './state.js?v=17';
+import { loadHistory, saveHistory, loadSpools, saveSpools, getActivePrinter } from './storage.js?v=17';
+import { LOW_STOCK_THRESHOLD } from './state.js?v=17';
+import { num, fmt, escapeHtml, formatHours, toCsv, downloadFile } from './utils.js?v=17';
+import { toast, toastWithUndo, switchToPane } from './ui.js?v=17';
+import { markOnboardingComplete } from './onboarding.js?v=17';
+import { renderFilaments, setFilaments, newFilament } from './filaments.js?v=17';
+import { recalc } from './calc.js?v=17';
+import { logActivity } from './firebase.js?v=17';
 
 let saveQuoteInFlight = false; // double-tap guard
 const FILTER_THRESHOLD = 10;
@@ -138,17 +138,29 @@ export function renderHistory() {
   list.querySelectorAll('[data-del]').forEach(btn => btn.addEventListener('click', e => deleteFromHistory(+e.target.dataset.del)));
 }
 
-function loadFromHistory(id) {
-  const e = loadHistory().find(x => x.id === id);
-  if (!e) return;
-  document.getElementById('print-name').value = e.name;
+function applyEntryToSheet(e) {
   const hrs = Math.floor(e.hours);
   const mins = Math.round((e.hours - hrs) * 60);
   document.getElementById('time-h').value = hrs || '';
   document.getElementById('time-m').value = mins || '';
   setFilaments(e.filaments?.length ? e.filaments : [newFilament()]);
+  // Restore add-ons (labor / packaging / shipping)
+  const a = e.addons || {};
+  addons.laborMinutes  = a.laborMinutes  != null ? String(a.laborMinutes)  : '';
+  addons.packagingCost = a.packagingCost != null ? String(a.packagingCost) : '';
+  addons.shippingCost  = a.shippingCost  != null ? String(a.shippingCost)  : '';
+  document.getElementById('addon-labor').value     = addons.laborMinutes;
+  document.getElementById('addon-packaging').value = addons.packagingCost;
+  document.getElementById('addon-shipping').value  = addons.shippingCost;
   renderFilaments();
   recalc();
+}
+
+function loadFromHistory(id) {
+  const e = loadHistory().find(x => x.id === id);
+  if (!e) return;
+  document.getElementById('print-name').value = e.name;
+  applyEntryToSheet(e);
   switchToPane('calc');
   toast(`Loaded "${e.name}"`);
 }
@@ -157,13 +169,7 @@ function cloneFromHistory(id) {
   const e = loadHistory().find(x => x.id === id);
   if (!e) return;
   document.getElementById('print-name').value = `${e.name} (copy)`;
-  const hrs = Math.floor(e.hours);
-  const mins = Math.round((e.hours - hrs) * 60);
-  document.getElementById('time-h').value = hrs || '';
-  document.getElementById('time-m').value = mins || '';
-  setFilaments(e.filaments?.length ? e.filaments : [newFilament()]);
-  renderFilaments();
-  recalc();
+  applyEntryToSheet(e);
   switchToPane('calc');
   toast('Cloned — adjust and re-archive');
 }
@@ -180,6 +186,12 @@ export function initArchive() {
     document.getElementById('print-name').value = '';
     document.getElementById('time-h').value = '';
     document.getElementById('time-m').value = '';
+    document.getElementById('addon-labor').value = '';
+    document.getElementById('addon-packaging').value = '';
+    document.getElementById('addon-shipping').value = '';
+    addons.laborMinutes = '';
+    addons.packagingCost = '';
+    addons.shippingCost = '';
     setFilaments([newFilament()]);
     renderFilaments();
     recalc();
@@ -241,14 +253,24 @@ async function stampAndArchive() {
       printerId: printer?.id || null,
       printerName: printer?.name || null,
       filaments: filaments.map(f => ({ ...f })),
+      addons: {
+        laborMinutes: num(addons.laborMinutes),
+        packagingCost: num(addons.packagingCost),
+        shippingCost: num(addons.shippingCost),
+      },
       breakdown: {
         filament: result.filamentCost,
         electricity: result.electricity,
         time: result.timeCost,
+        labor: result.laborCost || 0,
+        packaging: result.packagingCost || 0,
+        shipping: result.shippingCost || 0,
         subtotal: result.subtotal,
         failure: result.failureAmt,
         margin: result.marginAmt,
         total: result.total,
+        fees: result.feeAmt || 0,
+        net: result.net != null ? result.net : result.total,
       },
       settingsSnapshot: { ...settings },
     };
@@ -320,15 +342,20 @@ function exportArchiveCsv() {
     filaments: (e.filaments || []).map(f => `${f.name}:${(+f.grams).toFixed(1)}g`).join('; '),
     filament_cost: e.breakdown.filament.toFixed(2),
     electricity_cost: e.breakdown.electricity.toFixed(2),
-    time_cost: e.breakdown.time.toFixed(2),
+    machine_time: e.breakdown.time.toFixed(2),
+    labor: (e.breakdown.labor || 0).toFixed(2),
+    packaging: (e.breakdown.packaging || 0).toFixed(2),
+    shipping: (e.breakdown.shipping || 0).toFixed(2),
     subtotal: e.breakdown.subtotal.toFixed(2),
     failure_markup: e.breakdown.failure.toFixed(2),
     margin: e.breakdown.margin.toFixed(2),
     total: e.breakdown.total.toFixed(2),
+    marketplace_fees: (e.breakdown.fees || 0).toFixed(2),
+    net: (e.breakdown.net != null ? e.breakdown.net : e.breakdown.total).toFixed(2),
   }));
   const cols = ['date','name','printer','hours','grams','filaments',
-    'filament_cost','electricity_cost','time_cost','subtotal',
-    'failure_markup','margin','total'];
+    'filament_cost','electricity_cost','machine_time','labor','packaging','shipping',
+    'subtotal','failure_markup','margin','total','marketplace_fees','net'];
   const csv = toCsv(rows, cols);
   const filename = `printpricer-archive-${new Date().toISOString().slice(0, 10)}.csv`;
   downloadFile(filename, csv, 'text/csv;charset=utf-8');
@@ -341,16 +368,54 @@ function printQuote(id) {
   if (!e) return;
   const w = window.open('', '_blank');
   if (!w) { toast('Popup blocked — allow popups to print', true); return; }
+
+  // Customer-facing quote — show only the price, filament list, and delivery
+  // total. Breakdown line items are kept simple so the recipient sees a
+  // clean quote, not your internal margin math. The settings snapshot on
+  // the entry is read from when available; fall back to current settings
+  // (this matters when looking at an old archive after editing biz info).
+  const biz = {
+    name:  (e.settingsSnapshot?.businessName  ?? settings.businessName)  || '',
+    email: (e.settingsSnapshot?.businessEmail ?? settings.businessEmail) || '',
+    notes: (e.settingsSnapshot?.businessNotes ?? settings.businessNotes) || '',
+  };
   const d = new Date(e.date);
   const fil = (e.filaments || []).map(f =>
-    `<tr><td>${escapeHtml(f.name || 'Filament')}</td><td style="text-align:right;font-variant-numeric:tabular-nums">${(+f.grams).toFixed(1)}&nbsp;g</td><td style="text-align:right;font-variant-numeric:tabular-nums">$${(+f.costPerKg).toFixed(2)}/kg</td></tr>`
+    `<tr><td>${escapeHtml(f.name || 'Filament')}</td><td style="text-align:right;font-variant-numeric:tabular-nums">${(+f.grams).toFixed(1)}&nbsp;g</td></tr>`
   ).join('');
   const b = e.breakdown;
+  const labor     = (b.labor || 0);
+  const packaging = (b.packaging || 0);
+  const shipping  = (b.shipping || 0);
+
+  // Build the customer-facing line items: filament/print + add-ons (only
+  // if non-zero) + total. Breakdown stays simple — failure markup and
+  // profit margin are folded into the price, not shown.
+  const goodsTotal = b.total - shipping;
+  const lines = [
+    `<tr><td>3D printed item</td><td>$${goodsTotal.toFixed(2)}</td></tr>`,
+  ];
+  if (shipping > 0) {
+    lines.push(`<tr><td>Shipping</td><td>$${shipping.toFixed(2)}</td></tr>`);
+  }
+
+  const bizHeader = biz.name
+    ? `<div class="biz">
+        <div class="biz-name">${escapeHtml(biz.name)}</div>
+        ${biz.notes ? `<div class="biz-notes">${escapeHtml(biz.notes)}</div>` : ''}
+        ${biz.email ? `<div class="biz-email">${escapeHtml(biz.email)}</div>` : ''}
+      </div>`
+    : '';
+
   w.document.write(`<!DOCTYPE html>
 <html><head><meta charset="UTF-8">
-<title>Print Pricer · ${escapeHtml(e.name)}</title>
+<title>Quote · ${escapeHtml(e.name)}</title>
 <style>
   body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #16202d; max-width: 720px; margin: 32px auto; padding: 0 24px; }
+  .biz { margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1.5px solid #16202d; }
+  .biz-name { font-size: 22px; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 2px; }
+  .biz-notes { color: #6a7585; font-size: 13px; line-height: 1.5; }
+  .biz-email { color: #1f4e7a; font-size: 13px; margin-top: 4px; }
   h1 { font-size: 26px; letter-spacing: 1px; margin-bottom: 4px; }
   .sub { color: #6a7585; font-size: 13px; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 24px; }
   table { width: 100%; border-collapse: collapse; margin: 18px 0; }
@@ -358,30 +423,27 @@ function printQuote(id) {
   th { font-size: 11px; letter-spacing: 1.4px; text-transform: uppercase; color: #6a7585; }
   .totals { margin-top: 16px; font-variant-numeric: tabular-nums; }
   .totals tr td:last-child { text-align: right; }
-  .total-row { font-size: 18px; font-weight: 700; border-top: 2px solid #16202d; }
-  .meta { font-size: 12px; color: #6a7585; margin-top: 24px; }
+  .total-row { font-size: 20px; font-weight: 700; border-top: 2px solid #16202d; }
+  .meta { font-size: 12px; color: #6a7585; margin-top: 32px; }
   @media print { body { margin: 12mm; } }
 </style></head><body>
-<h1>${escapeHtml(e.name)}</h1>
-<div class="sub">Print Pricer · ${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}${e.printerName ? ' · ' + escapeHtml(e.printerName) : ''}</div>
+${bizHeader}
 
-<table>
-  <thead><tr><th>Filament</th><th style="text-align:right">Used</th><th style="text-align:right">Cost</th></tr></thead>
+<h1>Quote · ${escapeHtml(e.name)}</h1>
+<div class="sub">${d.toLocaleDateString()} · Quote #${String(e.id).slice(-6)}${e.printerName ? ' · ' + escapeHtml(e.printerName) : ''}</div>
+
+${fil ? `<table>
+  <thead><tr><th>Filament</th><th style="text-align:right">Used</th></tr></thead>
   <tbody>${fil}</tbody>
-</table>
+</table>` : ''}
 <div class="sub">Print time: ${formatHours(e.hours)}${e.grams ? ' · Total filament: ' + e.grams.toFixed(1) + ' g' : ''}</div>
 
 <table class="totals">
-  <tr><td>Filament</td><td>$${b.filament.toFixed(2)}</td></tr>
-  <tr><td>Electricity</td><td>$${b.electricity.toFixed(2)}</td></tr>
-  <tr><td>Time (machine / labor)</td><td>$${b.time.toFixed(2)}</td></tr>
-  <tr><td><strong>Subtotal</strong></td><td><strong>$${b.subtotal.toFixed(2)}</strong></td></tr>
-  <tr><td>Failure markup</td><td>$${b.failure.toFixed(2)}</td></tr>
-  <tr><td>Profit margin</td><td>$${b.margin.toFixed(2)}</td></tr>
+  ${lines.join('\n')}
   <tr class="total-row"><td>Total</td><td>$${b.total.toFixed(2)}</td></tr>
 </table>
 
-<div class="meta">Quoted by Print Pricer · metacrystal.com/printpricer</div>
+<div class="meta">Quote valid 14 days from issue.${biz.name ? '' : ' Quoted via Print Pricer.'}</div>
 <script>window.onload = () => setTimeout(() => window.print(), 100);<\/script>
 </body></html>`);
   w.document.close();

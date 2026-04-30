@@ -1,19 +1,19 @@
 // Entry point: wire everything up after the DOM is ready.
 
-import { settings, filaments } from './state.js?v=16';
-import { saveSettings } from './storage.js?v=16';
-import { initTabs, onPaneShow, initPickerOverlay, toast } from './ui.js?v=16';
-import { recalc, loadSettingsToForm, initStickyTotal } from './calc.js?v=16';
-import { renderFilaments, resetFilaments, initFilamentsUI } from './filaments.js?v=16';
-import { renderSpools, initSpoolsUI } from './spools.js?v=16';
-import { renderPrinters, updateActivePrinterDisplay, migrateLegacySinglePrinter, initPrintersUI } from './printers.js?v=16';
-import { renderHistory, initArchive } from './archive.js?v=16';
-import { initAuthUI, updateAccountUI, renderGroupSection } from './auth-ui.js?v=16';
-import { startAuthListener } from './firebase.js?v=16';
-import { parseGcode, parse3mf } from './parser.js?v=16';
-import { formatHours } from './utils.js?v=16';
-import { initOnboarding, maybeShowOnboarding } from './onboarding.js?v=16';
-import { initHelp } from './help.js?v=16';
+import { settings, filaments, addons } from './state.js?v=17';
+import { saveSettings } from './storage.js?v=17';
+import { initTabs, onPaneShow, initPickerOverlay, toast } from './ui.js?v=17';
+import { recalc, loadSettingsToForm, initStickyTotal } from './calc.js?v=17';
+import { renderFilaments, resetFilaments, initFilamentsUI } from './filaments.js?v=17';
+import { renderSpools, initSpoolsUI } from './spools.js?v=17';
+import { renderPrinters, updateActivePrinterDisplay, migrateLegacySinglePrinter, initPrintersUI } from './printers.js?v=17';
+import { renderHistory, initArchive } from './archive.js?v=17';
+import { initAuthUI, updateAccountUI, renderGroupSection } from './auth-ui.js?v=17';
+import { startAuthListener } from './firebase.js?v=17';
+import { parseGcode, parse3mf } from './parser.js?v=17';
+import { formatHours } from './utils.js?v=17';
+import { initOnboarding, maybeShowOnboarding } from './onboarding.js?v=17';
+import { initHelp } from './help.js?v=17';
 
 // ---- title-block date ----
 (function setDate() {
@@ -106,10 +106,19 @@ document.getElementById('save-settings').addEventListener('click', () => {
   Object.assign(settings, {
     filamentCost: document.getElementById('s-filament-cost').value,
     kwh:          document.getElementById('s-kwh').value,
+    laborRate:    document.getElementById('s-labor-rate').value,
     failurePct:   document.getElementById('s-failure').value,
     marginPct:    document.getElementById('s-margin').value,
     estDensity:   document.getElementById('s-est-density').value,
     estFillPct:   document.getElementById('s-est-fill').value,
+    marketplacePreset:             document.getElementById('s-marketplace').value,
+    marketplaceCustomListing:      document.getElementById('s-mp-listing').value,
+    marketplaceCustomTxnPct:       document.getElementById('s-mp-txn').value,
+    marketplaceCustomPaymentPct:   document.getElementById('s-mp-pay-pct').value,
+    marketplaceCustomPaymentFlat:  document.getElementById('s-mp-pay-flat').value,
+    businessName:  document.getElementById('s-biz-name').value,
+    businessEmail: document.getElementById('s-biz-email').value,
+    businessNotes: document.getElementById('s-biz-notes').value,
   });
   saveSettings();
   recalc();
@@ -127,6 +136,23 @@ document.getElementById('reset-settings').addEventListener('click', () => {
 // ---- estimate sheet (time fields → recalc) ----
 document.getElementById('time-h').addEventListener('input', recalc);
 document.getElementById('time-m').addEventListener('input', recalc);
+
+// ---- estimate sheet add-ons (labor, packaging, shipping) ----
+document.getElementById('addon-labor').addEventListener('input', e => {
+  addons.laborMinutes = e.target.value; recalc();
+});
+document.getElementById('addon-packaging').addEventListener('input', e => {
+  addons.packagingCost = e.target.value; recalc();
+});
+document.getElementById('addon-shipping').addEventListener('input', e => {
+  addons.shippingCost = e.target.value; recalc();
+});
+
+// ---- marketplace dropdown: toggle custom panel ----
+document.getElementById('s-marketplace').addEventListener('change', e => {
+  const custom = document.getElementById('marketplace-custom');
+  if (custom) custom.style.display = e.target.value === 'custom' ? '' : 'none';
+});
 
 // ---- auth + group UI ----
 initAuthUI();

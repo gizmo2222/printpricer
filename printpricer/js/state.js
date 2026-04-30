@@ -4,8 +4,20 @@ export const SETTINGS_KEY        = 'printpricer:settings';
 export const HISTORY_KEY         = 'printpricer:history';
 export const SPOOLS_KEY          = 'printpricer:spools';
 export const PRINTERS_KEY        = 'printpricer:printers';
+export const PRODUCTS_KEY        = 'printpricer:products';
 export const ACTIVE_PRINTER_KEY  = 'printpricer:activePrinterId';
 export const LOW_STOCK_THRESHOLD = 50;
+
+// Marketplace fee presets — listing fee + transaction % + payment processing.
+// Numbers are typical published rates; user can override via the 'custom' preset.
+export const MARKETPLACE_PRESETS = {
+  none:    { label: 'None / direct sale',     listingFee: 0,    txnPct: 0,     paymentPct: 0,    paymentFlat: 0 },
+  etsy:    { label: 'Etsy',                   listingFee: 0.20, txnPct: 6.5,   paymentPct: 3,    paymentFlat: 0.25 },
+  ebay:    { label: 'eBay (managed payments)', listingFee: 0,   txnPct: 13.25, paymentPct: 0,    paymentFlat: 0.30 },
+  amazon:  { label: 'Amazon',                 listingFee: 0,    txnPct: 15,    paymentPct: 0,    paymentFlat: 0    },
+  shopify: { label: 'Shopify (payment only)', listingFee: 0,    txnPct: 0,     paymentPct: 2.9,  paymentFlat: 0.30 },
+  custom:  { label: 'Custom',                 listingFee: 0,    txnPct: 0,     paymentPct: 0,    paymentFlat: 0    },
+};
 
 export const FIREBASE_CONFIG = {
   apiKey: "AIzaSyA25vkshbHUc4-W6H2BCtM-yJ1rz26Ru6Y",
@@ -24,6 +36,19 @@ export const defaultSettings = {
   marginPct: '',
   estDensity: '',
   estFillPct: '',
+  // Labor — the human time cost. Per-print labor minutes are entered on the
+  // Estimate sheet; this rate is workspace-wide.
+  laborRate: '',
+  // Marketplace fee preset and (optional) custom-mode overrides.
+  marketplacePreset: 'none',
+  marketplaceCustomListing:    '',
+  marketplaceCustomTxnPct:     '',
+  marketplaceCustomPaymentPct: '',
+  marketplaceCustomPaymentFlat: '',
+  // Business info — appears in the printable customer quote.
+  businessName: '',
+  businessEmail: '',
+  businessNotes: '',
 };
 
 // ---- Material list (used by spool form) ----
@@ -110,3 +135,11 @@ export function isInCloudMode() {
 
 // Filament rows on the Estimate sheet — mutated in place by filaments.js.
 export const filaments = [];
+
+// Per-estimate add-ons. These are inputs on the Estimate sheet and are not
+// persisted on their own — they get captured into the archive entry on stamp.
+export const addons = {
+  laborMinutes: '',
+  packagingCost: '',
+  shippingCost: '',
+};

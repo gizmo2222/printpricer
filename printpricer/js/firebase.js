@@ -8,17 +8,17 @@ import {
   CLOUD_ENABLED, FIREBASE_CONFIG,
   SPOOLS_KEY, HISTORY_KEY, PRINTERS_KEY, SETTINGS_KEY,
   defaultSettings, settings, state, isInCloudMode,
-} from './state.js?v=16';
-import { rafDebounce, generateJoinCode } from './utils.js?v=16';
-import { activePane } from './ui.js?v=16';
-import { renderSpools } from './spools.js?v=16';
-import { renderPrinters, updateActivePrinterDisplay } from './printers.js?v=16';
-import { renderHistory } from './archive.js?v=16';
-import { renderActivity } from './activity.js?v=16';
-import { renderFilaments } from './filaments.js?v=16';
-import { recalc, loadSettingsToForm } from './calc.js?v=16';
-import { renderGroupSection, updateAccountUI } from './auth-ui.js?v=16';
-import { loadHistory, loadSpools, loadPrinters, seedGroupCollection } from './storage.js?v=16';
+} from './state.js?v=17';
+import { rafDebounce, generateJoinCode } from './utils.js?v=17';
+import { activePane } from './ui.js?v=17';
+import { renderSpools } from './spools.js?v=17';
+import { renderPrinters, updateActivePrinterDisplay } from './printers.js?v=17';
+import { renderHistory } from './archive.js?v=17';
+import { renderActivity } from './activity.js?v=17';
+import { renderFilaments } from './filaments.js?v=17';
+import { recalc, loadSettingsToForm } from './calc.js?v=17';
+import { renderGroupSection, updateAccountUI } from './auth-ui.js?v=17';
+import { loadHistory, loadSpools, loadPrinters, seedGroupCollection } from './storage.js?v=17';
 
 export let fb = null;
 

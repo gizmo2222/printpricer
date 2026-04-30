@@ -11,7 +11,7 @@
   <!-- Cache-buster query string is bumped on each meaningful release so
        browsers fetch the new module set instead of stale ES-module copies.
        Bump this when you ship CSS or JS changes. -->
-  <link rel="stylesheet" href="css/styles.css?v=16">
+  <link rel="stylesheet" href="css/styles.css?v=17">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
@@ -123,20 +123,58 @@
       <section class="block">
         <span class="bl"></span><span class="br"></span>
         <header class="block-head">
+          <h2 class="block-title">Add-ons</h2>
+          <div class="block-detail" id="block-detail-addons">Labor &middot; packaging &middot; shipping<span class="id">C</span></div>
+        </header>
+        <div class="input-row-3">
+          <div class="field">
+            <label>Labor minutes</label>
+            <div class="suffix-wrap">
+              <input type="number" id="addon-labor" min="0" step="1" placeholder="0" data-hint="Setup + supports + post-processing + packaging time. Costed at the workspace's labor rate (set in Defaults).">
+              <span class="suffix">min</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>Packaging</label>
+            <div class="suffix-wrap">
+              <input type="number" id="addon-packaging" min="0" step="0.01" placeholder="0.00" data-hint="Box, mailer, labels, padding — anything that goes with the print. Folded into COGS so failure markup and margin apply.">
+              <span class="suffix">$</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>Shipping</label>
+            <div class="suffix-wrap">
+              <input type="number" id="addon-shipping" min="0" step="0.01" placeholder="0.00" data-hint="Postage cost. Treated as a passthrough (added to the customer total but not marked up — you don't profit on shipping).">
+              <span class="suffix">$</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="block">
+        <span class="bl"></span><span class="br"></span>
+        <header class="block-head">
           <h2 class="block-title">Cost Breakdown</h2>
-          <div class="block-detail" id="block-detail-breakdown">Bill of materials<span class="id">C</span></div>
+          <div class="block-detail" id="block-detail-breakdown">Bill of materials<span class="id">D</span></div>
         </header>
         <div class="breakdown" id="breakdown">
           <div class="breakdown-row"><span class="label">Filament</span><span class="leader"></span><span class="value" id="bd-filament">$0.00</span></div>
           <div class="breakdown-row"><span class="label">Electricity</span><span class="leader"></span><span class="value" id="bd-power">$0.00</span></div>
-          <div class="breakdown-row"><span class="label">Time (machine / labor)</span><span class="leader"></span><span class="value" id="bd-time">$0.00</span></div>
+          <div class="breakdown-row"><span class="label">Machine time</span><span class="leader"></span><span class="value" id="bd-time">$0.00</span></div>
+          <div class="breakdown-row" id="bd-labor-row" hidden><span class="label">Labor</span><span class="leader"></span><span class="value" id="bd-labor">$0.00</span></div>
+          <div class="breakdown-row" id="bd-packaging-row" hidden><span class="label">Packaging</span><span class="leader"></span><span class="value" id="bd-packaging">$0.00</span></div>
           <div class="breakdown-row subtotal"><span class="label">Subtotal</span><span class="leader"></span><span class="value" id="bd-subtotal">$0.00</span></div>
           <div class="breakdown-row"><span class="label" id="bd-failure-label">Failure markup (0%)</span><span class="leader"></span><span class="value" id="bd-failure">$0.00</span></div>
           <div class="breakdown-row"><span class="label" id="bd-margin-label">Profit margin (0%)</span><span class="leader"></span><span class="value" id="bd-margin">$0.00</span></div>
+          <div class="breakdown-row" id="bd-shipping-row" hidden><span class="label">+ Shipping (passthrough)</span><span class="leader"></span><span class="value" id="bd-shipping">$0.00</span></div>
         </div>
         <div class="total-stamp">
           <span class="label">Estimated price</span>
           <span class="value" id="bd-total">$0.00</span>
+        </div>
+        <div class="breakdown" id="net-after-fees" style="display:none; margin-top: var(--space-3);">
+          <div class="breakdown-row"><span class="label" id="bd-fees-label">Marketplace fees</span><span class="leader"></span><span class="value" id="bd-fees" style="color: var(--rust)">−$0.00</span></div>
+          <div class="breakdown-row subtotal" style="border-color: var(--moss); margin-top: 0; padding-top: var(--space-3);"><span class="label" style="color: var(--moss)">Net to you</span><span class="leader"></span><span class="value" id="bd-net" style="color: var(--moss); font-size: var(--text-md);">$0.00</span></div>
         </div>
         <div class="btn-row" style="margin-top: 18px;">
           <button class="btn btn-stamp" id="save-quote" data-hint="Saves this quote to the Archive and deducts grams from any linked spools. Reversible for 8 seconds via the undo toast.">Stamp &amp; Archive</button>
@@ -306,6 +344,17 @@
 
         <div class="input-row">
           <div class="field">
+            <label>Labor hourly rate</label>
+            <div class="suffix-wrap">
+              <input type="number" id="s-labor-rate" min="0" step="0.01" placeholder="20.00" data-hint="Your time. Setup, supports, post-processing, packaging, customer messaging — all the human minutes that aren't the printer running. Costed per estimate via the 'Labor minutes' field on the Estimate sheet.">
+              <span class="suffix">$ / hr</span>
+            </div>
+          </div>
+          <div class="field"><!-- spacer --></div>
+        </div>
+
+        <div class="input-row">
+          <div class="field">
             <label>Failure rate markup</label>
             <div class="suffix-wrap">
               <input type="number" id="s-failure" min="0" max="100" step="1" placeholder="5">
@@ -356,17 +405,100 @@
       <section class="block">
         <span class="bl"></span><span class="br"></span>
         <header class="block-head">
+          <h2 class="block-title">Marketplace</h2>
+          <div class="block-detail" id="block-detail-marketplace">Fee deduction<span class="id">C</span></div>
+        </header>
+        <p style="font-family: var(--sans); font-size: var(--text-sm); color: var(--ink-mid); line-height: 1.55; margin-bottom: var(--space-4);">
+          When set, listing &amp; payment-processing fees are subtracted from the estimated price to show "Net to you" — what you actually keep after the platform takes its cut.
+        </p>
+        <div class="field">
+          <label>Selling on</label>
+          <select class="input" id="s-marketplace">
+            <option value="none">None / direct sale</option>
+            <option value="etsy">Etsy ($0.20 list + 6.5% txn + 3% + $0.25 payment)</option>
+            <option value="ebay">eBay (13.25% + $0.30)</option>
+            <option value="amazon">Amazon (15%)</option>
+            <option value="shopify">Shopify (2.9% + $0.30 payment only)</option>
+            <option value="custom">Custom</option>
+          </select>
+        </div>
+        <div id="marketplace-custom" style="display:none">
+          <div class="input-row">
+            <div class="field">
+              <label>Listing fee (per item)</label>
+              <div class="suffix-wrap">
+                <input type="number" id="s-mp-listing" min="0" step="0.01" placeholder="0.00">
+                <span class="suffix">$</span>
+              </div>
+            </div>
+            <div class="field">
+              <label>Transaction fee</label>
+              <div class="suffix-wrap">
+                <input type="number" id="s-mp-txn" min="0" max="100" step="0.1" placeholder="0">
+                <span class="suffix">%</span>
+              </div>
+            </div>
+          </div>
+          <div class="input-row">
+            <div class="field">
+              <label>Payment processing</label>
+              <div class="suffix-wrap">
+                <input type="number" id="s-mp-pay-pct" min="0" max="100" step="0.1" placeholder="0">
+                <span class="suffix">%</span>
+              </div>
+            </div>
+            <div class="field">
+              <label>Payment flat fee</label>
+              <div class="suffix-wrap">
+                <input type="number" id="s-mp-pay-flat" min="0" step="0.01" placeholder="0.00">
+                <span class="suffix">$</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="block">
+        <span class="bl"></span><span class="br"></span>
+        <header class="block-head">
+          <h2 class="block-title">Business Info</h2>
+          <div class="block-detail">Customer quote header<span class="id">D</span></div>
+        </header>
+        <p style="font-family: var(--sans); font-size: var(--text-sm); color: var(--ink-mid); line-height: 1.55; margin-bottom: var(--space-4);">
+          Appears on the printable customer quote (Archive &rarr; Print). Optional — leave blank for an unsigned quote.
+        </p>
+        <div class="field">
+          <label>Business name</label>
+          <input type="text" id="s-biz-name" placeholder="e.g. Workshop Three Prints">
+        </div>
+        <div class="field">
+          <label>Contact email</label>
+          <input type="email" id="s-biz-email" placeholder="hello@example.com">
+        </div>
+        <div class="field">
+          <label>Tagline / address / notes</label>
+          <input type="text" id="s-biz-notes" placeholder="e.g. Custom 3D prints &middot; Portland, OR">
+        </div>
+      </section>
+
+      <section class="block">
+        <span class="bl"></span><span class="br"></span>
+        <header class="block-head">
           <h2 class="block-title">Cost Formula</h2>
-          <div class="block-detail">Reference note<span class="id">C</span></div>
+          <div class="block-detail">Reference note<span class="id">E</span></div>
         </header>
         <div class="formula">
 <span class="kw">filament</span>     <span class="op">=</span>  Σ ( grams ÷ 1000 × $/kg )<br>
 <span class="kw">electricity</span>  <span class="op">=</span>  ( watts ÷ 1000 ) × hours × $/kWh<br>
-<span class="kw">time cost</span>    <span class="op">=</span>  hours × $/hr<br>
-<span class="kw">subtotal</span>     <span class="op">=</span>  filament <span class="op">+</span> electricity <span class="op">+</span> time<br>
+<span class="kw">machine</span>      <span class="op">=</span>  hours × printer's $/hr<br>
+<span class="kw">labor</span>        <span class="op">=</span>  ( labor min ÷ 60 ) × labor $/hr<br>
+<span class="kw">subtotal</span>     <span class="op">=</span>  filament <span class="op">+</span> electricity <span class="op">+</span> machine <span class="op">+</span> labor <span class="op">+</span> packaging<br>
 <span class="kw">failure</span>      <span class="op">=</span>  subtotal × failure %<br>
 <span class="kw">margin</span>       <span class="op">=</span>  ( subtotal <span class="op">+</span> failure ) × margin %<br>
-<span class="kw">total</span>        <span class="op">=</span>  subtotal <span class="op">+</span> failure <span class="op">+</span> margin
+<span class="kw">price</span>        <span class="op">=</span>  subtotal <span class="op">+</span> failure <span class="op">+</span> margin <span class="op">+</span> shipping<br>
+<br>
+<span class="kw">fees</span>         <span class="op">=</span>  listing <span class="op">+</span> price × txn % <span class="op">+</span> price × payment % <span class="op">+</span> payment flat<br>
+<span class="kw">net</span>          <span class="op">=</span>  price <span class="op">−</span> fees
         </div>
       </section>
     </div>
@@ -585,6 +717,6 @@
 
   <datalist id="spool-list"></datalist>
 
-  <script type="module" src="js/main.js?v=16"></script>
+  <script type="module" src="js/main.js?v=17"></script>
 </body>
 </html>
