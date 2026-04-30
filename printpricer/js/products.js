@@ -14,14 +14,14 @@
 // This module owns the editingProductId state and the catalog list. The
 // Estimate sheet's input wiring + smart save buttons live in main.js.
 
-import { settings, filaments, addons, MARKETPLACE_PRESETS } from './state.js?v=27';
-import { loadProducts, saveProducts, loadPrinters, getActivePrinter, saveActivePrinterId } from './storage.js?v=27';
-import { num, fmt, escapeHtml, formatHours, toCsv, downloadFile } from './utils.js?v=27';
-import { toast, switchToPane } from './ui.js?v=27';
-import { setFilaments, newFilament, renderFilaments } from './filaments.js?v=27';
-import { recalc } from './calc.js?v=27';
-import { updateActivePrinterDisplay } from './printers.js?v=27';
-import { logActivity } from './firebase.js?v=27';
+import { settings, filaments, addons, MARKETPLACE_PRESETS } from './state.js?v=28';
+import { loadProducts, saveProducts, loadPrinters, getActivePrinter, saveActivePrinterId } from './storage.js?v=28';
+import { num, fmt, escapeHtml, formatHours, toCsv, downloadFile } from './utils.js?v=28';
+import { toast, switchToPane } from './ui.js?v=28';
+import { setFilaments, newFilament, renderFilaments } from './filaments.js?v=28';
+import { recalc } from './calc.js?v=28';
+import { updateActivePrinterDisplay } from './printers.js?v=28';
+import { logActivity } from './firebase.js?v=28';
 
 // ---------- edit-mode state (module-private) ----------
 
@@ -381,9 +381,42 @@ function computeProductBreakdown(p) {
 // @media print rules strip the cream/sand backgrounds so actual
 // paper printers don't waste ink on decorative fills.
 
+// Look up the saved product by id and print it.
 function printProduct(id) {
   const p = loadProducts().find(x => String(x.id) === String(id));
   if (!p) return;
+  printSpecSheet(p);
+}
+
+// Build a product-shaped snapshot from the current Estimate sheet state
+// and print it. Wired to the Estimate sheet's Print button. The snapshot
+// isn't saved — it just feeds the same print template that products use
+// so unsaved estimates can be printed too.
+export function printEstimate() {
+  const printer = getActivePrinter();
+  const hours = num(document.getElementById('time-h')?.value)
+              + num(document.getElementById('time-m')?.value) / 60;
+  const snapshot = {
+    id: 'EST' + Date.now().toString().slice(-4),
+    name: document.getElementById('print-name')?.value.trim() || 'Untitled estimate',
+    notes: addons.notes || '',
+    sellPrice: addons.sellPrice || '',
+    photos: Array.isArray(addons.photos) ? addons.photos.slice() : [],
+    printerId: printer ? String(printer.id) : '',
+    hours,
+    laborMinutes:  addons.laborMinutes  || '',
+    packagingCost: addons.packagingCost || '',
+    shippingCost:  addons.shippingCost  || '',
+    filaments: filaments.map(f => ({ name: f.name, grams: f.grams, costPerKg: f.costPerKg })),
+    bom: (addons.bom || []).map(b => ({ name: b.name, qty: b.qty, unitCost: b.unitCost })),
+  };
+  printSpecSheet(snapshot);
+}
+
+// The actual print template — takes a product-shaped object and opens
+// a popup with the printable HTML. Used by both saved-product Print and
+// the Estimate-sheet Print button.
+function printSpecSheet(p) {
   const w = window.open('', '_blank');
   if (!w) { toast('Popup blocked — allow popups to print', true); return; }
 
@@ -474,7 +507,10 @@ function printProduct(id) {
   /* Cost breakdown table — mirrors the Estimate sheet's leader-dot rows */
   .breakdown td { font-variant-numeric: tabular-nums; }
   .breakdown td:last-child { text-align: right; }
-  .breakdown tr.sub td { border-top: 1px solid #16202d; border-bottom: 1px solid #16202d; font-weight: 700; }
+  /* Subtotal row: heavy ink line ABOVE only — matches the on-screen
+     Estimate sheet's .breakdown-row.subtotal which uses border-top alone.
+     The cell's default light bottom-border stays for row rhythm. */
+  .breakdown tr.sub td { border-top: 1.5px solid #16202d; font-weight: 700; padding-top: 8px; }
   .estimated-stamp { display:flex; justify-content:space-between; align-items:baseline; margin-top: 12px; padding: 10px 12px; background: #f5efdc; border: 2px solid #16202d; }
   .estimated-stamp .label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #16202d; font-weight: 800; }
   .estimated-stamp .value { font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; color: #16202d; }
@@ -568,7 +604,7 @@ function printProduct(id) {
 
 <div class="head">
   <div>
-    <div class="stamp">Workshop spec · build sheet</div>
+    <div class="stamp">${String(p.id).startsWith('EST') ? 'Estimate · spec sheet' : 'Workshop spec · build sheet'}</div>
     <h1>${escapeHtml(p.name)}</h1>
   </div>
   ${p.sellPrice ? `<div class="target">$${(+p.sellPrice).toFixed(2)}<small>Target sell</small></div>` : ''}

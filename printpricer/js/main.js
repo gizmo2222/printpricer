@@ -1,20 +1,20 @@
 // Entry point: wire everything up after the DOM is ready.
 
-import { settings, filaments, addons } from './state.js?v=27';
-import { saveSettings } from './storage.js?v=27';
-import { initTabs, onPaneShow, initPickerOverlay, toast } from './ui.js?v=27';
-import { recalc, loadSettingsToForm, initStickyTotal } from './calc.js?v=27';
-import { renderFilaments, resetFilaments, initFilamentsUI } from './filaments.js?v=27';
-import { renderSpools, initSpoolsUI } from './spools.js?v=27';
-import { renderPrinters, updateActivePrinterDisplay, migrateLegacySinglePrinter, initPrintersUI } from './printers.js?v=27';
-import { renderHistory, initArchive } from './archive.js?v=27';
-import { renderProducts, initProductsUI, saveEstimateAsProduct } from './products.js?v=27';
-import { initAuthUI, updateAccountUI, renderGroupSection } from './auth-ui.js?v=27';
-import { startAuthListener } from './firebase.js?v=27';
-import { parseGcode, parse3mf } from './parser.js?v=27';
-import { formatHours, escapeHtml, resizeImageToDataUrl } from './utils.js?v=27';
-import { initOnboarding, maybeShowOnboarding } from './onboarding.js?v=27';
-import { initHelp } from './help.js?v=27';
+import { settings, filaments, addons } from './state.js?v=28';
+import { saveSettings } from './storage.js?v=28';
+import { initTabs, onPaneShow, initPickerOverlay, toast } from './ui.js?v=28';
+import { recalc, loadSettingsToForm, initStickyTotal } from './calc.js?v=28';
+import { renderFilaments, resetFilaments, initFilamentsUI } from './filaments.js?v=28';
+import { renderSpools, initSpoolsUI } from './spools.js?v=28';
+import { renderPrinters, updateActivePrinterDisplay, migrateLegacySinglePrinter, initPrintersUI } from './printers.js?v=28';
+import { renderHistory, initArchive } from './archive.js?v=28';
+import { renderProducts, initProductsUI, saveEstimateAsProduct, printEstimate } from './products.js?v=28';
+import { initAuthUI, updateAccountUI, renderGroupSection } from './auth-ui.js?v=28';
+import { startAuthListener } from './firebase.js?v=28';
+import { parseGcode, parse3mf } from './parser.js?v=28';
+import { formatHours, escapeHtml, resizeImageToDataUrl } from './utils.js?v=28';
+import { initOnboarding, maybeShowOnboarding } from './onboarding.js?v=28';
+import { initHelp } from './help.js?v=28';
 
 // ---- title-block date ----
 (function setDate() {
@@ -308,6 +308,9 @@ document.getElementById('save-as-product')?.addEventListener('click', () => {
 });
 document.getElementById('update-product')?.addEventListener('click', () => {
   saveEstimateAsProduct({ asNew: false });
+});
+document.getElementById('print-estimate')?.addEventListener('click', () => {
+  printEstimate();
 });
 
 // ---- marketplace dropdown: toggle custom panel ----
