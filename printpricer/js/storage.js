@@ -5,11 +5,11 @@
 // first, then opportunistically push to Firestore when in cloud mode.
 
 import {
-  SETTINGS_KEY, HISTORY_KEY, SPOOLS_KEY, PRINTERS_KEY, ACTIVE_PRINTER_KEY,
+  SETTINGS_KEY, HISTORY_KEY, SPOOLS_KEY, PRINTERS_KEY, PRODUCTS_KEY, ACTIVE_PRINTER_KEY,
   settings, state, isInCloudMode,
-} from './state.js?v=17';
-import { updateSyncIndicator } from './ui.js?v=17';
-import { fb } from './firebase.js?v=17';
+} from './state.js?v=18';
+import { updateSyncIndicator } from './ui.js?v=18';
+import { fb } from './firebase.js?v=18';
 
 // ---------- read helpers ----------
 
@@ -25,6 +25,7 @@ function readJson(key, fallback) {
 export const loadHistory  = ()  => readJson(HISTORY_KEY,  []);
 export const loadSpools   = ()  => readJson(SPOOLS_KEY,   []);
 export const loadPrinters = ()  => readJson(PRINTERS_KEY, []);
+export const loadProducts = ()  => readJson(PRODUCTS_KEY, []);
 
 export function loadActivePrinterId() {
   return localStorage.getItem(ACTIVE_PRINTER_KEY) || null;
@@ -98,6 +99,7 @@ function makeCollectionSaver(key, collectionName, kind) {
 export const saveSpools   = makeCollectionSaver(SPOOLS_KEY,   'spools',   'spools');
 export const saveHistory  = makeCollectionSaver(HISTORY_KEY,  'archive',  'history');
 export const savePrinters = makeCollectionSaver(PRINTERS_KEY, 'printers', 'printers');
+export const saveProducts = makeCollectionSaver(PRODUCTS_KEY, 'products', 'products');
 
 // Used by firebase.js to seed a freshly-created group with the user's
 // existing local data. Forces a full-collection write since the remote is

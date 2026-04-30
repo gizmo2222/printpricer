@@ -11,7 +11,7 @@
   <!-- Cache-buster query string is bumped on each meaningful release so
        browsers fetch the new module set instead of stale ES-module copies.
        Bump this when you ship CSS or JS changes. -->
-  <link rel="stylesheet" href="css/styles.css?v=17">
+  <link rel="stylesheet" href="css/styles.css?v=18">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
@@ -41,8 +41,9 @@
       <button class="layer active" data-pane="calc"><span class="layer-num">01</span>Estimate</button>
       <button class="layer"        data-pane="spools"><span class="layer-num">02</span>Spools</button>
       <button class="layer"        data-pane="printers"><span class="layer-num">03</span>Printers</button>
-      <button class="layer"        data-pane="settings"><span class="layer-num">04</span>Defaults</button>
-      <button class="layer"        data-pane="history"><span class="layer-num">05</span>Archive</button>
+      <button class="layer"        data-pane="products"><span class="layer-num">04</span>Products</button>
+      <button class="layer"        data-pane="settings"><span class="layer-num">05</span>Defaults</button>
+      <button class="layer"        data-pane="history"><span class="layer-num">06</span>Archive</button>
       <button class="layer-help" id="help-btn-top" type="button" aria-label="Help and instructions" data-hint="Quick start · how files are read · cost formula · keyboard shortcuts · cloud sync" data-hint-pos="below">?</button>
     </div>
 
@@ -178,6 +179,7 @@
         </div>
         <div class="btn-row" style="margin-top: 18px;">
           <button class="btn btn-stamp" id="save-quote" data-hint="Saves this quote to the Archive and deducts grams from any linked spools. Reversible for 8 seconds via the undo toast.">Stamp &amp; Archive</button>
+          <button class="btn btn-ghost" id="save-as-product" data-hint="Save the current Estimate as a reusable Product template — name, time, filaments, add-ons. Quote it later in one click from layer 04.">Save as Product</button>
           <button class="btn btn-ghost" id="reset-quote" data-hint="Clears the Estimate sheet — description, time, filament rows. Defaults and the active printer are kept.">Reset Sheet</button>
         </div>
       </section>
@@ -241,7 +243,36 @@
       </section>
     </div>
 
-    <!-- LAYER 04 — DEFAULTS -->
+    <!-- LAYER 04 — PRODUCTS -->
+    <div class="pane" id="pane-products">
+      <section class="block">
+        <span class="bl"></span><span class="br"></span>
+        <header class="block-head">
+          <h2 class="block-title">Products</h2>
+          <div class="block-detail" id="block-detail-products">Saved templates<span class="id">A</span></div>
+        </header>
+        <div class="spool-toolbar">
+          <div class="count" id="product-count">— products in catalog</div>
+          <button class="btn btn-add" id="product-add-btn">+ New product</button>
+        </div>
+        <div id="product-form-container"></div>
+        <div id="products-grid"></div>
+      </section>
+
+      <section class="block">
+        <span class="bl"></span><span class="br"></span>
+        <header class="block-head">
+          <h2 class="block-title">How it links</h2>
+          <div class="block-detail">Reference note<span class="id">B</span></div>
+        </header>
+        <div class="formula" style="font-family: var(--sans); font-size: 13px; line-height: 1.65;">
+          A <span class="kw">product</span> is a saved Estimate template — name, default printer, print time, filament rows, labor minutes, packaging, default shipping, plus a <span class="kw">bill of materials</span> (hardware, magnets, screws, mailers — anything that isn't filament).<br><br>
+          Click <span class="kw">Quote</span> on any product to load it into the Estimate sheet for instant pricing. The BOM total auto-rolls into the Packaging line so failure markup and margin apply to it. From the Estimate sheet, click <span class="kw">Save as Product</span> to add the current setup to your catalog.
+        </div>
+      </section>
+    </div>
+
+    <!-- LAYER 05 — DEFAULTS -->
     <div class="pane" id="pane-settings">
       <section class="block" id="group-block">
         <span class="bl"></span><span class="br"></span>
@@ -503,7 +534,7 @@
       </section>
     </div>
 
-    <!-- LAYER 05 — ARCHIVE -->
+    <!-- LAYER 06 — ARCHIVE -->
     <div class="pane" id="pane-history">
       <section class="block">
         <span class="bl"></span><span class="br"></span>
@@ -634,7 +665,7 @@
       </div>
 
       <div class="help-section">
-        <h4>The five layers</h4>
+        <h4>The six layers</h4>
         <dl class="help-grid">
           <dt>01 Estimate</dt>
           <dd>The working sheet. Drop a file or enter values, see the cost breakdown live, stamp it.</dd>
@@ -642,9 +673,11 @@
           <dd>Filament inventory. Color, material, $/kg, remaining grams. Spools below 50&nbsp;g are flagged low. Each carries a refill log and a consumption forecast based on your archive.</dd>
           <dt>03 Printers</dt>
           <dd>Your workshop fleet. Each printer has its own wattage, $/hr, throughput, and multi-color overhead. Pick one per estimate.</dd>
-          <dt>04 Defaults</dt>
-          <dd>Workspace-wide values: filament $/kg default, electricity $/kWh, failure markup, profit margin, density and fill fraction for geometry estimates. Account &amp; Group sign-in lives here too.</dd>
-          <dt>05 Archive</dt>
+          <dt>04 Products</dt>
+          <dd>Saved Estimate templates plus a bill-of-materials for hardware/consumables. Build it once, quote it in one click. Useful for Etsy listings, repeat commissions, anything you print more than once.</dd>
+          <dt>05 Defaults</dt>
+          <dd>Workspace-wide values: filament $/kg default, electricity $/kWh, failure markup, profit margin, labor rate, marketplace fees, business info, density and fill fraction for geometry estimates. Account &amp; Group sign-in lives here too.</dd>
+          <dt>06 Archive</dt>
           <dd>Saved estimates. Load to revisit, clone to start a similar print, print as a customer-ready quote, or export the whole list as CSV. Filter bar appears once you have 10+ entries.</dd>
         </dl>
       </div>
@@ -675,8 +708,8 @@
       <div class="help-section">
         <h4>Keyboard shortcuts</h4>
         <dl class="help-grid">
-          <dt><span class="kbd">1</span> – <span class="kbd">5</span></dt>
-          <dd>Switch layers (Estimate · Spools · Printers · Defaults · Archive).</dd>
+          <dt><span class="kbd">1</span> – <span class="kbd">6</span></dt>
+          <dd>Switch layers (Estimate · Spools · Printers · Products · Defaults · Archive).</dd>
           <dt><span class="kbd">Ctrl+Enter</span></dt>
           <dd>Stamp &amp; Archive the current estimate.</dd>
           <dt><span class="kbd">Esc</span></dt>
@@ -717,6 +750,6 @@
 
   <datalist id="spool-list"></datalist>
 
-  <script type="module" src="js/main.js?v=17"></script>
+  <script type="module" src="js/main.js?v=18"></script>
 </body>
 </html>

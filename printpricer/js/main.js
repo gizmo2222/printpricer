@@ -1,19 +1,20 @@
 // Entry point: wire everything up after the DOM is ready.
 
-import { settings, filaments, addons } from './state.js?v=17';
-import { saveSettings } from './storage.js?v=17';
-import { initTabs, onPaneShow, initPickerOverlay, toast } from './ui.js?v=17';
-import { recalc, loadSettingsToForm, initStickyTotal } from './calc.js?v=17';
-import { renderFilaments, resetFilaments, initFilamentsUI } from './filaments.js?v=17';
-import { renderSpools, initSpoolsUI } from './spools.js?v=17';
-import { renderPrinters, updateActivePrinterDisplay, migrateLegacySinglePrinter, initPrintersUI } from './printers.js?v=17';
-import { renderHistory, initArchive } from './archive.js?v=17';
-import { initAuthUI, updateAccountUI, renderGroupSection } from './auth-ui.js?v=17';
-import { startAuthListener } from './firebase.js?v=17';
-import { parseGcode, parse3mf } from './parser.js?v=17';
-import { formatHours } from './utils.js?v=17';
-import { initOnboarding, maybeShowOnboarding } from './onboarding.js?v=17';
-import { initHelp } from './help.js?v=17';
+import { settings, filaments, addons } from './state.js?v=18';
+import { saveSettings } from './storage.js?v=18';
+import { initTabs, onPaneShow, initPickerOverlay, toast } from './ui.js?v=18';
+import { recalc, loadSettingsToForm, initStickyTotal } from './calc.js?v=18';
+import { renderFilaments, resetFilaments, initFilamentsUI } from './filaments.js?v=18';
+import { renderSpools, initSpoolsUI } from './spools.js?v=18';
+import { renderPrinters, updateActivePrinterDisplay, migrateLegacySinglePrinter, initPrintersUI } from './printers.js?v=18';
+import { renderHistory, initArchive } from './archive.js?v=18';
+import { renderProducts, initProductsUI } from './products.js?v=18';
+import { initAuthUI, updateAccountUI, renderGroupSection } from './auth-ui.js?v=18';
+import { startAuthListener } from './firebase.js?v=18';
+import { parseGcode, parse3mf } from './parser.js?v=18';
+import { formatHours } from './utils.js?v=18';
+import { initOnboarding, maybeShowOnboarding } from './onboarding.js?v=18';
+import { initHelp } from './help.js?v=18';
 
 // ---- title-block date ----
 (function setDate() {
@@ -30,6 +31,7 @@ const hideStickyTotal = () => document.getElementById('sticky-total')?.classList
 onPaneShow('history',  () => { renderHistory();   hideStickyTotal(); });
 onPaneShow('spools',   () => { renderSpools();    hideStickyTotal(); });
 onPaneShow('printers', () => { renderPrinters();  hideStickyTotal(); });
+onPaneShow('products', () => { renderProducts();  hideStickyTotal(); });
 onPaneShow('settings', hideStickyTotal);
 onPaneShow('calc',     recalc);
 
@@ -159,11 +161,12 @@ initAuthUI();
 updateAccountUI();
 renderGroupSection();
 
-// ---- spools / printers / filaments / archive ----
+// ---- spools / printers / filaments / archive / products ----
 initSpoolsUI();
 initPrintersUI();
 initFilamentsUI();
 initArchive();
+initProductsUI();
 
 // ---- onboarding + help ----
 initOnboarding();
@@ -177,7 +180,7 @@ document.addEventListener('keydown', e => {
   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
     e.preventDefault();
     document.getElementById('save-quote').click();
-  } else if (!inField && (e.key === '1' || e.key === '2' || e.key === '3' || e.key === '4' || e.key === '5')) {
+  } else if (!inField && /^[1-6]$/.test(e.key)) {
     const idx = +e.key - 1;
     const tabs = document.querySelectorAll('.layer');
     if (tabs[idx]) tabs[idx].click();

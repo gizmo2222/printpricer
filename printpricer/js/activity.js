@@ -1,7 +1,7 @@
 // Group activity feed — shows who did what.
 
-import { state } from './state.js?v=17';
-import { escapeHtml } from './utils.js?v=17';
+import { state } from './state.js?v=18';
+import { escapeHtml } from './utils.js?v=18';
 
 export function renderActivity(events) {
   const list = document.getElementById('activity-list');

@@ -6,19 +6,20 @@
 
 import {
   CLOUD_ENABLED, FIREBASE_CONFIG,
-  SPOOLS_KEY, HISTORY_KEY, PRINTERS_KEY, SETTINGS_KEY,
+  SPOOLS_KEY, HISTORY_KEY, PRINTERS_KEY, PRODUCTS_KEY, SETTINGS_KEY,
   defaultSettings, settings, state, isInCloudMode,
-} from './state.js?v=17';
-import { rafDebounce, generateJoinCode } from './utils.js?v=17';
-import { activePane } from './ui.js?v=17';
-import { renderSpools } from './spools.js?v=17';
-import { renderPrinters, updateActivePrinterDisplay } from './printers.js?v=17';
-import { renderHistory } from './archive.js?v=17';
-import { renderActivity } from './activity.js?v=17';
-import { renderFilaments } from './filaments.js?v=17';
-import { recalc, loadSettingsToForm } from './calc.js?v=17';
-import { renderGroupSection, updateAccountUI } from './auth-ui.js?v=17';
-import { loadHistory, loadSpools, loadPrinters, seedGroupCollection } from './storage.js?v=17';
+} from './state.js?v=18';
+import { rafDebounce, generateJoinCode } from './utils.js?v=18';
+import { activePane } from './ui.js?v=18';
+import { renderSpools } from './spools.js?v=18';
+import { renderPrinters, updateActivePrinterDisplay } from './printers.js?v=18';
+import { renderProducts } from './products.js?v=18';
+import { renderHistory } from './archive.js?v=18';
+import { renderActivity } from './activity.js?v=18';
+import { renderFilaments } from './filaments.js?v=18';
+import { recalc, loadSettingsToForm } from './calc.js?v=18';
+import { renderGroupSection, updateAccountUI } from './auth-ui.js?v=18';
+import { loadHistory, loadSpools, loadPrinters, loadProducts, seedGroupCollection } from './storage.js?v=18';
 
 export let fb = null;
 
@@ -155,6 +156,10 @@ export async function subscribeToGroup(gid) {
     recalc();
   }));
 
+  state.unsubs.push(makeListener('products', PRODUCTS_KEY, () => {
+    if (activePane() === 'products') renderProducts();
+  }));
+
   // settings is a single doc, not a collection
   const settingsRef = fb.doc(fb.db, 'groups', gid, 'settings', 'main');
   state.unsubs.push(fb.onSnapshot(settingsRef, withGen(snap => {
@@ -213,6 +218,7 @@ export async function createGroup(name) {
   const localSpools  = loadSpools();
   const localHistory = loadHistory();
   const localPrinters = loadPrinters();
+  const localProducts = loadProducts();
   const localSettings = { ...settings };
 
   const code = generateJoinCode();
@@ -229,6 +235,7 @@ export async function createGroup(name) {
   if (localSpools.length)   await seedGroupCollection('spools', localSpools);
   if (localHistory.length)  await seedGroupCollection('archive', localHistory);
   if (localPrinters.length) await seedGroupCollection('printers', localPrinters);
+  if (localProducts.length) await seedGroupCollection('products', localProducts);
   await fb.setDoc(fb.doc(fb.db, 'groups', ref.id, 'settings', 'main'), localSettings);
 
   await subscribeToGroup(ref.id);

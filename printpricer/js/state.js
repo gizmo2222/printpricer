@@ -126,7 +126,7 @@ export const state = {
   // stale and bail.
   syncGen: 0,
   // Per-collection "pending writes" counter, for the unsaved-indicator.
-  pending: { spools: 0, history: 0, printers: 0, settings: 0 },
+  pending: { spools: 0, history: 0, printers: 0, products: 0, settings: 0 },
 };
 
 export function isInCloudMode() {

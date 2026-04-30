@@ -80,6 +80,9 @@ service cloud.firestore {
       match /printers/{id} {
         allow read, write: if isMember(gid);
       }
+      match /products/{id} {
+        allow read, write: if isMember(gid);
+      }
     }
   }
 }
