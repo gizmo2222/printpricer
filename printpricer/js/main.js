@@ -1,20 +1,20 @@
 // Entry point: wire everything up after the DOM is ready.
 
-import { settings, filaments, addons } from './state.js?v=19';
-import { saveSettings } from './storage.js?v=19';
-import { initTabs, onPaneShow, initPickerOverlay, toast } from './ui.js?v=19';
-import { recalc, loadSettingsToForm, initStickyTotal } from './calc.js?v=19';
-import { renderFilaments, resetFilaments, initFilamentsUI } from './filaments.js?v=19';
-import { renderSpools, initSpoolsUI } from './spools.js?v=19';
-import { renderPrinters, updateActivePrinterDisplay, migrateLegacySinglePrinter, initPrintersUI } from './printers.js?v=19';
-import { renderHistory, initArchive } from './archive.js?v=19';
-import { renderProducts, initProductsUI } from './products.js?v=19';
-import { initAuthUI, updateAccountUI, renderGroupSection } from './auth-ui.js?v=19';
-import { startAuthListener } from './firebase.js?v=19';
-import { parseGcode, parse3mf } from './parser.js?v=19';
-import { formatHours } from './utils.js?v=19';
-import { initOnboarding, maybeShowOnboarding } from './onboarding.js?v=19';
-import { initHelp } from './help.js?v=19';
+import { settings, filaments, addons } from './state.js?v=20';
+import { saveSettings } from './storage.js?v=20';
+import { initTabs, onPaneShow, initPickerOverlay, toast } from './ui.js?v=20';
+import { recalc, loadSettingsToForm, initStickyTotal } from './calc.js?v=20';
+import { renderFilaments, resetFilaments, initFilamentsUI } from './filaments.js?v=20';
+import { renderSpools, initSpoolsUI } from './spools.js?v=20';
+import { renderPrinters, updateActivePrinterDisplay, migrateLegacySinglePrinter, initPrintersUI } from './printers.js?v=20';
+import { renderHistory, initArchive } from './archive.js?v=20';
+import { renderProducts, initProductsUI, saveEstimateAsProduct } from './products.js?v=20';
+import { initAuthUI, updateAccountUI, renderGroupSection } from './auth-ui.js?v=20';
+import { startAuthListener } from './firebase.js?v=20';
+import { parseGcode, parse3mf } from './parser.js?v=20';
+import { formatHours, escapeHtml } from './utils.js?v=20';
+import { initOnboarding, maybeShowOnboarding } from './onboarding.js?v=20';
+import { initHelp } from './help.js?v=20';
 
 // ---- title-block date ----
 (function setDate() {
@@ -139,6 +139,14 @@ document.getElementById('reset-settings').addEventListener('click', () => {
 document.getElementById('time-h').addEventListener('input', recalc);
 document.getElementById('time-m').addEventListener('input', recalc);
 
+// ---- estimate sheet notes + target sell price ----
+document.getElementById('print-notes')?.addEventListener('input', e => {
+  addons.notes = e.target.value;
+});
+document.getElementById('print-target-price')?.addEventListener('input', e => {
+  addons.sellPrice = e.target.value; recalc();
+});
+
 // ---- estimate sheet add-ons (labor, packaging, shipping) ----
 document.getElementById('addon-labor').addEventListener('input', e => {
   addons.laborMinutes = e.target.value; recalc();
@@ -148,6 +156,80 @@ document.getElementById('addon-packaging').addEventListener('input', e => {
 });
 document.getElementById('addon-shipping').addEventListener('input', e => {
   addons.shippingCost = e.target.value; recalc();
+});
+
+// ---- BOM rows (estimate sheet) ----
+//
+// addons.bom is the source of truth. Render builds the DOM from it; input
+// events update specific entries; +/× buttons add/remove. Keep DOM and
+// state in lockstep so cloud syncs and product loads can fully replace
+// addons.bom and dispatch a 'bom:render' event to refresh the UI.
+
+function renderBomRows() {
+  const wrap = document.getElementById('bom-rows');
+  if (!wrap) return;
+  if (!addons.bom || addons.bom.length === 0) {
+    wrap.innerHTML = '<div class="bom-empty">No items yet — click + Add item.</div>';
+    return;
+  }
+  wrap.innerHTML = addons.bom.map((b, i) => `
+    <div class="bom-row" data-i="${i}">
+      <input type="text"   placeholder="M3 screw"  value="${escapeHtml(b.name || '')}" data-bom-k="name">
+      <input type="number" placeholder="qty"       min="0" step="1"    value="${b.qty || ''}"      data-bom-k="qty">
+      <input type="number" placeholder="unit $"    min="0" step="0.01" value="${b.unitCost || ''}" data-bom-k="unitCost">
+      <button type="button" class="icon-btn" data-bom-remove="${i}" aria-label="Remove">×</button>
+    </div>
+  `).join('');
+}
+
+function wireBomEvents() {
+  const wrap = document.getElementById('bom-rows');
+  if (!wrap) return;
+  // Delegated input — pick up changes to any field on any row.
+  wrap.addEventListener('input', e => {
+    const row = e.target.closest('.bom-row');
+    if (!row) return;
+    const i = +row.dataset.i;
+    const k = e.target.dataset.bomK;
+    if (!k || !addons.bom[i]) return;
+    addons.bom[i][k] = e.target.value;
+    recalc();
+  });
+  // Delegated remove button.
+  wrap.addEventListener('click', e => {
+    const btn = e.target.closest('[data-bom-remove]');
+    if (!btn) return;
+    const i = +btn.dataset.bomRemove;
+    addons.bom.splice(i, 1);
+    renderBomRows();
+    recalc();
+  });
+}
+
+document.getElementById('add-bom-row')?.addEventListener('click', () => {
+  if (!Array.isArray(addons.bom)) addons.bom = [];
+  addons.bom.push({ name: '', qty: '', unitCost: '' });
+  renderBomRows();
+  // Focus the new row's first input
+  const wrap = document.getElementById('bom-rows');
+  const last = wrap?.querySelector('.bom-row:last-child input[data-bom-k="name"]');
+  last?.focus();
+  recalc();
+});
+
+// Other modules (products.js loadProductIntoEstimate, archive.js applyEntryToSheet)
+// fully replace addons.bom and dispatch this event to trigger a re-render.
+document.addEventListener('bom:render', renderBomRows);
+
+wireBomEvents();
+renderBomRows();
+
+// ---- save-as-product / update-product buttons ----
+document.getElementById('save-as-product')?.addEventListener('click', () => {
+  saveEstimateAsProduct({ asNew: true });
+});
+document.getElementById('update-product')?.addEventListener('click', () => {
+  saveEstimateAsProduct({ asNew: false });
 });
 
 // ---- marketplace dropdown: toggle custom panel ----

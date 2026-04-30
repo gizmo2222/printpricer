@@ -11,7 +11,7 @@
   <!-- Cache-buster query string is bumped on each meaningful release so
        browsers fetch the new module set instead of stale ES-module copies.
        Bump this when you ship CSS or JS changes. -->
-  <link rel="stylesheet" href="css/styles.css?v=19">
+  <link rel="stylesheet" href="css/styles.css?v=20">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
@@ -49,6 +49,11 @@
 
     <!-- LAYER 01 — ESTIMATE -->
     <div class="pane active" id="pane-calc">
+      <div class="editing-banner" id="editing-banner" style="display:none">
+        <span class="editing-stamp">EDITING&nbsp;PRODUCT</span>
+        <span class="editing-name" id="editing-banner-name">—</span>
+        <button class="editing-cancel" id="cancel-edit-btn" type="button">cancel edit</button>
+      </div>
       <div class="onboard-card" id="onboard-card" style="display:none">
         <button class="onboard-close" id="onboard-close" aria-label="Dismiss">×</button>
         <h3>Welcome — start here</h3>
@@ -98,6 +103,19 @@
         <div class="field">
           <label>Description</label>
           <input type="text" id="print-name" placeholder="e.g. Articulated dragon">
+        </div>
+        <div class="input-row">
+          <div class="field">
+            <label>Notes <span class="label-muted">(optional)</span></label>
+            <input type="text" id="print-notes" placeholder="customer name · special instructions" data-hint="Free-form note attached to this estimate. Saved with archive entries and product templates. Useful for customer name, deadline, or special instructions.">
+          </div>
+          <div class="field">
+            <label>Target sell price <span class="label-muted">(optional)</span></label>
+            <div class="suffix-wrap">
+              <input type="number" id="print-target-price" min="0" step="0.01" placeholder="0.00" data-hint="What you want to charge. Compared against the calculated price below — handy when you're trying to hit a marketplace price point and need to figure out where to cut cost.">
+              <span class="suffix">$</span>
+            </div>
+          </div>
         </div>
         <div class="input-row">
           <div class="field">
@@ -155,8 +173,21 @@
       <section class="block">
         <span class="bl"></span><span class="br"></span>
         <header class="block-head">
+          <h2 class="block-title">Bill of Materials</h2>
+          <div class="block-detail" id="block-detail-bom">Hardware &middot; consumables<span class="id">D</span></div>
+        </header>
+        <p style="font-family: var(--sans); font-size: var(--text-xs); color: var(--ink-faint); line-height: 1.5; margin-bottom: var(--space-3);">
+          Hardware, magnets, screws, mailers — anything the listing includes that isn't filament. Adds to subtotal so failure markup and margin apply.
+        </p>
+        <div id="bom-rows"></div>
+        <button class="btn btn-add" id="add-bom-row" style="margin-top: 14px;">+ Add item</button>
+      </section>
+
+      <section class="block">
+        <span class="bl"></span><span class="br"></span>
+        <header class="block-head">
           <h2 class="block-title">Cost Breakdown</h2>
-          <div class="block-detail" id="block-detail-breakdown">Bill of materials<span class="id">D</span></div>
+          <div class="block-detail" id="block-detail-breakdown">Estimate summary<span class="id">E</span></div>
         </header>
         <div class="breakdown" id="breakdown">
           <div class="breakdown-row"><span class="label">Filament</span><span class="leader"></span><span class="value" id="bd-filament">$0.00</span></div>
@@ -164,6 +195,7 @@
           <div class="breakdown-row"><span class="label">Machine time</span><span class="leader"></span><span class="value" id="bd-time">$0.00</span></div>
           <div class="breakdown-row" id="bd-labor-row" hidden><span class="label">Labor</span><span class="leader"></span><span class="value" id="bd-labor">$0.00</span></div>
           <div class="breakdown-row" id="bd-packaging-row" hidden><span class="label">Packaging</span><span class="leader"></span><span class="value" id="bd-packaging">$0.00</span></div>
+          <div class="breakdown-row" id="bd-bom-row" hidden><span class="label">Hardware / BOM</span><span class="leader"></span><span class="value" id="bd-bom">$0.00</span></div>
           <div class="breakdown-row subtotal"><span class="label">Subtotal</span><span class="leader"></span><span class="value" id="bd-subtotal">$0.00</span></div>
           <div class="breakdown-row"><span class="label" id="bd-failure-label">Failure markup (0%)</span><span class="leader"></span><span class="value" id="bd-failure">$0.00</span></div>
           <div class="breakdown-row"><span class="label" id="bd-margin-label">Profit margin (0%)</span><span class="leader"></span><span class="value" id="bd-margin">$0.00</span></div>
@@ -173,14 +205,19 @@
           <span class="label">Estimated price</span>
           <span class="value" id="bd-total">$0.00</span>
         </div>
+        <div class="target-compare" id="target-compare" style="display:none">
+          <span class="t-label">vs target</span>
+          <span class="t-value" id="target-delta">—</span>
+        </div>
         <div class="breakdown" id="net-after-fees" style="display:none; margin-top: var(--space-3);">
           <div class="breakdown-row"><span class="label" id="bd-fees-label">Marketplace fees</span><span class="leader"></span><span class="value" id="bd-fees" style="color: var(--rust)">−$0.00</span></div>
           <div class="breakdown-row subtotal" style="border-color: var(--moss); margin-top: 0; padding-top: var(--space-3);"><span class="label" style="color: var(--moss)">Net to you</span><span class="leader"></span><span class="value" id="bd-net" style="color: var(--moss); font-size: var(--text-md);">$0.00</span></div>
         </div>
         <div class="btn-row" style="margin-top: 18px;">
           <button class="btn btn-stamp" id="save-quote" data-hint="Saves this quote to the Archive and deducts grams from any linked spools. Reversible for 8 seconds via the undo toast.">Stamp &amp; Archive</button>
-          <button class="btn btn-ghost" id="save-as-product" data-hint="Save the current Estimate as a reusable Product template — name, time, filaments, add-ons. Quote it later in one click from layer 04.">Save as Product</button>
-          <button class="btn btn-ghost" id="reset-quote" data-hint="Clears the Estimate sheet — description, time, filament rows. Defaults and the active printer are kept.">Reset Sheet</button>
+          <button class="btn" id="update-product" style="display:none" data-hint="Save your edits back to this product template. Use this when you want the catalog entry to reflect the current state of the sheet.">Update product</button>
+          <button class="btn btn-ghost" id="save-as-product" data-hint="Save the current Estimate as a new reusable Product template — name, time, filaments, add-ons, BOM. Open it later from layer 04 to re-quote with one click.">Save as new product</button>
+          <button class="btn btn-ghost" id="reset-quote" data-hint="Clears the Estimate sheet — description, notes, time, filament rows, BOM, add-ons. Defaults and the active printer are kept.">Reset Sheet</button>
         </div>
       </section>
     </div>
@@ -253,9 +290,7 @@
         </header>
         <div class="spool-toolbar">
           <div class="count" id="product-count">— products in catalog</div>
-          <button class="btn btn-add" id="product-add-btn">+ New product</button>
         </div>
-        <div id="product-form-container"></div>
         <div id="products-grid"></div>
         <div class="btn-row" id="products-actions" style="display: none; margin-top: var(--space-4);">
           <button class="btn" id="export-products-csv" data-hint="Download the catalog as a CSV — name, sell price, printer, time, filament summary, BOM total. Open in Excel / Sheets / Numbers.">Export CSV</button>
@@ -270,8 +305,8 @@
           <div class="block-detail">Reference note<span class="id">B</span></div>
         </header>
         <div class="formula" style="font-family: var(--sans); font-size: 13px; line-height: 1.65;">
-          A <span class="kw">product</span> is a saved Estimate template — name, default printer, print time, filament rows, labor minutes, packaging, default shipping, plus a <span class="kw">bill of materials</span> (hardware, magnets, screws, mailers — anything that isn't filament).<br><br>
-          Click <span class="kw">Quote</span> on any product to load it into the Estimate sheet for instant pricing. The BOM total auto-rolls into the Packaging line so failure markup and margin apply to it. From the Estimate sheet, click <span class="kw">Save as Product</span> to add the current setup to your catalog.<br><br>
+          A <span class="kw">product</span> is just a saved snapshot of the Estimate sheet — description, notes, target price, printer, print time, filaments, add-ons, and bill of materials.<br><br>
+          To create one: fill out the Estimate sheet on layer&nbsp;01, then click <span class="kw">Save as new product</span>. To re-use one: come back here and click <span class="kw">Edit</span> on the catalog entry — the Estimate sheet loads with everything pre-filled, and an <span class="kw">EDITING&nbsp;PRODUCT</span> banner appears so you can <span class="kw">Update&nbsp;product</span> after making changes, or <span class="kw">Stamp &amp; Archive</span> a one-off quote.<br><br>
           The per-product <span class="kw">Print</span> button generates a workshop spec sheet — printer, time, filaments to load, BOM checklist — for use when you actually make the item.
         </div>
       </section>
@@ -528,7 +563,8 @@
 <span class="kw">electricity</span>  <span class="op">=</span>  ( watts ÷ 1000 ) × hours × $/kWh<br>
 <span class="kw">machine</span>      <span class="op">=</span>  hours × printer's $/hr<br>
 <span class="kw">labor</span>        <span class="op">=</span>  ( labor min ÷ 60 ) × labor $/hr<br>
-<span class="kw">subtotal</span>     <span class="op">=</span>  filament <span class="op">+</span> electricity <span class="op">+</span> machine <span class="op">+</span> labor <span class="op">+</span> packaging<br>
+<span class="kw">bom</span>          <span class="op">=</span>  Σ ( qty × unit $ )<br>
+<span class="kw">subtotal</span>     <span class="op">=</span>  filament <span class="op">+</span> electricity <span class="op">+</span> machine <span class="op">+</span> labor <span class="op">+</span> packaging <span class="op">+</span> bom<br>
 <span class="kw">failure</span>      <span class="op">=</span>  subtotal × failure %<br>
 <span class="kw">margin</span>       <span class="op">=</span>  ( subtotal <span class="op">+</span> failure ) × margin %<br>
 <span class="kw">price</span>        <span class="op">=</span>  subtotal <span class="op">+</span> failure <span class="op">+</span> margin <span class="op">+</span> shipping<br>
@@ -679,7 +715,7 @@
           <dt>03 Printers</dt>
           <dd>Your workshop fleet. Each printer has its own wattage, $/hr, throughput, and multi-color overhead. Pick one per estimate.</dd>
           <dt>04 Products</dt>
-          <dd>Saved Estimate templates plus a bill-of-materials for hardware/consumables. Build it once, quote it in one click. Useful for Etsy listings, repeat commissions, anything you print more than once.</dd>
+          <dd>Saved Estimate snapshots — description, notes, target price, time, filaments, add-ons, BOM. The Estimate sheet is the editor: click <em>Edit</em> on a catalog entry to load it, then <em>Update product</em> to save changes back, or <em>Save as new product</em> to create a variation. Useful for Etsy listings, repeat commissions, anything you print more than once.</dd>
           <dt>05 Defaults</dt>
           <dd>Workspace-wide values: filament $/kg default, electricity $/kWh, failure markup, profit margin, labor rate, marketplace fees, business info, density and fill fraction for geometry estimates. Account &amp; Group sign-in lives here too.</dd>
           <dt>06 Archive</dt>
@@ -702,11 +738,14 @@
         <div class="formula-box">
 <span class="kw">filament</span>     <span class="op">=</span>  Σ ( grams ÷ 1000 × $/kg )<br>
 <span class="kw">electricity</span>  <span class="op">=</span>  ( watts ÷ 1000 ) × hours × $/kWh<br>
-<span class="kw">time cost</span>    <span class="op">=</span>  hours × $/hr<br>
-<span class="kw">subtotal</span>     <span class="op">=</span>  filament <span class="op">+</span> electricity <span class="op">+</span> time<br>
+<span class="kw">machine</span>      <span class="op">=</span>  hours × printer's $/hr<br>
+<span class="kw">labor</span>        <span class="op">=</span>  ( labor min ÷ 60 ) × labor $/hr<br>
+<span class="kw">bom</span>          <span class="op">=</span>  Σ ( qty × unit $ )<br>
+<span class="kw">subtotal</span>     <span class="op">=</span>  filament <span class="op">+</span> electricity <span class="op">+</span> machine <span class="op">+</span> labor <span class="op">+</span> packaging <span class="op">+</span> bom<br>
 <span class="kw">failure</span>      <span class="op">=</span>  subtotal × failure %<br>
 <span class="kw">margin</span>       <span class="op">=</span>  ( subtotal <span class="op">+</span> failure ) × margin %<br>
-<span class="kw">total</span>        <span class="op">=</span>  subtotal <span class="op">+</span> failure <span class="op">+</span> margin
+<span class="kw">price</span>        <span class="op">=</span>  subtotal <span class="op">+</span> failure <span class="op">+</span> margin <span class="op">+</span> shipping<br>
+<span class="kw">net</span>          <span class="op">=</span>  price <span class="op">−</span> marketplace fees
         </div>
       </div>
 
@@ -755,6 +794,6 @@
 
   <datalist id="spool-list"></datalist>
 
-  <script type="module" src="js/main.js?v=19"></script>
+  <script type="module" src="js/main.js?v=20"></script>
 </body>
 </html>

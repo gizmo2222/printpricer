@@ -137,9 +137,17 @@ export function isInCloudMode() {
 export const filaments = [];
 
 // Per-estimate add-ons. These are inputs on the Estimate sheet and are not
-// persisted on their own — they get captured into the archive entry on stamp.
+// persisted on their own — they get captured into the archive entry on stamp,
+// and into the product record when "Save as Product" is clicked.
+//
+// `bom` is an array of { name, qty, unitCost } rows for hardware /
+// consumables (screws, magnets, mailers, etc.). It contributes to subtotal
+// like a separate cost line — failure markup and margin apply to it.
 export const addons = {
   laborMinutes: '',
   packagingCost: '',
   shippingCost: '',
+  bom: [],
+  notes: '',
+  sellPrice: '',
 };

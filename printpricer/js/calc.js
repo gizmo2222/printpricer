@@ -4,11 +4,11 @@
 //   - sticky total bar visibility
 //   - earned block-detail callouts on Estimate sheet headers
 
-import { settings, filaments, addons, MARKETPLACE_PRESETS } from './state.js?v=19';
-import { getActivePrinter } from './storage.js?v=19';
-import { num, fmt, formatHours } from './utils.js?v=19';
+import { settings, filaments, addons, MARKETPLACE_PRESETS } from './state.js?v=20';
+import { getActivePrinter } from './storage.js?v=20';
+import { num, fmt, formatHours } from './utils.js?v=20';
 
-const flashTargets = ['bd-filament','bd-power','bd-time','bd-labor','bd-packaging','bd-shipping','bd-subtotal','bd-failure','bd-margin','bd-total','bd-fees','bd-net','sticky-total-value'];
+const flashTargets = ['bd-filament','bd-power','bd-time','bd-labor','bd-packaging','bd-bom','bd-shipping','bd-subtotal','bd-failure','bd-margin','bd-total','bd-fees','bd-net','sticky-total-value'];
 const lastValues = {};
 
 function setValue(id, str) {
@@ -69,9 +69,14 @@ export function recalc() {
   const laborCost    = (laborMinutes / 60) * laborRate;
   const packagingCost = num(addons.packagingCost);
   const shippingCost  = num(addons.shippingCost);
+  // Bill of materials: hardware/consumables — adds to subtotal so failure
+  // markup and margin apply (these are real per-unit costs that take time
+  // to assemble + carry stocking risk).
+  const bomCost = (addons.bom || []).reduce(
+    (s, b) => s + (num(b.qty) * num(b.unitCost)), 0);
 
   // COGS (subtotal): everything except shipping (passthrough) and fees (deduction)
-  const subtotal = filamentCost + electricity + timeCost + laborCost + packagingCost;
+  const subtotal = filamentCost + electricity + timeCost + laborCost + packagingCost + bomCost;
 
   const failurePct = num(settings.failurePct);
   const marginPct  = num(settings.marginPct);
@@ -91,6 +96,7 @@ export function recalc() {
   setValue('bd-time',      fmt(timeCost));
   setValue('bd-labor',     fmt(laborCost));
   setValue('bd-packaging', fmt(packagingCost));
+  setValue('bd-bom',       fmt(bomCost));
   setValue('bd-shipping',  fmt(shippingCost));
   setValue('bd-subtotal',  fmt(subtotal));
   setValue('bd-failure',   fmt(failureAmt));
@@ -107,20 +113,39 @@ export function recalc() {
   // Show/hide rows that have zero values to keep the breakdown tidy
   document.getElementById('bd-labor-row')?.toggleAttribute('hidden', laborCost === 0);
   document.getElementById('bd-packaging-row')?.toggleAttribute('hidden', packagingCost === 0);
+  document.getElementById('bd-bom-row')?.toggleAttribute('hidden', bomCost === 0);
   document.getElementById('bd-shipping-row')?.toggleAttribute('hidden', shippingCost === 0);
   // Show the net-after-fees panel only if a marketplace is actually selected and there are fees
   const netPanel = document.getElementById('net-after-fees');
   if (netPanel) netPanel.style.display = (presetKey !== 'none' && feeAmt > 0) ? '' : 'none';
 
-  updateBlockCallouts({ hours, totalGrams: filaments.reduce((s, f) => s + num(f.grams), 0), total });
+  // Target sell price comparison — diff vs the calculated estimate
+  const target = num(addons.sellPrice);
+  const cmp = document.getElementById('target-compare');
+  const cmpVal = document.getElementById('target-delta');
+  if (cmp && cmpVal) {
+    if (target > 0 && total > 0) {
+      const delta = target - total;
+      const sign  = delta >= 0 ? '+' : '−';
+      cmpVal.textContent = `Target ${fmt(target)} · ${sign}${fmt(Math.abs(delta))}`;
+      cmp.classList.toggle('over',  delta >= 0);
+      cmp.classList.toggle('under', delta < 0);
+      cmp.style.display = '';
+    } else {
+      cmp.style.display = 'none';
+      cmp.classList.remove('over', 'under');
+    }
+  }
+
+  updateBlockCallouts({ hours, totalGrams: filaments.reduce((s, f) => s + num(f.grams), 0), total, bomCost });
   updateStickyTotal(total);
 
-  return { hours, filamentCost, electricity, timeCost, laborCost, packagingCost, shippingCost,
+  return { hours, filamentCost, electricity, timeCost, laborCost, packagingCost, shippingCost, bomCost,
            subtotal, failureAmt, marginAmt, total, feeAmt, net };
 }
 
 // Callouts on the right side of each block header — earned, not decorative.
-function updateBlockCallouts({ hours, totalGrams, total }) {
+function updateBlockCallouts({ hours, totalGrams, total, bomCost }) {
   const printer = getActivePrinter();
 
   const print = document.getElementById('block-detail-print');
@@ -146,14 +171,26 @@ function updateBlockCallouts({ hours, totalGrams, total }) {
     }
   }
 
+  const bom = document.getElementById('block-detail-bom');
+  if (bom) {
+    const items = (addons.bom || []).filter(b => (b.name || '').trim() || num(b.qty)).length;
+    if (items > 0 && bomCost > 0) {
+      bom.classList.add('active-info');
+      bom.innerHTML = `${items} · ${fmt(bomCost)}<span class="id">D</span>`;
+    } else {
+      bom.classList.remove('active-info');
+      bom.innerHTML = `Hardware &middot; consumables<span class="id">D</span>`;
+    }
+  }
+
   const bd = document.getElementById('block-detail-breakdown');
   if (bd) {
     if (hours > 0) {
       bd.classList.add('active-info');
-      bd.innerHTML = `${formatHours(hours).replace(/\s/g,'').toUpperCase()}<span class="id">C</span>`;
+      bd.innerHTML = `${formatHours(hours).replace(/\s/g,'').toUpperCase()}<span class="id">E</span>`;
     } else {
       bd.classList.remove('active-info');
-      bd.innerHTML = `Bill of materials<span class="id">C</span>`;
+      bd.innerHTML = `Estimate summary<span class="id">E</span>`;
     }
   }
 }

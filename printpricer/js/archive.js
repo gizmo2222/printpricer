@@ -1,14 +1,15 @@
 // Archive (saved estimates) — list, load, clone, delete, CSV export, print.
 
-import { settings, filaments, addons } from './state.js?v=19';
-import { loadHistory, saveHistory, loadSpools, saveSpools, getActivePrinter } from './storage.js?v=19';
-import { LOW_STOCK_THRESHOLD } from './state.js?v=19';
-import { num, fmt, escapeHtml, formatHours, toCsv, downloadFile } from './utils.js?v=19';
-import { toast, toastWithUndo, switchToPane } from './ui.js?v=19';
-import { markOnboardingComplete } from './onboarding.js?v=19';
-import { renderFilaments, setFilaments, newFilament } from './filaments.js?v=19';
-import { recalc } from './calc.js?v=19';
-import { logActivity } from './firebase.js?v=19';
+import { settings, filaments, addons } from './state.js?v=20';
+import { loadHistory, saveHistory, loadSpools, saveSpools, getActivePrinter } from './storage.js?v=20';
+import { LOW_STOCK_THRESHOLD } from './state.js?v=20';
+import { num, fmt, escapeHtml, formatHours, toCsv, downloadFile } from './utils.js?v=20';
+import { toast, toastWithUndo, switchToPane } from './ui.js?v=20';
+import { markOnboardingComplete } from './onboarding.js?v=20';
+import { renderFilaments, setFilaments, newFilament } from './filaments.js?v=20';
+import { recalc } from './calc.js?v=20';
+import { logActivity } from './firebase.js?v=20';
+import { clearEditingMode } from './products.js?v=20';
 
 let saveQuoteInFlight = false; // double-tap guard
 const FILTER_THRESHOLD = 10;
@@ -144,15 +145,27 @@ function applyEntryToSheet(e) {
   document.getElementById('time-h').value = hrs || '';
   document.getElementById('time-m').value = mins || '';
   setFilaments(e.filaments?.length ? e.filaments : [newFilament()]);
-  // Restore add-ons (labor / packaging / shipping)
+  // Restore add-ons (labor / packaging / shipping / bom / notes / sellPrice)
   const a = e.addons || {};
   addons.laborMinutes  = a.laborMinutes  != null ? String(a.laborMinutes)  : '';
   addons.packagingCost = a.packagingCost != null ? String(a.packagingCost) : '';
   addons.shippingCost  = a.shippingCost  != null ? String(a.shippingCost)  : '';
+  addons.notes         = a.notes     != null ? String(a.notes)     : '';
+  addons.sellPrice     = a.sellPrice != null ? String(a.sellPrice) : '';
+  addons.bom = (a.bom || []).map(b => ({
+    name: b.name || '',
+    qty:  b.qty != null ? String(b.qty) : '',
+    unitCost: b.unitCost != null ? String(b.unitCost) : '',
+  }));
   document.getElementById('addon-labor').value     = addons.laborMinutes;
   document.getElementById('addon-packaging').value = addons.packagingCost;
   document.getElementById('addon-shipping').value  = addons.shippingCost;
+  const notesEl = document.getElementById('print-notes');
+  if (notesEl) notesEl.value = addons.notes;
+  const targetEl = document.getElementById('print-target-price');
+  if (targetEl) targetEl.value = addons.sellPrice;
   renderFilaments();
+  document.dispatchEvent(new CustomEvent('bom:render'));
   recalc();
 }
 
@@ -189,11 +202,20 @@ export function initArchive() {
     document.getElementById('addon-labor').value = '';
     document.getElementById('addon-packaging').value = '';
     document.getElementById('addon-shipping').value = '';
-    addons.laborMinutes = '';
+    const notesEl = document.getElementById('print-notes');
+    if (notesEl) notesEl.value = '';
+    const targetEl = document.getElementById('print-target-price');
+    if (targetEl) targetEl.value = '';
+    addons.laborMinutes  = '';
     addons.packagingCost = '';
-    addons.shippingCost = '';
+    addons.shippingCost  = '';
+    addons.notes     = '';
+    addons.sellPrice = '';
+    addons.bom = [];
     setFilaments([newFilament()]);
     renderFilaments();
+    document.dispatchEvent(new CustomEvent('bom:render'));
+    clearEditingMode();
     recalc();
   });
   document.getElementById('clear-history').addEventListener('click', () => {
@@ -254,9 +276,16 @@ async function stampAndArchive() {
       printerName: printer?.name || null,
       filaments: filaments.map(f => ({ ...f })),
       addons: {
-        laborMinutes: num(addons.laborMinutes),
+        laborMinutes:  num(addons.laborMinutes),
         packagingCost: num(addons.packagingCost),
-        shippingCost: num(addons.shippingCost),
+        shippingCost:  num(addons.shippingCost),
+        notes:     addons.notes     || '',
+        sellPrice: addons.sellPrice || '',
+        bom: (addons.bom || []).map(b => ({
+          name: b.name || '',
+          qty: num(b.qty),
+          unitCost: num(b.unitCost),
+        })),
       },
       breakdown: {
         filament: result.filamentCost,
@@ -264,6 +293,7 @@ async function stampAndArchive() {
         time: result.timeCost,
         labor: result.laborCost || 0,
         packaging: result.packagingCost || 0,
+        bom: result.bomCost || 0,
         shipping: result.shippingCost || 0,
         subtotal: result.subtotal,
         failure: result.failureAmt,
@@ -320,6 +350,9 @@ async function stampAndArchive() {
     }
     logActivity(`archived "${name}" — ${fmt(result.total)}`);
     markOnboardingComplete(); // user has shipped a real estimate; dismiss welcome
+    // Stamping a product-derived estimate is a "use", not a template change.
+    // Exit edit mode so subsequent edits don't accidentally hit Update product.
+    clearEditingMode();
   } finally {
     saveQuoteInFlight = false;
     btn.disabled = false;
@@ -336,6 +369,7 @@ function exportArchiveCsv() {
   const rows = h.map(e => ({
     date: new Date(e.date).toISOString().slice(0, 10),
     name: e.name,
+    notes: e.addons?.notes || '',
     printer: e.printerName || '',
     hours: e.hours.toFixed(3),
     grams: e.grams.toFixed(2),
@@ -345,17 +379,20 @@ function exportArchiveCsv() {
     machine_time: e.breakdown.time.toFixed(2),
     labor: (e.breakdown.labor || 0).toFixed(2),
     packaging: (e.breakdown.packaging || 0).toFixed(2),
+    bom_cost: (e.breakdown.bom || 0).toFixed(2),
+    bom_items: (e.addons?.bom || []).map(b => `${b.name}:${num(b.qty).toFixed(0)}@$${num(b.unitCost).toFixed(2)}`).join('; '),
     shipping: (e.breakdown.shipping || 0).toFixed(2),
     subtotal: e.breakdown.subtotal.toFixed(2),
     failure_markup: e.breakdown.failure.toFixed(2),
     margin: e.breakdown.margin.toFixed(2),
     total: e.breakdown.total.toFixed(2),
+    target_price: num(e.addons?.sellPrice).toFixed(2),
     marketplace_fees: (e.breakdown.fees || 0).toFixed(2),
     net: (e.breakdown.net != null ? e.breakdown.net : e.breakdown.total).toFixed(2),
   }));
-  const cols = ['date','name','printer','hours','grams','filaments',
-    'filament_cost','electricity_cost','machine_time','labor','packaging','shipping',
-    'subtotal','failure_markup','margin','total','marketplace_fees','net'];
+  const cols = ['date','name','notes','printer','hours','grams','filaments',
+    'filament_cost','electricity_cost','machine_time','labor','packaging','bom_cost','bom_items','shipping',
+    'subtotal','failure_markup','margin','total','target_price','marketplace_fees','net'];
   const csv = toCsv(rows, cols);
   const filename = `printpricer-archive-${new Date().toISOString().slice(0, 10)}.csv`;
   downloadFile(filename, csv, 'text/csv;charset=utf-8');
