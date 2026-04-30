@@ -150,7 +150,9 @@ export const addons = {
   bom: [],
   notes: '',
   sellPrice: '',
-  // Optional product photo as a JPEG data URL (resized to ~800px on the
-  // long edge). Saved with archive entries and product templates.
-  photo: '',
+  // Optional product photos — array of JPEG data URLs, each resized to
+  // ~800px on the long edge. Saved with archive entries and product
+  // templates. Backward compat: older entries may carry a single `photo`
+  // string instead — loaders normalize to an array.
+  photos: [],
 };

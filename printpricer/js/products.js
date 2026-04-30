@@ -14,14 +14,14 @@
 // This module owns the editingProductId state and the catalog list. The
 // Estimate sheet's input wiring + smart save buttons live in main.js.
 
-import { settings, filaments, addons, MARKETPLACE_PRESETS } from './state.js?v=26';
-import { loadProducts, saveProducts, loadPrinters, getActivePrinter, saveActivePrinterId } from './storage.js?v=26';
-import { num, fmt, escapeHtml, formatHours, toCsv, downloadFile } from './utils.js?v=26';
-import { toast, switchToPane } from './ui.js?v=26';
-import { setFilaments, newFilament, renderFilaments } from './filaments.js?v=26';
-import { recalc } from './calc.js?v=26';
-import { updateActivePrinterDisplay } from './printers.js?v=26';
-import { logActivity } from './firebase.js?v=26';
+import { settings, filaments, addons, MARKETPLACE_PRESETS } from './state.js?v=27';
+import { loadProducts, saveProducts, loadPrinters, getActivePrinter, saveActivePrinterId } from './storage.js?v=27';
+import { num, fmt, escapeHtml, formatHours, toCsv, downloadFile } from './utils.js?v=27';
+import { toast, switchToPane } from './ui.js?v=27';
+import { setFilaments, newFilament, renderFilaments } from './filaments.js?v=27';
+import { recalc } from './calc.js?v=27';
+import { updateActivePrinterDisplay } from './printers.js?v=27';
+import { logActivity } from './firebase.js?v=27';
 
 // ---------- edit-mode state (module-private) ----------
 
@@ -110,8 +110,11 @@ export function renderProducts() {
     item.className = 'spool-item' + (isEditing ? ' editing' : '');
     const totalGrams = (p.filaments || []).reduce((s, f) => s + (+f.grams || 0), 0);
     const bomCount = (p.bom || []).length;
-    const thumbHtml = p.photo
-      ? `<img class="product-photo-thumb" src="${escapeHtml(p.photo)}" alt="">`
+    // Catalog thumbnail uses the first photo (or legacy single photo).
+    const firstPhoto = (Array.isArray(p.photos) && p.photos[0]) || p.photo || '';
+    const photoCount = Array.isArray(p.photos) ? p.photos.length : (p.photo ? 1 : 0);
+    const thumbHtml = firstPhoto
+      ? `<div class="product-photo-thumb-wrap"><img class="product-photo-thumb" src="${escapeHtml(firstPhoto)}" alt="">${photoCount > 1 ? `<span class="photo-count">${photoCount}</span>` : ''}</div>`
       : `<div class="spool-swatch" style="background: var(--paper-deep)"></div>`;
     item.innerHTML = `
       ${thumbHtml}
@@ -172,7 +175,10 @@ function loadProductIntoEstimate(id) {
   if (targetEl) targetEl.value = p.sellPrice || '';
   addons.notes     = p.notes     || '';
   addons.sellPrice = p.sellPrice || '';
-  addons.photo     = p.photo     || '';
+  // Photos: normalize to an array. Legacy products may carry single `photo`.
+  addons.photos = Array.isArray(p.photos) ? p.photos.slice()
+                : p.photo ? [p.photo]
+                : [];
   document.dispatchEvent(new CustomEvent('photo:render'));
 
   // Time
@@ -235,7 +241,7 @@ export function saveEstimateAsProduct({ asNew = false } = {}) {
     name,
     notes:     addons.notes     || '',
     sellPrice: addons.sellPrice || '',
-    photo:     addons.photo     || '',
+    photos:    Array.isArray(addons.photos) ? addons.photos.slice() : [],
     printerId: printer ? String(printer.id) : '',
     hours: num(document.getElementById('time-h').value) + num(document.getElementById('time-m').value) / 60,
     laborMinutes:  addons.laborMinutes  || '',
@@ -483,9 +489,23 @@ function printProduct(id) {
   .net-panel td.rust { color: #a13c1f; }
   .net-panel tr.net-row td { border-top: 1.5px solid #4a6a3a; color: #4a6a3a; font-size: 16px; font-weight: 700; }
   .footer { margin-top: 36px; font-size: 11px; color: #6a7585; letter-spacing: 0.5px; }
-  /* Product photo on the spec sheet — sits between the head and meta grid */
-  .product-photo { margin: 16px 0 8px; text-align: center; }
-  .product-photo img { display: inline-block; max-width: 100%; max-height: 320px; border: 1px solid #16202d; }
+  /* Product photos on the spec sheet — single-row flex layout that
+     auto-fits as many photos as the product has. Each photo gets an
+     equal share of width; max-height caps the row height. */
+  .product-photos {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 6px;
+    margin: 14px 0 8px;
+  }
+  .product-photos img {
+    flex: 1 1 0;
+    min-width: 0;
+    max-height: 220px;
+    object-fit: contain;
+    border: 1px solid #16202d;
+    background: #f5efdc;
+  }
   /* @media print — strip backgrounds AND condense to fit on one page.
      Screen view is unchanged; this block re-tightens every dimension so a
      typical product (1-3 filaments, 0-5 BOM items, full breakdown) fits
@@ -505,9 +525,9 @@ function printProduct(id) {
     h1 { font-size: 17px; margin-bottom: 1px; }
     .target { font-size: 18px; }
     .target small { font-size: 8px; letter-spacing: 1.1px; }
-    /* Photo — much smaller in print */
-    .product-photo { margin: 6px 0 4px; }
-    .product-photo img { max-height: 130px; }
+    /* Photos — single row, condensed in print */
+    .product-photos { gap: 4px; margin: 6px 0 4px; }
+    .product-photos img { max-height: 130px; }
     /* Notes — tighter padding */
     .notes { padding: 5px 9px; font-size: 10.5px; margin: 6px 0; line-height: 1.35; }
     /* Meta grid — tight cells */
@@ -554,7 +574,11 @@ function printProduct(id) {
   ${p.sellPrice ? `<div class="target">$${(+p.sellPrice).toFixed(2)}<small>Target sell</small></div>` : ''}
 </div>
 
-${p.photo ? `<div class="product-photo"><img src="${escapeHtml(p.photo)}" alt=""></div>` : ''}
+${(() => {
+  const photos = Array.isArray(p.photos) ? p.photos : (p.photo ? [p.photo] : []);
+  if (!photos.length) return '';
+  return `<div class="product-photos">${photos.map(src => `<img src="${escapeHtml(src)}" alt="">`).join('')}</div>`;
+})()}
 
 ${p.notes ? `<div class="notes">${escapeHtml(p.notes)}</div>` : ''}
 

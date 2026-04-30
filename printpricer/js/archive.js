@@ -1,15 +1,15 @@
 // Archive (saved estimates) — list, load, clone, delete, CSV export, print.
 
-import { settings, filaments, addons } from './state.js?v=26';
-import { loadHistory, saveHistory, loadSpools, saveSpools, getActivePrinter } from './storage.js?v=26';
-import { LOW_STOCK_THRESHOLD } from './state.js?v=26';
-import { num, fmt, escapeHtml, formatHours, toCsv, downloadFile } from './utils.js?v=26';
-import { toast, toastWithUndo, switchToPane } from './ui.js?v=26';
-import { markOnboardingComplete } from './onboarding.js?v=26';
-import { renderFilaments, setFilaments, newFilament } from './filaments.js?v=26';
-import { recalc } from './calc.js?v=26';
-import { logActivity } from './firebase.js?v=26';
-import { clearEditingMode } from './products.js?v=26';
+import { settings, filaments, addons } from './state.js?v=27';
+import { loadHistory, saveHistory, loadSpools, saveSpools, getActivePrinter } from './storage.js?v=27';
+import { LOW_STOCK_THRESHOLD } from './state.js?v=27';
+import { num, fmt, escapeHtml, formatHours, toCsv, downloadFile } from './utils.js?v=27';
+import { toast, toastWithUndo, switchToPane } from './ui.js?v=27';
+import { markOnboardingComplete } from './onboarding.js?v=27';
+import { renderFilaments, setFilaments, newFilament } from './filaments.js?v=27';
+import { recalc } from './calc.js?v=27';
+import { logActivity } from './firebase.js?v=27';
+import { clearEditingMode } from './products.js?v=27';
 
 let saveQuoteInFlight = false; // double-tap guard
 const FILTER_THRESHOLD = 10;
@@ -152,7 +152,11 @@ function applyEntryToSheet(e) {
   addons.shippingCost  = a.shippingCost  != null ? String(a.shippingCost)  : '';
   addons.notes         = a.notes     != null ? String(a.notes)     : '';
   addons.sellPrice     = a.sellPrice != null ? String(a.sellPrice) : '';
-  addons.photo         = a.photo     || '';
+  // Photos: normalize to an array. Legacy entries may carry a single
+  // `photo` string instead — promote it to a one-element array.
+  addons.photos = Array.isArray(a.photos) ? a.photos.slice()
+                : a.photo ? [a.photo]
+                : [];
   addons.bom = (a.bom || []).map(b => ({
     name: b.name || '',
     qty:  b.qty != null ? String(b.qty) : '',
@@ -213,7 +217,7 @@ export function initArchive() {
     addons.shippingCost  = '';
     addons.notes     = '';
     addons.sellPrice = '';
-    addons.photo     = '';
+    addons.photos    = [];
     addons.bom = [];
     setFilaments([newFilament()]);
     renderFilaments();
@@ -285,7 +289,7 @@ async function stampAndArchive() {
         shippingCost:  num(addons.shippingCost),
         notes:     addons.notes     || '',
         sellPrice: addons.sellPrice || '',
-        photo:     addons.photo     || '',
+        photos:    Array.isArray(addons.photos) ? addons.photos.slice() : [],
         bom: (addons.bom || []).map(b => ({
           name: b.name || '',
           qty: num(b.qty),

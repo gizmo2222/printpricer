@@ -11,7 +11,7 @@
   <!-- Cache-buster query string is bumped on each meaningful release so
        browsers fetch the new module set instead of stale ES-module copies.
        Bump this when you ship CSS or JS changes. -->
-  <link rel="stylesheet" href="css/styles.css?v=26">
+  <link rel="stylesheet" href="css/styles.css?v=27">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
@@ -105,13 +105,9 @@
           <input type="text" id="print-name" placeholder="e.g. Articulated dragon">
         </div>
         <div class="field photo-field">
-          <label>Photo <span class="label-muted">(optional)</span></label>
-          <button type="button" class="photo-slot" id="photo-slot" data-hint="Add a photo of the print. Saved with archive entries and product templates. Shows in the catalog list and on the printed spec sheet.">
-            <span class="photo-placeholder">+ Click to add a photo</span>
-            <img class="photo-thumb" id="photo-thumb" alt="" hidden>
-            <span class="photo-remove-btn" id="photo-remove" hidden role="button" tabindex="0" aria-label="Remove photo">×</span>
-          </button>
-          <input type="file" id="photo-input" accept="image/*" hidden>
+          <label>Photos <span class="label-muted">(optional · multiple allowed)</span></label>
+          <div class="photo-row" id="photo-row" data-hint="Add one or more photos. Saved with archive entries and product templates. The first photo shows in the catalog list; the printed spec sheet renders all photos in a single row."></div>
+          <input type="file" id="photo-input" accept="image/*" multiple hidden>
         </div>
         <div class="input-row">
           <div class="field">
@@ -814,6 +810,6 @@
 
   <datalist id="spool-list"></datalist>
 
-  <script type="module" src="js/main.js?v=26"></script>
+  <script type="module" src="js/main.js?v=27"></script>
 </body>
 </html>

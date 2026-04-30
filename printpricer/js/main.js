@@ -1,20 +1,20 @@
 // Entry point: wire everything up after the DOM is ready.
 
-import { settings, filaments, addons } from './state.js?v=26';
-import { saveSettings } from './storage.js?v=26';
-import { initTabs, onPaneShow, initPickerOverlay, toast } from './ui.js?v=26';
-import { recalc, loadSettingsToForm, initStickyTotal } from './calc.js?v=26';
-import { renderFilaments, resetFilaments, initFilamentsUI } from './filaments.js?v=26';
-import { renderSpools, initSpoolsUI } from './spools.js?v=26';
-import { renderPrinters, updateActivePrinterDisplay, migrateLegacySinglePrinter, initPrintersUI } from './printers.js?v=26';
-import { renderHistory, initArchive } from './archive.js?v=26';
-import { renderProducts, initProductsUI, saveEstimateAsProduct } from './products.js?v=26';
-import { initAuthUI, updateAccountUI, renderGroupSection } from './auth-ui.js?v=26';
-import { startAuthListener } from './firebase.js?v=26';
-import { parseGcode, parse3mf } from './parser.js?v=26';
-import { formatHours, escapeHtml, resizeImageToDataUrl } from './utils.js?v=26';
-import { initOnboarding, maybeShowOnboarding } from './onboarding.js?v=26';
-import { initHelp } from './help.js?v=26';
+import { settings, filaments, addons } from './state.js?v=27';
+import { saveSettings } from './storage.js?v=27';
+import { initTabs, onPaneShow, initPickerOverlay, toast } from './ui.js?v=27';
+import { recalc, loadSettingsToForm, initStickyTotal } from './calc.js?v=27';
+import { renderFilaments, resetFilaments, initFilamentsUI } from './filaments.js?v=27';
+import { renderSpools, initSpoolsUI } from './spools.js?v=27';
+import { renderPrinters, updateActivePrinterDisplay, migrateLegacySinglePrinter, initPrintersUI } from './printers.js?v=27';
+import { renderHistory, initArchive } from './archive.js?v=27';
+import { renderProducts, initProductsUI, saveEstimateAsProduct } from './products.js?v=27';
+import { initAuthUI, updateAccountUI, renderGroupSection } from './auth-ui.js?v=27';
+import { startAuthListener } from './firebase.js?v=27';
+import { parseGcode, parse3mf } from './parser.js?v=27';
+import { formatHours, escapeHtml, resizeImageToDataUrl } from './utils.js?v=27';
+import { initOnboarding, maybeShowOnboarding } from './onboarding.js?v=27';
+import { initHelp } from './help.js?v=27';
 
 // ---- title-block date ----
 (function setDate() {
@@ -147,59 +147,68 @@ document.getElementById('print-target-price')?.addEventListener('input', e => {
   addons.sellPrice = e.target.value; recalc();
 });
 
-// ---- estimate sheet photo upload ----
+// ---- estimate sheet photos (multiple) ----
 //
-// Click anywhere on .photo-slot opens the file picker. New file → resize
-// to ~800px JPEG data URL → addons.photo. The × overlay (when a photo is
-// set) removes it without re-opening the picker.
-const photoSlot   = document.getElementById('photo-slot');
-const photoInput  = document.getElementById('photo-input');
-const photoThumb  = document.getElementById('photo-thumb');
-const photoRemove = document.getElementById('photo-remove');
+// addons.photos is the source of truth (array of JPEG data URLs).
+// renderPhotos rebuilds the row of thumbnails + a trailing "+ ADD PHOTO"
+// cell. Click on the add cell opens the (multi-select) file picker; click
+// on a thumbnail's × removes that single photo.
+const photoRow   = document.getElementById('photo-row');
+const photoInput = document.getElementById('photo-input');
 
-function renderPhoto() {
-  if (!photoSlot || !photoThumb || !photoRemove) return;
-  if (addons.photo) {
-    photoSlot.classList.add('has-photo');
-    photoThumb.src = addons.photo;
-    photoThumb.hidden = false;
-    photoRemove.hidden = false;
-  } else {
-    photoSlot.classList.remove('has-photo');
-    photoThumb.src = '';
-    photoThumb.hidden = true;
-    photoRemove.hidden = true;
-  }
+function renderPhotos() {
+  if (!photoRow) return;
+  const photos = Array.isArray(addons.photos) ? addons.photos : [];
+  const cells = photos.map((src, i) => `
+    <div class="photo-cell" data-i="${i}">
+      <img src="${escapeHtml(src)}" alt="">
+      <span class="photo-remove-btn" data-photo-remove="${i}" role="button" tabindex="0" aria-label="Remove photo">×</span>
+    </div>
+  `).join('');
+  photoRow.innerHTML = cells + `
+    <button type="button" class="photo-add" id="photo-add-btn" aria-label="Add photo">+ ADD<br>PHOTO</button>
+  `;
 }
-// Other modules (archive load, product load, reset) replace addons.photo
+// Other modules (archive load, product load, reset) replace addons.photos
 // and dispatch this event to refresh the preview.
-document.addEventListener('photo:render', renderPhoto);
+document.addEventListener('photo:render', renderPhotos);
 
-photoSlot?.addEventListener('click', e => {
-  // Don't reopen the picker when the user clicks the × overlay.
-  if (e.target.closest('#photo-remove')) return;
-  photoInput?.click();
-});
-photoRemove?.addEventListener('click', e => {
-  e.stopPropagation();
-  addons.photo = '';
-  renderPhoto();
-});
-photoRemove?.addEventListener('keydown', e => {
-  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); photoRemove.click(); }
-});
-photoInput?.addEventListener('change', async e => {
-  const file = e.target.files?.[0];
-  e.target.value = ''; // allow re-selecting the same file
-  if (!file) return;
-  try {
-    const dataUrl = await resizeImageToDataUrl(file);
-    addons.photo = dataUrl;
-    renderPhoto();
-  } catch (err) {
-    toast(err.message || 'Could not load photo', true);
+// Delegated click handler — covers both the +Add button and per-photo
+// × remove buttons. Stays valid across re-renders.
+photoRow?.addEventListener('click', e => {
+  const removeBtn = e.target.closest('[data-photo-remove]');
+  if (removeBtn) {
+    e.stopPropagation();
+    const i = +removeBtn.dataset.photoRemove;
+    if (Array.isArray(addons.photos)) {
+      addons.photos.splice(i, 1);
+      renderPhotos();
+    }
+    return;
+  }
+  if (e.target.closest('#photo-add-btn')) {
+    photoInput?.click();
   }
 });
+
+photoInput?.addEventListener('change', async e => {
+  const files = Array.from(e.target.files || []);
+  e.target.value = ''; // allow re-selecting the same file(s)
+  if (!files.length) return;
+  if (!Array.isArray(addons.photos)) addons.photos = [];
+  for (const file of files) {
+    try {
+      const dataUrl = await resizeImageToDataUrl(file);
+      addons.photos.push(dataUrl);
+    } catch (err) {
+      toast(err.message || `Could not load ${file.name}`, true);
+    }
+  }
+  renderPhotos();
+});
+
+// Initial render so the "+ ADD PHOTO" cell is visible on first paint.
+renderPhotos();
 
 // ---- estimate sheet add-ons (labor, packaging, shipping) ----
 document.getElementById('addon-labor').addEventListener('input', e => {
