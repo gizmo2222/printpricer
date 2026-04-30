@@ -2,12 +2,12 @@
 // Supports linking to a saved Spool (auto-fills $/kg, shows color swatch),
 // undoable row delete, and is the input source for cost calculation.
 
-import { settings, filaments } from './state.js?v=21';
-import { loadSpools } from './storage.js?v=21';
-import { escapeHtml } from './utils.js?v=21';
-import { recalc } from './calc.js?v=21';
-import { toast, toastWithUndo, openPicker } from './ui.js?v=21';
-import { LOW_STOCK_THRESHOLD } from './state.js?v=21';
+import { settings, filaments } from './state.js?v=22';
+import { loadSpools } from './storage.js?v=22';
+import { escapeHtml } from './utils.js?v=22';
+import { recalc } from './calc.js?v=22';
+import { toast, toastWithUndo, openPicker } from './ui.js?v=22';
+import { LOW_STOCK_THRESHOLD } from './state.js?v=22';
 
 export function newFilament() {
   return {

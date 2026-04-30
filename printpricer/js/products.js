@@ -14,14 +14,14 @@
 // This module owns the editingProductId state and the catalog list. The
 // Estimate sheet's input wiring + smart save buttons live in main.js.
 
-import { settings, filaments, addons } from './state.js?v=21';
-import { loadProducts, saveProducts, loadPrinters, getActivePrinter, saveActivePrinterId } from './storage.js?v=21';
-import { num, fmt, escapeHtml, formatHours, toCsv, downloadFile } from './utils.js?v=21';
-import { toast, switchToPane } from './ui.js?v=21';
-import { setFilaments, newFilament, renderFilaments } from './filaments.js?v=21';
-import { recalc } from './calc.js?v=21';
-import { updateActivePrinterDisplay } from './printers.js?v=21';
-import { logActivity } from './firebase.js?v=21';
+import { settings, filaments, addons, MARKETPLACE_PRESETS } from './state.js?v=22';
+import { loadProducts, saveProducts, loadPrinters, getActivePrinter, saveActivePrinterId } from './storage.js?v=22';
+import { num, fmt, escapeHtml, formatHours, toCsv, downloadFile } from './utils.js?v=22';
+import { toast, switchToPane } from './ui.js?v=22';
+import { setFilaments, newFilament, renderFilaments } from './filaments.js?v=22';
+import { recalc } from './calc.js?v=22';
+import { updateActivePrinterDisplay } from './printers.js?v=22';
+import { logActivity } from './firebase.js?v=22';
 
 // ---------- edit-mode state (module-private) ----------
 
@@ -274,8 +274,7 @@ export function saveEstimateAsProduct({ asNew = false } = {}) {
 // ---------- shared totals helper ----------
 //
 // Light-weight totals for a product: filament grams + cost, BOM total/count.
-// Used by the print spec sheet and CSV export so per-product math lives in
-// one place.
+// Used by the catalog list, print spec sheet, and CSV export.
 function computeProductTotals(p) {
   const filGrams = (p.filaments || []).reduce((s, f) => s + num(f.grams), 0);
   const filCost  = (p.filaments || []).reduce((s, f) => s + (num(f.grams) / 1000) * num(f.costPerKg), 0);
@@ -284,7 +283,77 @@ function computeProductTotals(p) {
   return { filGrams, filCost, bomCost, bomCount: bom.length };
 }
 
+// ---------- full breakdown for a product ----------
+//
+// Mirrors the recalc() math in calc.js. Used by the per-product print so
+// the spec sheet shows the complete cost reasoning (electricity, machine
+// time, labor, subtotal, failure markup, margin, marketplace fees, net) —
+// not just what to build but what to charge.
+//
+// Inputs are the workspace `settings` and the product's `printerId` (which
+// supplies wattage and hourly rate). Falls back to zero on missing printer
+// so the breakdown still renders something sensible.
+function computeProductBreakdown(p) {
+  const printer = loadPrinters().find(x => String(x.id) === String(p.printerId));
+  const watts        = printer ? num(printer.watts)       : 0;
+  const hourlyRate   = printer ? num(printer.hourlyRate)  : 0;
+  const hours        = num(p.hours);
+  const kwh          = num(settings.kwh);
+  const laborRate    = num(settings.laborRate);
+  const failurePct   = num(settings.failurePct);
+  const marginPct    = num(settings.marginPct);
+
+  const t = computeProductTotals(p);
+  const electricity   = (watts / 1000) * hours * kwh;
+  const timeCost      = hours * hourlyRate;
+  const laborCost     = (num(p.laborMinutes) / 60) * laborRate;
+  const packagingCost = num(p.packagingCost);
+  const shippingCost  = num(p.shippingCost);
+
+  const subtotal      = t.filCost + electricity + timeCost + laborCost + packagingCost + t.bomCost;
+  const failureAmt    = subtotal * (failurePct / 100);
+  const afterFailure  = subtotal + failureAmt;
+  const marginAmt     = afterFailure * (marginPct / 100);
+  const beforeShip    = afterFailure + marginAmt;
+  const total         = beforeShip + shippingCost;
+
+  // Marketplace fees (parallel to calc.js computeFees)
+  const presetKey = settings.marketplacePreset || 'none';
+  let preset = MARKETPLACE_PRESETS[presetKey] || MARKETPLACE_PRESETS.none;
+  if (presetKey === 'custom') {
+    preset = {
+      label: 'Custom',
+      listingFee:  num(settings.marketplaceCustomListing),
+      txnPct:      num(settings.marketplaceCustomTxnPct),
+      paymentPct:  num(settings.marketplaceCustomPaymentPct),
+      paymentFlat: num(settings.marketplaceCustomPaymentFlat),
+    };
+  }
+  const feeAmt = preset.listingFee
+              + total * (preset.txnPct / 100)
+              + total * (preset.paymentPct / 100)
+              + preset.paymentFlat;
+  const net = total - feeAmt;
+
+  const target = num(p.sellPrice);
+  const targetDelta = target > 0 && total > 0 ? (target - total) : null;
+
+  return {
+    printer, hours, watts, kwh, hourlyRate,
+    filGrams: t.filGrams, filCost: t.filCost, bomCost: t.bomCost, bomCount: t.bomCount,
+    electricity, timeCost, laborCost, packagingCost, shippingCost,
+    subtotal, failurePct, failureAmt, marginPct, marginAmt, total,
+    presetKey, preset, feeAmt, net,
+    target, targetDelta,
+  };
+}
+
 // ---------- per-product print: workshop spec sheet ----------
+//
+// One-page printable that's both a workshop build sheet AND the full cost
+// breakdown that mirrors the Estimate sheet — printer, time, filaments to
+// load, BOM kitting checklist, every cost line, the estimated price stamp,
+// target-vs-estimated comparison, and (if a marketplace is set) net to you.
 
 function printProduct(id) {
   const p = loadProducts().find(x => String(x.id) === String(id));
@@ -292,8 +361,7 @@ function printProduct(id) {
   const w = window.open('', '_blank');
   if (!w) { toast('Popup blocked — allow popups to print', true); return; }
 
-  const printer = loadPrinters().find(x => String(x.id) === String(p.printerId));
-  const t = computeProductTotals(p);
+  const r = computeProductBreakdown(p);
 
   const filRows = (p.filaments || []).map(f => `
     <tr>
@@ -313,6 +381,36 @@ function printProduct(id) {
       <td style="text-align:right;font-variant-numeric:tabular-nums">$${(num(b.qty) * num(b.unitCost)).toFixed(2)}</td>
     </tr>
   `).join('');
+
+  // Build the cost-breakdown rows. Mirrors the Estimate sheet exactly:
+  // filament/electricity/machine/labor are always shown; packaging/BOM/
+  // shipping appear only when non-zero (matches the bd-*-row hidden logic).
+  const breakdownRows = [
+    `<tr><td>Filament</td><td>$${r.filCost.toFixed(2)}</td></tr>`,
+    `<tr><td>Electricity</td><td>$${r.electricity.toFixed(2)}</td></tr>`,
+    `<tr><td>Machine time</td><td>$${r.timeCost.toFixed(2)}</td></tr>`,
+    r.laborCost     > 0 ? `<tr><td>Labor</td><td>$${r.laborCost.toFixed(2)}</td></tr>` : '',
+    r.packagingCost > 0 ? `<tr><td>Packaging</td><td>$${r.packagingCost.toFixed(2)}</td></tr>` : '',
+    r.bomCost       > 0 ? `<tr><td>Hardware / BOM</td><td>$${r.bomCost.toFixed(2)}</td></tr>` : '',
+    `<tr class="sub"><td>Subtotal</td><td>$${r.subtotal.toFixed(2)}</td></tr>`,
+    `<tr><td>Failure markup (${r.failurePct}%)</td><td>$${r.failureAmt.toFixed(2)}</td></tr>`,
+    `<tr><td>Profit margin (${r.marginPct}%)</td><td>$${r.marginAmt.toFixed(2)}</td></tr>`,
+    r.shippingCost  > 0 ? `<tr><td>+ Shipping (passthrough)</td><td>$${r.shippingCost.toFixed(2)}</td></tr>` : '',
+  ].filter(Boolean).join('');
+
+  // Target comparison — only if user set a target sell price on the product
+  const targetCompare = (r.targetDelta != null) ? `
+    <div class="target-cmp ${r.targetDelta >= 0 ? 'over' : 'under'}">
+      <span>Target $${r.target.toFixed(2)}</span>
+      <span>${r.targetDelta >= 0 ? '+' : '−'}$${Math.abs(r.targetDelta).toFixed(2)} ${r.targetDelta >= 0 ? 'over' : 'under'}</span>
+    </div>` : '';
+
+  // Marketplace net — only when a marketplace is selected and fees > 0
+  const marketplacePanel = (r.presetKey !== 'none' && r.feeAmt > 0) ? `
+    <table class="net-panel">
+      <tr><td>${escapeHtml(r.preset.label)} fees</td><td class="rust">−$${r.feeAmt.toFixed(2)}</td></tr>
+      <tr class="net-row"><td>Net to you</td><td>$${r.net.toFixed(2)}</td></tr>
+    </table>` : '';
 
   const biz = settings.businessName || '';
   const issued = new Date();
@@ -337,6 +435,23 @@ function printProduct(id) {
   tfoot td { border-top: 1.5px solid #16202d; border-bottom: none; font-weight: 600; font-variant-numeric: tabular-nums; }
   .check { display:inline-block; width: 14px; height: 14px; border: 1.5px solid #16202d; }
   .notes { background: #f5efdc; border-left: 3px solid #1f4e7a; padding: 8px 12px; font-size: 13px; line-height: 1.5; margin: 14px 0; }
+  /* Cost breakdown table — mirrors the Estimate sheet's leader-dot rows */
+  .breakdown td { font-variant-numeric: tabular-nums; }
+  .breakdown td:last-child { text-align: right; }
+  .breakdown tr.sub td { border-top: 1px solid #16202d; border-bottom: 1px solid #16202d; font-weight: 700; }
+  .estimated-stamp { display:flex; justify-content:space-between; align-items:baseline; margin-top: 12px; padding: 10px 12px; background: #f5efdc; border: 2px solid #16202d; }
+  .estimated-stamp .label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #16202d; font-weight: 800; }
+  .estimated-stamp .value { font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; color: #16202d; }
+  /* Target comparison — green when over target, rust when under */
+  .target-cmp { display:flex; justify-content:space-between; margin-top: 8px; padding: 6px 12px; background: #f5efdc; font-family: 'IBM Plex Mono', Consolas, monospace; font-size: 12px; border-left: 2px solid #837b67; }
+  .target-cmp.over  { border-left-color: #4a6a3a; color: #4a6a3a; }
+  .target-cmp.under { border-left-color: #a13c1f; color: #a13c1f; }
+  /* Marketplace net panel */
+  .net-panel { margin-top: 12px; }
+  .net-panel td { padding: 6px 8px; font-variant-numeric: tabular-nums; }
+  .net-panel td:last-child { text-align: right; }
+  .net-panel td.rust { color: #a13c1f; }
+  .net-panel tr.net-row td { border-top: 1.5px solid #4a6a3a; color: #4a6a3a; font-size: 16px; font-weight: 700; }
   .footer { margin-top: 36px; font-size: 11px; color: #6a7585; letter-spacing: 0.5px; }
   @media print { body { margin: 12mm; max-width: none; } }
 </style></head><body>
@@ -352,9 +467,9 @@ function printProduct(id) {
 ${p.notes ? `<div class="notes">${escapeHtml(p.notes)}</div>` : ''}
 
 <div class="meta-grid">
-  <div class="meta-cell"><div class="k">Printer</div><div class="v">${escapeHtml(printer?.name || '— any —')}</div></div>
-  <div class="meta-cell"><div class="k">Print time</div><div class="v">${p.hours ? formatHours(+p.hours) : '—'}</div></div>
-  <div class="meta-cell"><div class="k">Filament</div><div class="v">${t.filGrams.toFixed(1)} g</div></div>
+  <div class="meta-cell"><div class="k">Printer</div><div class="v">${escapeHtml(r.printer?.name || '— any —')}</div></div>
+  <div class="meta-cell"><div class="k">Print time</div><div class="v">${r.hours > 0 ? formatHours(r.hours) : '—'}</div></div>
+  <div class="meta-cell"><div class="k">Filament</div><div class="v">${r.filGrams.toFixed(1)} g</div></div>
   <div class="meta-cell"><div class="k">Labor</div><div class="v">${p.laborMinutes ? `${num(p.laborMinutes)} min` : '—'}</div></div>
 </div>
 
@@ -362,24 +477,31 @@ ${filRows ? `<h2>Filaments to load</h2>
 <table>
   <thead><tr><th>Color / type</th><th style="text-align:right">Grams</th><th style="text-align:right">$ / kg</th><th style="text-align:right">Cost</th></tr></thead>
   <tbody>${filRows}</tbody>
-  <tfoot><tr><td colspan="3" style="text-align:right">Filament total</td><td style="text-align:right">$${t.filCost.toFixed(2)}</td></tr></tfoot>
+  <tfoot><tr><td colspan="3" style="text-align:right">Filament total</td><td style="text-align:right">$${r.filCost.toFixed(2)}</td></tr></tfoot>
 </table>` : ''}
 
 ${bomRows ? `<h2>Bill of materials · kitting checklist</h2>
 <table>
   <thead><tr><th></th><th>Item</th><th style="text-align:right">Qty</th><th style="text-align:right">Unit $</th><th style="text-align:right">Total</th></tr></thead>
   <tbody>${bomRows}</tbody>
-  <tfoot><tr><td colspan="4" style="text-align:right">BOM total</td><td style="text-align:right">$${t.bomCost.toFixed(2)}</td></tr></tfoot>
+  <tfoot><tr><td colspan="4" style="text-align:right">BOM total</td><td style="text-align:right">$${r.bomCost.toFixed(2)}</td></tr></tfoot>
 </table>` : ''}
 
-${(p.packagingCost || p.shippingCost) ? `<h2>Add-ons</h2>
-<table>
-  ${p.packagingCost ? `<tr><td>Packaging</td><td style="text-align:right;font-variant-numeric:tabular-nums">$${num(p.packagingCost).toFixed(2)}</td></tr>` : ''}
-  ${p.shippingCost  ? `<tr><td>Default shipping (passthrough)</td><td style="text-align:right;font-variant-numeric:tabular-nums">$${num(p.shippingCost).toFixed(2)}</td></tr>` : ''}
-</table>` : ''}
+<h2>Cost breakdown</h2>
+<table class="breakdown">
+  <tbody>${breakdownRows}</tbody>
+</table>
+
+<div class="estimated-stamp">
+  <span class="label">Estimated price</span>
+  <span class="value">$${r.total.toFixed(2)}</span>
+</div>
+
+${targetCompare}
+${marketplacePanel}
 
 <div class="footer">
-  ${biz ? escapeHtml(biz) + ' · ' : ''}Printed ${issued.toLocaleDateString()} ${issued.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · Print Pricer
+  ${biz ? escapeHtml(biz) + ' · ' : ''}Printed ${issued.toLocaleDateString()} ${issued.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · Print Pricer ${r.printer ? '' : '· No printer set — electricity & machine time shown as $0.00'}
 </div>
 
 <script>window.onload = () => setTimeout(() => window.print(), 100);<\/script>
