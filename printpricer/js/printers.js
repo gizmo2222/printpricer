@@ -5,12 +5,12 @@
 // On delete, if the deleted printer was active, the next remaining printer
 // becomes active automatically.
 
-import { settings, PRINTER_PRESETS, PRINTERS_KEY, ACTIVE_PRINTER_KEY } from './state.js?v=30';
-import { loadPrinters, savePrinters, loadActivePrinterId, saveActivePrinterId, getActivePrinter } from './storage.js?v=30';
-import { escapeHtml } from './utils.js?v=30';
-import { toast, openPicker } from './ui.js?v=30';
-import { recalc } from './calc.js?v=30';
-import { logActivity } from './firebase.js?v=30';
+import { settings, PRINTER_PRESETS, PRINTERS_KEY, ACTIVE_PRINTER_KEY } from './state.js?v=31';
+import { loadPrinters, savePrinters, loadActivePrinterId, saveActivePrinterId, getActivePrinter } from './storage.js?v=31';
+import { escapeHtml } from './utils.js?v=31';
+import { toast, openPicker } from './ui.js?v=31';
+import { recalc } from './calc.js?v=31';
+import { logActivity } from './firebase.js?v=31';
 
 let editingPrinterId = null;
 let isAddingPrinter = false;

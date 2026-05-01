@@ -1143,6 +1143,36 @@ select.input {
 }
 .spool-link-tag::before { content: '→ '; }
 
+/* ---------- Print-block "Add details" disclosure ----------
+   Photos / Notes / Target sell price are optional fields most one-off
+   estimates don't use. Hide them behind a single dashed CTA inside the
+   Print block; expand once the user clicks (or once a saved product /
+   archive entry populates any of the three). */
+.print-details.collapsed { display: none; }
+.print-details-toggle {
+  display: block;
+  width: 100%;
+  background: transparent;
+  color: var(--blueprint);
+  border: 1px dashed var(--ink-faint);
+  padding: 8px var(--space-3);
+  font-family: var(--condensed);
+  font-size: var(--text-xs);
+  font-weight: var(--w-semibold);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+  cursor: pointer;
+  text-align: center;
+  margin: var(--space-3) 0;
+  transition: all 0.15s var(--ease-quart);
+}
+.print-details-toggle:hover {
+  background: var(--paper-dim);
+  border-color: var(--blueprint);
+  border-style: solid;
+}
+.print-details-toggle.hidden { display: none; }
+
 /* ---------- product photos control (Estimate sheet) ----------
    Multiple photos per estimate. Each photo is a fixed-size square cell
    with a × remove overlay; an "+ ADD PHOTO" dashed cell at the end

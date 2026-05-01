@@ -11,7 +11,7 @@
   <!-- Cache-buster query string is bumped on each meaningful release so
        browsers fetch the new module set instead of stale ES-module copies.
        Bump this when you ship CSS or JS changes. -->
-  <link rel="stylesheet" href="css/styles.css?v=30">
+  <link rel="stylesheet" href="css/styles.css?v=31">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
@@ -104,21 +104,24 @@
           <label>Description</label>
           <input type="text" id="print-name" placeholder="e.g. Articulated dragon">
         </div>
-        <div class="field photo-field">
-          <label>Photos <span class="label-muted">(optional · multiple allowed)</span></label>
-          <div class="photo-row" id="photo-row" data-hint="Add one or more photos. Saved with archive entries and product templates. The first photo shows in the catalog list; the printed spec sheet renders all photos in a single row."></div>
-          <input type="file" id="photo-input" accept="image/*" multiple hidden>
-        </div>
-        <div class="input-row">
-          <div class="field">
-            <label>Notes <span class="label-muted">(optional)</span></label>
-            <input type="text" id="print-notes" placeholder="customer name · special instructions" data-hint="Free-form note attached to this estimate. Saved with archive entries and product templates. Useful for customer name, deadline, or special instructions.">
+        <button type="button" class="print-details-toggle" id="print-details-toggle">+ Add details — photos, notes, target sell price</button>
+        <div class="print-details collapsed" id="print-details">
+          <div class="field photo-field">
+            <label>Photos <span class="label-muted">(optional · multiple allowed)</span></label>
+            <div class="photo-row" id="photo-row" data-hint="Add one or more photos. Saved with archive entries and product templates. The first photo shows in the catalog list; the printed spec sheet renders all photos in a single row."></div>
+            <input type="file" id="photo-input" accept="image/*" multiple hidden>
           </div>
-          <div class="field">
-            <label>Target sell price <span class="label-muted">(optional)</span></label>
-            <div class="suffix-wrap">
-              <input type="number" id="print-target-price" min="0" step="0.01" placeholder="0.00" data-hint="What you want to charge. Compared against the calculated price below — handy when you're trying to hit a marketplace price point and need to figure out where to cut cost.">
-              <span class="suffix">$</span>
+          <div class="input-row">
+            <div class="field">
+              <label>Notes <span class="label-muted">(optional)</span></label>
+              <input type="text" id="print-notes" placeholder="customer name · special instructions" data-hint="Free-form note attached to this estimate. Saved with archive entries and product templates. Useful for customer name, deadline, or special instructions.">
+            </div>
+            <div class="field">
+              <label>Target sell price <span class="label-muted">(optional)</span></label>
+              <div class="suffix-wrap">
+                <input type="number" id="print-target-price" min="0" step="0.01" placeholder="0.00" data-hint="What you want to charge. Compared against the calculated price below — handy when you're trying to hit a marketplace price point and need to figure out where to cut cost.">
+                <span class="suffix">$</span>
+              </div>
             </div>
           </div>
         </div>
@@ -811,6 +814,6 @@
 
   <datalist id="spool-list"></datalist>
 
-  <script type="module" src="js/main.js?v=30"></script>
+  <script type="module" src="js/main.js?v=31"></script>
 </body>
 </html>

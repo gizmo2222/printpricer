@@ -1,8 +1,8 @@
 // Account pill, sign-in modal, and the group section inside the Defaults pane.
 
-import { CLOUD_ENABLED, state } from './state.js?v=30';
-import { toast } from './ui.js?v=30';
-import { doSignIn, doSignUp, doSignOut, createGroup, joinGroupByCode, leaveGroup } from './firebase.js?v=30';
+import { CLOUD_ENABLED, state } from './state.js?v=31';
+import { toast } from './ui.js?v=31';
+import { doSignIn, doSignUp, doSignOut, createGroup, joinGroupByCode, leaveGroup } from './firebase.js?v=31';
 
 export function updateAccountUI() {
   const cell = document.getElementById('account-pill');

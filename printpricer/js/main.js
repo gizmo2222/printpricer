@@ -1,20 +1,20 @@
 // Entry point: wire everything up after the DOM is ready.
 
-import { settings, filaments, addons } from './state.js?v=30';
-import { saveSettings } from './storage.js?v=30';
-import { initTabs, onPaneShow, initPickerOverlay, toast } from './ui.js?v=30';
-import { recalc, loadSettingsToForm, initStickyTotal } from './calc.js?v=30';
-import { renderFilaments, resetFilaments, initFilamentsUI } from './filaments.js?v=30';
-import { renderSpools, initSpoolsUI } from './spools.js?v=30';
-import { renderPrinters, updateActivePrinterDisplay, migrateLegacySinglePrinter, initPrintersUI } from './printers.js?v=30';
-import { renderHistory, initArchive } from './archive.js?v=30';
-import { renderProducts, initProductsUI, saveEstimateAsProduct, printEstimate } from './products.js?v=30';
-import { initAuthUI, updateAccountUI, renderGroupSection } from './auth-ui.js?v=30';
-import { startAuthListener } from './firebase.js?v=30';
-import { parseGcode, parse3mf } from './parser.js?v=30';
-import { formatHours, escapeHtml, resizeImageToDataUrl } from './utils.js?v=30';
-import { initOnboarding, maybeShowOnboarding } from './onboarding.js?v=30';
-import { initHelp } from './help.js?v=30';
+import { settings, filaments, addons } from './state.js?v=31';
+import { saveSettings } from './storage.js?v=31';
+import { initTabs, onPaneShow, initPickerOverlay, toast } from './ui.js?v=31';
+import { recalc, loadSettingsToForm, initStickyTotal } from './calc.js?v=31';
+import { renderFilaments, resetFilaments, initFilamentsUI } from './filaments.js?v=31';
+import { renderSpools, initSpoolsUI } from './spools.js?v=31';
+import { renderPrinters, updateActivePrinterDisplay, migrateLegacySinglePrinter, initPrintersUI } from './printers.js?v=31';
+import { renderHistory, initArchive } from './archive.js?v=31';
+import { renderProducts, initProductsUI, saveEstimateAsProduct, printEstimate } from './products.js?v=31';
+import { initAuthUI, updateAccountUI, renderGroupSection } from './auth-ui.js?v=31';
+import { startAuthListener } from './firebase.js?v=31';
+import { parseGcode, parse3mf } from './parser.js?v=31';
+import { formatHours, escapeHtml, resizeImageToDataUrl } from './utils.js?v=31';
+import { initOnboarding, maybeShowOnboarding } from './onboarding.js?v=31';
+import { initHelp } from './help.js?v=31';
 
 // ---- title-block date ----
 (function setDate() {
@@ -185,8 +185,36 @@ function renderPhotos() {
   photoRow.setAttribute('role', 'list');
 }
 // Other modules (archive load, product load, reset) replace addons.photos
-// and dispatch this event to refresh the preview.
+// and dispatch this event to refresh the preview. We also use it as the
+// auto-expand trigger for the "Add details" disclosure: any state change
+// that touches photos/notes/sellPrice flows through here.
 document.addEventListener('photo:render', renderPhotos);
+document.addEventListener('photo:render', maybeExpandDetails);
+
+// ---- "Add details" disclosure (Photos / Notes / Target sell price) ----
+//
+// Most one-off estimates don't need these three fields, so they're
+// hidden by default behind a single "+ Add details" CTA. Auto-expands
+// when an existing product/archive load populates any of them.
+const detailsToggle = document.getElementById('print-details-toggle');
+const detailsWrap   = document.getElementById('print-details');
+
+function expandDetails() {
+  detailsWrap?.classList.remove('collapsed');
+  detailsToggle?.classList.add('hidden');
+}
+function collapseDetails() {
+  detailsWrap?.classList.add('collapsed');
+  detailsToggle?.classList.remove('hidden');
+}
+function maybeExpandDetails() {
+  const hasPhotos = Array.isArray(addons.photos) && addons.photos.length > 0;
+  const hasNotes  = (addons.notes || '').trim().length > 0;
+  const hasTarget = (+addons.sellPrice || 0) > 0;
+  if (hasPhotos || hasNotes || hasTarget) expandDetails();
+  else                                    collapseDetails();
+}
+detailsToggle?.addEventListener('click', expandDetails);
 
 // Delegated click handler — covers the +Add button, per-photo × remove,
 // and the ←/→ reorder buttons. Stays valid across re-renders.
