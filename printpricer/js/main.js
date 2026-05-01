@@ -1,20 +1,20 @@
 // Entry point: wire everything up after the DOM is ready.
 
-import { settings, filaments, addons } from './state.js?v=33';
-import { saveSettings } from './storage.js?v=33';
-import { initTabs, onPaneShow, initPickerOverlay, toast } from './ui.js?v=33';
-import { recalc, loadSettingsToForm, initStickyTotal } from './calc.js?v=33';
-import { renderFilaments, resetFilaments, initFilamentsUI } from './filaments.js?v=33';
-import { renderSpools, initSpoolsUI } from './spools.js?v=33';
-import { renderPrinters, updateActivePrinterDisplay, migrateLegacySinglePrinter, initPrintersUI } from './printers.js?v=33';
-import { renderHistory, initArchive } from './archive.js?v=33';
-import { renderProducts, initProductsUI, saveEstimateAsProduct, printEstimate } from './products.js?v=33';
-import { initAuthUI, updateAccountUI, renderGroupSection } from './auth-ui.js?v=33';
-import { startAuthListener } from './firebase.js?v=33';
-import { parseGcode, parse3mf } from './parser.js?v=33';
-import { formatHours, escapeHtml, resizeImageToDataUrl } from './utils.js?v=33';
-import { initOnboarding, maybeShowOnboarding } from './onboarding.js?v=33';
-import { initHelp } from './help.js?v=33';
+import { settings, filaments, addons } from './state.js?v=34';
+import { saveSettings } from './storage.js?v=34';
+import { initTabs, onPaneShow, initPickerOverlay, toast } from './ui.js?v=34';
+import { recalc, loadSettingsToForm, initStickyTotal } from './calc.js?v=34';
+import { renderFilaments, resetFilaments, initFilamentsUI } from './filaments.js?v=34';
+import { renderSpools, initSpoolsUI } from './spools.js?v=34';
+import { renderPrinters, updateActivePrinterDisplay, migrateLegacySinglePrinter, initPrintersUI } from './printers.js?v=34';
+import { renderHistory, initArchive } from './archive.js?v=34';
+import { renderProducts, initProductsUI, saveEstimateAsProduct, printEstimate } from './products.js?v=34';
+import { initAuthUI, updateAccountUI, renderGroupSection } from './auth-ui.js?v=34';
+import { startAuthListener } from './firebase.js?v=34';
+import { parseGcode, parse3mf } from './parser.js?v=34';
+import { formatHours, escapeHtml, resizeImageToDataUrl } from './utils.js?v=34';
+import { initOnboarding, maybeShowOnboarding } from './onboarding.js?v=34';
+import { initHelp } from './help.js?v=34';
 
 // ---- title-block date ----
 (function setDate() {
@@ -467,6 +467,23 @@ document.addEventListener('keydown', e => {
   // Don't intercept when typing in inputs.
   const tag = (e.target.tagName || '').toUpperCase();
   const inField = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+  // Ctrl+P / Cmd+P on the Estimate pane → custom spec-sheet print.
+  // Browsers' default Ctrl+P would print the entire app page (layer
+  // tabs, dropzone, all). We intercept only when there's actually
+  // something to print; otherwise let the browser default proceed
+  // (so Ctrl+P on Archive still works the way the user expects).
+  if ((e.ctrlKey || e.metaKey) && (e.key === 'p' || e.key === 'P')) {
+    const onEstimate = document.querySelector('.layer.active')?.dataset.pane === 'calc';
+    if (onEstimate) {
+      const totalText = document.getElementById('bd-total')?.textContent || '$0.00';
+      const total = parseFloat(totalText.replace(/[^0-9.\-]/g, '')) || 0;
+      if (total > 0) {
+        e.preventDefault();
+        printEstimate();
+        return;
+      }
+    }
+  }
   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
     e.preventDefault();
     document.getElementById('save-quote').click();

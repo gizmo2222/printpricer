@@ -1,15 +1,15 @@
 // Archive (saved estimates) — list, load, clone, delete, CSV export, print.
 
-import { settings, filaments, addons } from './state.js?v=33';
-import { loadHistory, saveHistory, loadSpools, saveSpools, getActivePrinter } from './storage.js?v=33';
-import { LOW_STOCK_THRESHOLD } from './state.js?v=33';
-import { num, fmt, escapeHtml, formatHours, toCsv, downloadFile } from './utils.js?v=33';
-import { toast, toastWithUndo, switchToPane } from './ui.js?v=33';
-import { markOnboardingComplete } from './onboarding.js?v=33';
-import { renderFilaments, setFilaments, newFilament } from './filaments.js?v=33';
-import { recalc } from './calc.js?v=33';
-import { logActivity } from './firebase.js?v=33';
-import { clearEditingMode } from './products.js?v=33';
+import { settings, filaments, addons } from './state.js?v=34';
+import { loadHistory, saveHistory, loadSpools, saveSpools, getActivePrinter } from './storage.js?v=34';
+import { LOW_STOCK_THRESHOLD } from './state.js?v=34';
+import { num, fmt, escapeHtml, formatHours, toCsv, downloadFile } from './utils.js?v=34';
+import { toast, toastWithUndo, switchToPane } from './ui.js?v=34';
+import { markOnboardingComplete } from './onboarding.js?v=34';
+import { renderFilaments, setFilaments, newFilament } from './filaments.js?v=34';
+import { recalc } from './calc.js?v=34';
+import { logActivity } from './firebase.js?v=34';
+import { clearEditingMode } from './products.js?v=34';
 
 let saveQuoteInFlight = false; // double-tap guard
 const FILTER_THRESHOLD = 10;

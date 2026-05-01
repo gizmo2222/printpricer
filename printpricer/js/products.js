@@ -14,14 +14,14 @@
 // This module owns the editingProductId state and the catalog list. The
 // Estimate sheet's input wiring + smart save buttons live in main.js.
 
-import { settings, filaments, addons, MARKETPLACE_PRESETS } from './state.js?v=33';
-import { loadProducts, saveProducts, loadPrinters, getActivePrinter, saveActivePrinterId } from './storage.js?v=33';
-import { num, fmt, escapeHtml, formatHours, toCsv, downloadFile } from './utils.js?v=33';
-import { toast, switchToPane } from './ui.js?v=33';
-import { setFilaments, newFilament, renderFilaments } from './filaments.js?v=33';
-import { recalc } from './calc.js?v=33';
-import { updateActivePrinterDisplay } from './printers.js?v=33';
-import { logActivity } from './firebase.js?v=33';
+import { settings, filaments, addons, MARKETPLACE_PRESETS, isInCloudMode } from './state.js?v=34';
+import { loadProducts, saveProducts, loadPrinters, getActivePrinter, saveActivePrinterId } from './storage.js?v=34';
+import { num, fmt, escapeHtml, formatHours, toCsv, downloadFile } from './utils.js?v=34';
+import { toast, switchToPane } from './ui.js?v=34';
+import { setFilaments, newFilament, renderFilaments } from './filaments.js?v=34';
+import { recalc } from './calc.js?v=34';
+import { updateActivePrinterDisplay } from './printers.js?v=34';
+import { logActivity } from './firebase.js?v=34';
 
 // ---------- edit-mode state (module-private) ----------
 
@@ -236,17 +236,23 @@ function loadProductIntoEstimate(id) {
 // otherwise create new (this is what "Update product" calls).
 
 // Warn when a single product is approaching the Firestore 1MB document
-// limit (mostly a photo concern). Soft warning above 700KB; hard reject
-// above 950KB to leave headroom for Firestore metadata.
+// limit (mostly a photo concern). Soft warning above 700KB always; hard
+// reject above 950KB only when the user is signed in and would actually
+// try to sync — local-only users have ~5MB of localStorage to play with
+// and shouldn't be blocked.
 function checkProductSize(data) {
   const bytes = new Blob([JSON.stringify(data)]).size;
   const kb    = (bytes / 1024).toFixed(0);
-  if (bytes > 950 * 1024) {
+  const cloud = isInCloudMode();
+  if (bytes > 950 * 1024 && cloud) {
     toast(`Product is ${kb}KB — too large to sync (1MB cloud limit). Remove a photo or two before saving.`, true);
     return false;
   }
   if (bytes > 700 * 1024) {
-    toast(`Product is ${kb}KB — close to the 1MB cloud limit. Consider removing some photos.`, true);
+    const tail = cloud
+      ? 'close to the 1MB cloud limit. Consider removing some photos.'
+      : 'getting large. If you sign in later, Firestore (1MB cap) will refuse it.';
+    toast(`Product is ${kb}KB — ${tail}`, true);
   }
   return true;
 }
