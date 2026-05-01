@@ -94,17 +94,35 @@ export function downloadFile(filename, content, mime = 'text/plain;charset=utf-8
 // We store photos as data URLs in localStorage / Firestore; resizing here
 // keeps each photo to ~50–200KB so we don't blow past the 1MB Firestore
 // document limit even with multiple products in a group.
+//
+// Validates the file type up front so the user gets a specific error
+// (e.g. "HEIC isn't supported — convert to JPEG first") instead of a
+// generic decode failure deep inside the canvas pipeline.
 export function resizeImageToDataUrl(file, maxDim = 800, quality = 0.82) {
   return new Promise((resolve, reject) => {
-    if (!file || !file.type?.startsWith('image/')) {
-      reject(new Error('Not an image file'));
+    if (!file) {
+      reject(new Error('No file selected'));
+      return;
+    }
+    const type = (file.type || '').toLowerCase();
+    const name = file.name || 'photo';
+    if (!type.startsWith('image/')) {
+      reject(new Error(`${name} is not an image file`));
+      return;
+    }
+    // HEIC/HEIF (iPhone default): most desktop browsers can't decode these
+    // without OS-level support. Reject early with a helpful hint so the
+    // user doesn't get a mysterious "could not load" toast.
+    if (type === 'image/heic' || type === 'image/heif' ||
+        /\.(heic|heif)$/i.test(name)) {
+      reject(new Error(`HEIC photos aren't supported. Most phones can share or export as JPEG instead.`));
       return;
     }
     const reader = new FileReader();
-    reader.onerror = () => reject(new Error('Could not read file'));
+    reader.onerror = () => reject(new Error(`Couldn't read ${name}`));
     reader.onload = e => {
       const img = new Image();
-      img.onerror = () => reject(new Error('Could not load image'));
+      img.onerror = () => reject(new Error(`Couldn't decode ${name} — file may be corrupt or in an unsupported format`));
       img.onload = () => {
         let { width, height } = img;
         if (width > maxDim || height > maxDim) {

@@ -6,9 +6,9 @@
 // using either per-triangle paint_color/extruder/pindex attributes, or
 // part-level extruder mappings from model_settings.config.
 
-import { settings } from './state.js?v=32';
-import { getActivePrinter } from './storage.js?v=32';
-import { parseTimeStr } from './utils.js?v=32';
+import { settings } from './state.js?v=33';
+import { getActivePrinter } from './storage.js?v=33';
+import { parseTimeStr } from './utils.js?v=33';
 
 // ---------- regex literals (module-scope so they aren't re-compiled) ----------
 

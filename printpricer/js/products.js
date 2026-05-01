@@ -14,14 +14,14 @@
 // This module owns the editingProductId state and the catalog list. The
 // Estimate sheet's input wiring + smart save buttons live in main.js.
 
-import { settings, filaments, addons, MARKETPLACE_PRESETS } from './state.js?v=32';
-import { loadProducts, saveProducts, loadPrinters, getActivePrinter, saveActivePrinterId } from './storage.js?v=32';
-import { num, fmt, escapeHtml, formatHours, toCsv, downloadFile } from './utils.js?v=32';
-import { toast, switchToPane } from './ui.js?v=32';
-import { setFilaments, newFilament, renderFilaments } from './filaments.js?v=32';
-import { recalc } from './calc.js?v=32';
-import { updateActivePrinterDisplay } from './printers.js?v=32';
-import { logActivity } from './firebase.js?v=32';
+import { settings, filaments, addons, MARKETPLACE_PRESETS } from './state.js?v=33';
+import { loadProducts, saveProducts, loadPrinters, getActivePrinter, saveActivePrinterId } from './storage.js?v=33';
+import { num, fmt, escapeHtml, formatHours, toCsv, downloadFile } from './utils.js?v=33';
+import { toast, switchToPane } from './ui.js?v=33';
+import { setFilaments, newFilament, renderFilaments } from './filaments.js?v=33';
+import { recalc } from './calc.js?v=33';
+import { updateActivePrinterDisplay } from './printers.js?v=33';
+import { logActivity } from './firebase.js?v=33';
 
 // ---------- edit-mode state (module-private) ----------
 
@@ -111,11 +111,14 @@ export function renderProducts() {
     const totalGrams = (p.filaments || []).reduce((s, f) => s + (+f.grams || 0), 0);
     const bomCount = (p.bom || []).length;
     // Catalog thumbnail uses the first photo (or legacy single photo).
+    // The wrap carries the aria-label so screen readers announce
+    // "Product photo (3 photos)" rather than naked count digit.
     const firstPhoto = (Array.isArray(p.photos) && p.photos[0]) || p.photo || '';
     const photoCount = Array.isArray(p.photos) ? p.photos.length : (p.photo ? 1 : 0);
+    const photoAria  = photoCount > 1 ? `${photoCount} photos` : '1 photo';
     const thumbHtml = firstPhoto
-      ? `<div class="product-photo-thumb-wrap"><img class="product-photo-thumb" src="${escapeHtml(firstPhoto)}" alt="">${photoCount > 1 ? `<span class="photo-count">${photoCount}</span>` : ''}</div>`
-      : `<div class="spool-swatch" style="background: var(--paper-deep)"></div>`;
+      ? `<div class="product-photo-thumb-wrap" role="img" aria-label="Product photo (${photoAria})"><img class="product-photo-thumb" src="${escapeHtml(firstPhoto)}" alt="">${photoCount > 1 ? `<span class="photo-count" aria-hidden="true">${photoCount}</span>` : ''}</div>`
+      : `<div class="spool-swatch" style="background: var(--paper-deep)" aria-hidden="true"></div>`;
     item.innerHTML = `
       ${thumbHtml}
       <div class="spool-info">
@@ -232,6 +235,22 @@ function loadProductIntoEstimate(id) {
 // asNew=false (default) → if editingProductId is set, overwrite that product;
 // otherwise create new (this is what "Update product" calls).
 
+// Warn when a single product is approaching the Firestore 1MB document
+// limit (mostly a photo concern). Soft warning above 700KB; hard reject
+// above 950KB to leave headroom for Firestore metadata.
+function checkProductSize(data) {
+  const bytes = new Blob([JSON.stringify(data)]).size;
+  const kb    = (bytes / 1024).toFixed(0);
+  if (bytes > 950 * 1024) {
+    toast(`Product is ${kb}KB — too large to sync (1MB cloud limit). Remove a photo or two before saving.`, true);
+    return false;
+  }
+  if (bytes > 700 * 1024) {
+    toast(`Product is ${kb}KB — close to the 1MB cloud limit. Consider removing some photos.`, true);
+  }
+  return true;
+}
+
 export function saveEstimateAsProduct({ asNew = false } = {}) {
   const name = document.getElementById('print-name').value.trim();
   if (!name) { toast('Enter a description first — that becomes the product name', true); return; }
@@ -258,6 +277,8 @@ export function saveEstimateAsProduct({ asNew = false } = {}) {
       unitCost: b.unitCost,
     })),
   };
+
+  if (!checkProductSize(data)) return;
 
   const all = loadProducts();
   if (!asNew && editingProductId) {
@@ -392,10 +413,20 @@ function printProduct(id) {
 // and print it. Wired to the Estimate sheet's Print button. The snapshot
 // isn't saved — it just feeds the same print template that products use
 // so unsaved estimates can be printed too.
+//
+// Defensive guard: the print-link is hidden when total === 0, but if
+// printEstimate() is invoked from elsewhere (or via a stale UI), bail
+// out with a helpful toast rather than producing a $0.00 spec sheet.
 export function printEstimate() {
   const printer = getActivePrinter();
   const hours = num(document.getElementById('time-h')?.value)
               + num(document.getElementById('time-m')?.value) / 60;
+  const hasName     = (document.getElementById('print-name')?.value || '').trim().length > 0;
+  const hasFilament = filaments.some(f => num(f.grams) > 0);
+  if (!hasName && hours === 0 && !hasFilament) {
+    toast('Nothing to print yet — fill in a description, time, or filament weight first', true);
+    return;
+  }
   const snapshot = {
     id: 'EST' + Date.now().toString().slice(-4),
     name: document.getElementById('print-name')?.value.trim() || 'Untitled estimate',
