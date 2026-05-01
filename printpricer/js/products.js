@@ -14,14 +14,14 @@
 // This module owns the editingProductId state and the catalog list. The
 // Estimate sheet's input wiring + smart save buttons live in main.js.
 
-import { settings, filaments, addons, MARKETPLACE_PRESETS } from './state.js?v=31';
-import { loadProducts, saveProducts, loadPrinters, getActivePrinter, saveActivePrinterId } from './storage.js?v=31';
-import { num, fmt, escapeHtml, formatHours, toCsv, downloadFile } from './utils.js?v=31';
-import { toast, switchToPane } from './ui.js?v=31';
-import { setFilaments, newFilament, renderFilaments } from './filaments.js?v=31';
-import { recalc } from './calc.js?v=31';
-import { updateActivePrinterDisplay } from './printers.js?v=31';
-import { logActivity } from './firebase.js?v=31';
+import { settings, filaments, addons, MARKETPLACE_PRESETS } from './state.js?v=32';
+import { loadProducts, saveProducts, loadPrinters, getActivePrinter, saveActivePrinterId } from './storage.js?v=32';
+import { num, fmt, escapeHtml, formatHours, toCsv, downloadFile } from './utils.js?v=32';
+import { toast, switchToPane } from './ui.js?v=32';
+import { setFilaments, newFilament, renderFilaments } from './filaments.js?v=32';
+import { recalc } from './calc.js?v=32';
+import { updateActivePrinterDisplay } from './printers.js?v=32';
+import { logActivity } from './firebase.js?v=32';
 
 // ---------- edit-mode state (module-private) ----------
 

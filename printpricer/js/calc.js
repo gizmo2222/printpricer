@@ -4,9 +4,9 @@
 //   - sticky total bar visibility
 //   - earned block-detail callouts on Estimate sheet headers
 
-import { settings, filaments, addons, MARKETPLACE_PRESETS } from './state.js?v=31';
-import { getActivePrinter } from './storage.js?v=31';
-import { num, fmt, formatHours } from './utils.js?v=31';
+import { settings, filaments, addons, MARKETPLACE_PRESETS } from './state.js?v=32';
+import { getActivePrinter } from './storage.js?v=32';
+import { num, fmt, formatHours } from './utils.js?v=32';
 
 const flashTargets = ['bd-filament','bd-power','bd-time','bd-labor','bd-packaging','bd-bom','bd-shipping','bd-subtotal','bd-failure','bd-margin','bd-total','bd-fees','bd-net','sticky-total-value'];
 const lastValues = {};
@@ -118,6 +118,10 @@ export function recalc() {
   // Show the net-after-fees panel only if a marketplace is actually selected and there are fees
   const netPanel = document.getElementById('net-after-fees');
   if (netPanel) netPanel.style.display = (presetKey !== 'none' && feeAmt > 0) ? '' : 'none';
+
+  // Show the "Print this estimate" link only when there's something to print
+  const printLink = document.getElementById('print-link-row');
+  if (printLink) printLink.style.display = total > 0 ? 'flex' : 'none';
 
   // Target sell price comparison — diff vs the calculated estimate
   const target = num(addons.sellPrice);

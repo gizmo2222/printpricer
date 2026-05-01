@@ -11,7 +11,7 @@
   <!-- Cache-buster query string is bumped on each meaningful release so
        browsers fetch the new module set instead of stale ES-module copies.
        Bump this when you ship CSS or JS changes. -->
-  <link rel="stylesheet" href="css/styles.css?v=31">
+  <link rel="stylesheet" href="css/styles.css?v=32">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
@@ -227,11 +227,13 @@
           <div class="breakdown-row"><span class="label" id="bd-fees-label">Marketplace fees</span><span class="leader"></span><span class="value" id="bd-fees" style="color: var(--rust)">−$0.00</span></div>
           <div class="breakdown-row subtotal" style="border-color: var(--moss); margin-top: 0; padding-top: var(--space-3);"><span class="label" style="color: var(--moss)">Net to you</span><span class="leader"></span><span class="value" id="bd-net" style="color: var(--moss); font-size: var(--text-md);">$0.00</span></div>
         </div>
+        <div class="print-link-row" id="print-link-row" style="display:none">
+          <button type="button" class="btn-print-link" id="print-estimate" data-hint="Open a printable spec sheet of the current Estimate — description, photos, filaments, add-ons, BOM, full breakdown, total. Doesn't save anything.">Print this estimate →</button>
+        </div>
         <div class="btn-row" style="margin-top: 18px;">
           <button class="btn btn-stamp" id="save-quote" data-hint="Saves this quote to the Archive and deducts grams from any linked spools. Reversible for 8 seconds via the undo toast.">Stamp &amp; Archive</button>
           <button class="btn" id="update-product" style="display:none" data-hint="Save your edits back to this product template. Use this when you want the catalog entry to reflect the current state of the sheet.">Update product</button>
           <button class="btn btn-ghost" id="save-as-product" data-hint="Save the current Estimate as a reusable Product template. Open it later from layer 04 to re-quote with one click.">Save as Product</button>
-          <button class="btn btn-ghost" id="print-estimate" data-hint="Open a printable spec sheet of the current Estimate — description, photos, filaments, add-ons, BOM, full breakdown, total. Doesn't save anything.">Print</button>
           <button class="btn btn-ghost btn-quiet" id="reset-quote" data-hint="Clears the Estimate sheet — description, notes, time, filament rows, BOM, add-ons. Defaults and the active printer are kept.">Reset Sheet</button>
         </div>
         <div class="edit-mode-hint" id="edit-mode-hint" style="display:none">
@@ -814,6 +816,6 @@
 
   <datalist id="spool-list"></datalist>
 
-  <script type="module" src="js/main.js?v=31"></script>
+  <script type="module" src="js/main.js?v=32"></script>
 </body>
 </html>

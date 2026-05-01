@@ -1143,6 +1143,35 @@ select.input {
 }
 .spool-link-tag::before { content: '→ '; }
 
+/* ---------- Print-this-estimate link (between breakdown + btn-row) ----------
+   Positioned right-aligned in its own row above the save/archive buttons.
+   Visually a quiet ghost button — Print is a secondary "output" action,
+   not a primary save action, so it doesn't belong in the btn-row. Hidden
+   while total === 0 (no point printing a $0.00 estimate). */
+.print-link-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--space-3);
+}
+.btn-print-link {
+  background: transparent;
+  color: var(--blueprint);
+  border: 1px solid var(--ink-faint);
+  padding: 5px 12px 4px;
+  font-family: var(--condensed);
+  font-size: var(--text-xs);
+  font-weight: var(--w-semibold);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.12s var(--ease-quart);
+}
+.btn-print-link:hover {
+  background: var(--blueprint);
+  color: var(--paper);
+  border-color: var(--blueprint);
+}
+
 /* ---------- Print-block "Add details" disclosure ----------
    Photos / Notes / Target sell price are optional fields most one-off
    estimates don't use. Hide them behind a single dashed CTA inside the
