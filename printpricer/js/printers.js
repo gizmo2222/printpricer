@@ -5,12 +5,12 @@
 // On delete, if the deleted printer was active, the next remaining printer
 // becomes active automatically.
 
-import { settings, PRINTER_PRESETS, PRINTERS_KEY, ACTIVE_PRINTER_KEY } from './state.js?v=34';
-import { loadPrinters, savePrinters, loadActivePrinterId, saveActivePrinterId, getActivePrinter } from './storage.js?v=34';
-import { escapeHtml } from './utils.js?v=34';
-import { toast, openPicker } from './ui.js?v=34';
-import { recalc } from './calc.js?v=34';
-import { logActivity } from './firebase.js?v=34';
+import { settings, PRINTER_PRESETS, PRINTERS_KEY, ACTIVE_PRINTER_KEY } from './state.js?v=35';
+import { loadPrinters, savePrinters, loadActivePrinterId, saveActivePrinterId, getActivePrinter } from './storage.js?v=35';
+import { escapeHtml } from './utils.js?v=35';
+import { toast, openPicker } from './ui.js?v=35';
+import { recalc } from './calc.js?v=35';
+import { logActivity } from './firebase.js?v=35';
 
 let editingPrinterId = null;
 let isAddingPrinter = false;
@@ -75,7 +75,7 @@ export function renderPrinters() {
       const active = printers.find(p => String(p.id) === String(activeId));
       callout.classList.add('active-info');
       callout.innerHTML = active
-        ? `${active.name.toUpperCase()} ACTIVE<span class="id">A</span>`
+        ? `${escapeHtml(String(active.name || "").toUpperCase())} ACTIVE<span class="id">A</span>`
         : `${printers.length} · NONE ACTIVE<span class="id">A</span>`;
     } else {
       callout.classList.remove('active-info');

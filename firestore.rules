@@ -5,83 +5,94 @@ rules_version = '2';
 //
 // Model:
 //   users/{uid}                       — per-user record (email, currentGroupId)
-//   groups/{gid}                      — group doc (name, joinCode, members[], ownerUid)
+//   joinCodes/{code}                  — { gid } lookup for joining by code
+//   groups/{gid}                      — group doc (name, joinCode, ownerUid,
+//                                       members[], memberEmails{uid: email})
 //   groups/{gid}/spools/{id}          — shared spool inventory
 //   groups/{gid}/archive/{id}         — shared estimate archive
+//   groups/{gid}/printers/{id}        — shared printer fleet
+//   groups/{gid}/products/{id}        — shared product catalog
 //   groups/{gid}/settings/main        — shared defaults
+//   groups/{gid}/activity/{id}        — group activity feed
 //
-// Anonymous users have no group access. Email-authed users can read any group
-// doc (so they can look up by joinCode), but can only modify groups they
-// belong to (or are joining via members arrayUnion).
+// Joining: a group's ID is random and only members can read the group, so the
+// only way to learn it is to know the join code and read joinCodes/{code}.
+// Join codes can be read one at a time but never listed.
 
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+
+    function groupData(gid) {
+      return get(/databases/$(database)/documents/groups/$(gid)).data;
+    }
+
+    function isMember(gid) {
+      return signedIn() && request.auth.uid in groupData(gid).members;
+    }
 
     // ---------- users ----------
     match /users/{uid} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
     }
 
+    // ---------- join codes ----------
+    match /joinCodes/{code} {
+      // Look up one code you already know; listing all codes is not allowed.
+      allow get: if signedIn();
+      allow list: if false;
+
+      // Only the group's owner can register its code, and only the code the
+      // group actually has. Codes are never changed or reused.
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['gid'])
+        && groupData(request.resource.data.gid).ownerUid == request.auth.uid
+        && groupData(request.resource.data.gid).joinCode == code;
+      allow update: if false;
+      allow delete: if signedIn() && groupData(resource.data.gid).ownerUid == request.auth.uid;
+    }
+
     // ---------- groups ----------
-    function isMember(gid) {
-      return request.auth != null
-        && request.auth.token.firebase.sign_in_provider != 'anonymous'
-        && request.auth.uid in get(/databases/$(database)/documents/groups/$(gid)).data.members;
-    }
-
-    function isMemberOnNew(gid) {
-      // Used during create to avoid get() on non-existent doc
-      return request.auth != null
-        && request.auth.token.firebase.sign_in_provider != 'anonymous'
-        && request.auth.uid in request.resource.data.members;
-    }
-
     match /groups/{gid} {
-      // Any authenticated, non-anonymous user can read group docs (needed for
-      // joinCode lookup). Doc is small and contains no sensitive data.
-      allow read: if request.auth != null
-                  && request.auth.token.firebase.sign_in_provider != 'anonymous';
+      allow read: if signedIn() && request.auth.uid in resource.data.members;
 
-      // Create: must be authed and listed in members at creation time.
-      allow create: if isMemberOnNew(gid)
-                    && request.resource.data.ownerUid == request.auth.uid;
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.members == [request.auth.uid];
 
-      // Update: existing members may update freely. Non-members may update
-      // ONLY to add themselves (joining). They cannot rename / change owner /
-      // remove other members.
-      allow update: if (request.auth != null
-                       && request.auth.token.firebase.sign_in_provider != 'anonymous')
-                    && (
-                      // existing member: full update rights
-                      request.auth.uid in resource.data.members
-                      ||
-                      // non-member joining: only members[] changes, only by adding self
-                      (
-                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members'])
-                        && request.resource.data.members.hasAll(resource.data.members)
-                        && request.resource.data.members.size() == resource.data.members.size() + 1
-                        && request.auth.uid in request.resource.data.members
-                      )
-                    );
+      // Members may update freely. A non-member may only add themselves
+      // (members + their own memberEmails entry) — which requires knowing the
+      // group's ID, i.e. having looked up its join code.
+      allow update: if signedIn() && (
+        request.auth.uid in resource.data.members
+        || (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'memberEmails'])
+          && request.resource.data.members.hasAll(resource.data.members)
+          && request.resource.data.members.size() == resource.data.members.size() + 1
+          && request.auth.uid in request.resource.data.members
+          && request.resource.data.get('memberEmails', {})
+               .diff(resource.data.get('memberEmails', {}))
+               .affectedKeys().hasOnly([request.auth.uid])
+        )
+      );
 
-      // Delete: only the owner.
-      allow delete: if request.auth != null && resource.data.ownerUid == request.auth.uid;
+      allow delete: if signedIn() && resource.data.ownerUid == request.auth.uid;
 
       // ---------- group sub-collections ----------
-      match /spools/{id} {
-        allow read, write: if isMember(gid);
-      }
-      match /archive/{id} {
-        allow read, write: if isMember(gid);
-      }
-      match /settings/{id} {
-        allow read, write: if isMember(gid);
-      }
-      match /printers/{id} {
-        allow read, write: if isMember(gid);
-      }
-      match /products/{id} {
-        allow read, write: if isMember(gid);
+      match /spools/{id}   { allow read, write: if isMember(gid); }
+      match /archive/{id}  { allow read, write: if isMember(gid); }
+      match /settings/{id} { allow read, write: if isMember(gid); }
+      match /printers/{id} { allow read, write: if isMember(gid); }
+      match /products/{id} { allow read, write: if isMember(gid); }
+
+      // Activity entries are written by the member they describe, never edited.
+      match /activity/{id} {
+        allow read: if isMember(gid);
+        allow create: if isMember(gid) && request.resource.data.uid == request.auth.uid;
       }
     }
   }

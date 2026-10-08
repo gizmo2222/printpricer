@@ -184,10 +184,12 @@ The app runs in **local mode** by default — everything stays in `localStorage`
    - Project settings (gear icon) → **Your apps** → **Web** (`</>` icon)
    - Name it (e.g. `printpricer-web`), register, **copy the `firebaseConfig` object**.
 
-6. **Paste config into the HTML**
-   - Open `printpricer.html`, find `const FIREBASE_CONFIG = { ... }` near the top of the script.
-   - Replace the empty object with your copied config.
+6. **Paste the config into the app**
+   - Open `printpricer/js/state.js` and find `export const FIREBASE_CONFIG = { ... }`.
+   - Replace its contents with your copied config.
    - Commit and push — deploys automatically.
+
+Whenever `firestore.rules` changes, publish it again (step 4) — the app and the rules must match. For example, products and the activity feed only sync once their rules are published.
 
 That's it. The account pill in the top-right will switch from "Local only" to "Local mode" (signed-out cloud) and clicking it opens sign-in.
 
@@ -195,8 +197,10 @@ That's it. The account pill in the top-right will switch from "Local only" to "L
 
 - Sign in (or create an account) with email + password.
 - In **Defaults → Account & Group**, **Create group** (give it a name) — you'll get a 6-char join code like `PR4-9XK`.
-- Share the code with anyone you want in the group. They sign in, paste the code into **Join with code**, and they're in.
-- Once in a group, **spools, archive, and defaults are all shared** — everyone sees real-time updates as anyone uses up filament or stamps an estimate.
+- Share the code with anyone you want in the group. They sign in, paste the code into **Join with code** (dashes and spaces optional), and they're in.
+- The code really is the key: only members can see a group, and the only way for anyone else to find it is to look up its exact code. Codes can't be listed or browsed.
+- The member list shows each member's email, which is stored on the group when they join.
+- Once in a group, **spools, printers, products, archive, and defaults are all shared** — everyone sees real-time updates as anyone uses up filament or stamps an estimate. An activity feed records who did what.
 - **Leave group** removes you from the group; your local cache stays in your browser.
 
 ### What's shared vs personal
@@ -213,7 +217,9 @@ Anonymous / signed-out usage works exactly like before — pure `localStorage`.
 
 ## Deploy
 
-`.github/workflows/deploy.yml` uploads the `printpricer/` directory to `/home/nstrupp/metacrystal.com/printpricer/` via SFTP on every push to `main`. Requires repo secrets `SFTP_USER` and `SFTP_PASSWORD`.
+`.github/workflows/deploy.yml` uploads the `printpricer/` directory to `/home/nstrupp/metacrystal.com/printpricer/` via SFTP on every push to `main` (or from **Run workflow** on the Actions tab). Requires repo secrets `SFTP_USER` and `SFTP_PASSWORD`. The server's SSH host keys are pinned in `.github/known_hosts`; if the host ever changes them, refresh the file with `ssh-keyscan metacrystal.com`.
+
+Module URLs carry a cache-busting `?v=N` query. When you change any JS or CSS file, bump `N` everywhere (`index.html` and every `import` line) so browsers fetch the new files.
 
 The Firebase config is committed in `js/state.js`. Note that Firebase web config is **not secret** — security comes from Firestore rules, which are enforced server-side.
 

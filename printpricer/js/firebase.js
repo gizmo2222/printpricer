@@ -8,18 +8,18 @@ import {
   CLOUD_ENABLED, FIREBASE_CONFIG,
   SPOOLS_KEY, HISTORY_KEY, PRINTERS_KEY, PRODUCTS_KEY, SETTINGS_KEY,
   defaultSettings, settings, state, isInCloudMode,
-} from './state.js?v=34';
-import { rafDebounce, generateJoinCode } from './utils.js?v=34';
-import { activePane } from './ui.js?v=34';
-import { renderSpools } from './spools.js?v=34';
-import { renderPrinters, updateActivePrinterDisplay } from './printers.js?v=34';
-import { renderProducts } from './products.js?v=34';
-import { renderHistory } from './archive.js?v=34';
-import { renderActivity } from './activity.js?v=34';
-import { renderFilaments } from './filaments.js?v=34';
-import { recalc, loadSettingsToForm } from './calc.js?v=34';
-import { renderGroupSection, updateAccountUI } from './auth-ui.js?v=34';
-import { loadHistory, loadSpools, loadPrinters, loadProducts, seedGroupCollection } from './storage.js?v=34';
+} from './state.js?v=35';
+import { rafDebounce, generateJoinCode } from './utils.js?v=35';
+import { activePane } from './ui.js?v=35';
+import { renderSpools } from './spools.js?v=35';
+import { renderPrinters, updateActivePrinterDisplay } from './printers.js?v=35';
+import { renderProducts } from './products.js?v=35';
+import { renderHistory } from './archive.js?v=35';
+import { renderActivity } from './activity.js?v=35';
+import { renderFilaments } from './filaments.js?v=35';
+import { recalc, loadSettingsToForm } from './calc.js?v=35';
+import { renderGroupSection, updateAccountUI } from './auth-ui.js?v=35';
+import { loadHistory, loadSpools, loadPrinters, loadProducts, seedGroupCollection } from './storage.js?v=35';
 
 export let fb = null;
 
@@ -57,18 +57,14 @@ function clearListeners() {
 
 // ---- members lookup ----
 
-async function fetchMembers(uids) {
-  if (!fb || !uids?.length) return [];
-  const result = [];
-  await Promise.all(uids.map(async uid => {
-    try {
-      const snap = await fb.getDoc(fb.doc(fb.db, 'users', uid));
-      result.push({ uid, email: snap.exists() ? (snap.data().email || uid) : uid });
-    } catch {
-      result.push({ uid, email: uid });
-    }
+// Emails are stored on the group (memberEmails) because the security rules
+// only let each user read their own users/{uid} record.
+function membersFromGroup(groupDoc) {
+  const emails = groupDoc?.memberEmails || {};
+  return (groupDoc?.members || []).map(uid => ({
+    uid,
+    email: emails[uid] || (uid === state.user?.uid && state.user.email) || uid,
   }));
-  return result;
 }
 
 async function ensureUserDoc(user) {
@@ -120,7 +116,7 @@ export async function subscribeToGroup(gid) {
       return;
     }
     state.groupDoc = { id: snap.id, ...snap.data() };
-    state.members = await fetchMembers(state.groupDoc.members || []);
+    state.members = membersFromGroup(state.groupDoc);
     if (state.syncGen !== myGen) return;
     updateAccountUI();
     renderGroupSection();
@@ -221,14 +217,15 @@ export async function createGroup(name) {
   const localProducts = loadProducts();
   const localSettings = { ...settings };
 
-  const code = generateJoinCode();
   const ref = await fb.addDoc(fb.collection(fb.db, 'groups'), {
     name: name.trim(),
-    joinCode: code,
+    joinCode: generateJoinCode(),
     ownerUid: state.user.uid,
     members: [state.user.uid],
+    memberEmails: { [state.user.uid]: state.user.email || '' },
     createdAt: fb.serverTimestamp(),
   });
+  await registerJoinCode(ref);
   await fb.updateDoc(fb.doc(fb.db, 'users', state.user.uid), { currentGroupId: ref.id });
 
   state.groupId = ref.id;
@@ -243,18 +240,37 @@ export async function createGroup(name) {
   return ref.id;
 }
 
+// Publishes joinCodes/{code} → { gid }. That lookup is the only way for a
+// non-member to find a group. If the code is already taken by another group
+// (the create is refused), pick a new code and try again.
+async function registerJoinCode(groupRef) {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const snap = await fb.getDoc(groupRef);
+    const code = snap.data().joinCode;
+    try {
+      await fb.setDoc(fb.doc(fb.db, 'joinCodes', code), { gid: groupRef.id });
+      return;
+    } catch {
+      await fb.updateDoc(groupRef, { joinCode: generateJoinCode() });
+    }
+  }
+  throw new Error('Could not create a join code — try again');
+}
+
 export async function joinGroupByCode(code) {
   if (!fb || !state.user || state.user.isAnonymous) throw new Error('Sign in first');
-  const cleaned = code.toUpperCase().replace(/\s+/g, '');
-  const q = fb.query(fb.collection(fb.db, 'groups'), fb.where('joinCode', '==', cleaned));
-  const snap = await fb.getDocs(q);
-  if (snap.empty) throw new Error('No group found with that code');
-  const groupSnap = snap.docs[0];
-  const gid = groupSnap.id;
-  const data = groupSnap.data();
-  if (!(data.members || []).includes(state.user.uid)) {
+  // Codes are stored as ABC-DEF; accept "abcdef", "ABC DEF", "abc-def", ...
+  const chars = code.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (chars.length !== 6) throw new Error('Join codes are 6 characters, like ABC-DEF');
+  const snap = await fb.getDoc(fb.doc(fb.db, 'joinCodes', `${chars.slice(0, 3)}-${chars.slice(3)}`)).catch(() => null);
+  if (!snap?.exists()) throw new Error('No group found with that code');
+  const gid = snap.data().gid;
+  if (state.groupId !== gid) {
+    // Adding yourself is allowed for anyone who knows the group's ID; a repeat
+    // join by an existing member leaves members unchanged.
     await fb.updateDoc(fb.doc(fb.db, 'groups', gid), {
       members: fb.arrayUnion(state.user.uid),
+      [`memberEmails.${state.user.uid}`]: state.user.email || '',
     });
   }
   await fb.updateDoc(fb.doc(fb.db, 'users', state.user.uid), { currentGroupId: gid });
@@ -268,6 +284,7 @@ export async function leaveGroup() {
   const gid = state.groupId;
   await fb.updateDoc(fb.doc(fb.db, 'groups', gid), {
     members: fb.arrayRemove(state.user.uid),
+    [`memberEmails.${state.user.uid}`]: fb.deleteField(),
   });
   await fb.updateDoc(fb.doc(fb.db, 'users', state.user.uid), { currentGroupId: null });
   clearListeners();
