@@ -62,7 +62,6 @@ export function rafDebounce(fn) {
   };
 }
 
-// 6-char join-code generator (no easily-confused characters).
 // 8 characters from a 31-letter alphabet (no I, L, O, 0, 1), formatted
 // ABCD-EFGH: about 8.5e11 codes. Uses crypto.getRandomValues with rejection
 // sampling so every letter is equally likely.
