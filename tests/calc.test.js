@@ -158,7 +158,7 @@ describe('recalc: marketplace fees', () => {
     assert.equal(text('bd-fees'), '−$8.50');
   });
 
-  it('custom: labels the fee row', { todo: 'BUG: the custom preset object has no label, so the row reads "undefined fees"' }, () => {
+  it('custom: labels the fee row',() => {
     settings.marketplacePreset = 'custom';
     recalc();
     assert.equal(el('bd-fees-label').textContent, 'Custom fees');

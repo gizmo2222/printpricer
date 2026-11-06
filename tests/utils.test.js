@@ -51,12 +51,26 @@ describe('fmt', () => {
     assert.equal(fmt(1e15), '$1000000000000000.00');
   });
 
-  it('rounds half-cent values up', { todo: 'BUG: toFixed on binary floats rounds 1.005 down to $1.00' }, () => {
+  it('rounds half-cent values up', () => {
     assert.equal(fmt(1.005), '$1.01');
+    assert.equal(fmt(2.675), '$2.68');
+    assert.equal(fmt(0.125), '$0.13');
+    assert.equal(fmt(1e12), '$1000000000000.00');
   });
 
-  it('puts the minus sign before the dollar sign', { todo: 'BUG: negative amounts render as "$-0.45"' }, () => {
+  it('puts the minus sign before the dollar sign', () => {
     assert.equal(fmt(-0.45), '-$0.45');
+    assert.equal(fmt(-1234.5), '-$1234.50');
+  });
+
+  it('never shows a negative zero', () => {
+    assert.equal(fmt(-0), '$0.00');
+    assert.equal(fmt(-0.004), '$0.00');
+  });
+
+  it('leaves NaN and Infinity as before', () => {
+    assert.equal(fmt(NaN), '$NaN');
+    assert.equal(fmt(Infinity), '$Infinity');
   });
 });
 
@@ -84,7 +98,7 @@ describe('formatHours', () => {
     assert.equal(formatHours(1 + 29.6 / 60), '1h 30m');
   });
 
-  it('carries 60 minutes into the hour', { todo: 'BUG: 1.9999 h renders as "1h 60m"' }, () => {
+  it('carries 60 minutes into the hour',() => {
     assert.equal(formatHours(1.9999), '2h 0m');
   });
 });
@@ -164,7 +178,7 @@ describe('toCsv', () => {
     assert.equal(toCsv([{ a: null, b: undefined, c: 0, d: false }]), 'a,b,c,d\n,,0,false\n');
   });
 
-  it('quotes carriage returns', { todo: 'BUG: a lone \\r is not quoted, so Excel splits the row' }, () => {
+  it('quotes carriage returns',() => {
     assert.equal(toCsv([{ v: 'a\rb' }]), 'v\n"a\rb"\n');
   });
 });
