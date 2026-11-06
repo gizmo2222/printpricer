@@ -2,7 +2,9 @@
 
 The first review compared `firestore.rules` with `printpricer/js/firebase.js` at commit `810a5a8`. It found holes 1-7 below, and all seven are now fixed in `firestore.rules` and the app. The Firebase emulator needs Java, which this machine doesn't have. Instead, `tests/rules-api.mjs` runs 73 cases against Google's Rules test API, and all 73 pass (see [Automated checks](#automated-checks)).
 
-**Status (2026-11-06):** the app with these changes is live (main `6b3024d`, `?v=36`). **The rules are not published yet.** Paste `firestore.rules` into Firebase console → Firestore → Rules and publish (see [Deploy order](#deploy-order)).
+**Status (2026-11-06):** both parts are live. The app went first (main `6b3024d`, `?v=36`). The rules were published at 05:22 UTC as ruleset `1be5e97d-bb38-44b9-a93b-97c05ea9753f`, and the published source matches `firestore.rules`.
+
+The ruleset before this change was `296503e1-650e-4c7e-ac77-fa9ef6cdd8b3` (2026-10-08). To roll back, open Firebase console → Firestore → Rules → history and restore that version.
 
 Cross-group isolation still holds. Every sub-collection rule calls `isMember(gid)` with the `gid` from the path, and reading a group requires membership.
 
