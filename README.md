@@ -215,6 +215,43 @@ Anonymous / signed-out usage works exactly like before — pure `localStorage`.
 
 ---
 
+## Tests
+
+The tests use Node's built-in runner (Node 22.15 or later, for `module.registerHooks`) and need no install. The root `package.json` exists only for the test script; the site itself is still plain ES modules with no build step, and the deploy uploads only `printpricer/`.
+
+Run the whole suite from the repo root:
+
+```powershell
+npm test
+```
+
+Or without npm:
+
+```powershell
+node --import ./tests/setup.js --test "tests/**/*.test.js"
+```
+
+Run one file:
+
+```powershell
+node --import ./tests/setup.js --test tests\parser.test.js
+```
+
+Rebuild the `.3mf` fixtures after editing `tests\fixtures\make-3mf.js`:
+
+```powershell
+node tests\fixtures\make-3mf.js
+```
+
+How it works:
+
+- `tests/setup.js` maps the Firebase CDN imports to `tests/stubs/firebase.js`, drops the `?v=N` query from app imports so tests and app modules share one instance, and provides `JSZip` from `tests/stubs/jszip.js`.
+- `tests/helpers/env.js` provides stub DOM elements, `document` and an in-memory `localStorage`. `tests/helpers/reset.js` resets settings and state between tests.
+- Known bugs are marked `{ todo: 'BUG: ...' }`. They show as `todo` in the summary and do not fail the run (Node still prints them under "failing tests"). When you fix one, remove its `todo`.
+- `checkProductSize`, `computeProductTotals`, `computeProductBreakdown` (products.js) and `forecastSpoolDays` (spools.js) are exported for the tests. Nothing else changed in those files.
+
+---
+
 ## Deploy
 
 `.github/workflows/deploy.yml` uploads the `printpricer/` directory to `/home/nstrupp/metacrystal.com/printpricer/` via SFTP on every push to `main` (or from **Run workflow** on the Actions tab). Requires repo secrets `SFTP_USER` and `SFTP_PASSWORD`. The server's SSH host keys are pinned in `.github/known_hosts`; if the host ever changes them, refresh the file with `ssh-keyscan metacrystal.com`.

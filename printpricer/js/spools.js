@@ -114,7 +114,7 @@ export function renderSpools() {
 
 // Predict how soon a spool runs out, based on the average grams per day
 // from the user's archive over the last 30 days.
-function forecastSpoolDays(spool) {
+export function forecastSpoolDays(spool) {
   const history = loadHistory();
   if (!history.length || spool.remainingGrams <= 0) return null;
   const cutoff = Date.now() - 30 * 86400 * 1000;

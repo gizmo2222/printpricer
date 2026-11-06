@@ -1,0 +1,6 @@
+{
+  "type": "module",
+  "scripts": {
+    "test": "node --import ./tests/setup.js --test \"tests/**/*.test.js\""
+  }
+}

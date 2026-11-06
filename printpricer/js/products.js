@@ -240,7 +240,7 @@ function loadProductIntoEstimate(id) {
 // reject above 950KB only when the user is signed in and would actually
 // try to sync — local-only users have ~5MB of localStorage to play with
 // and shouldn't be blocked.
-function checkProductSize(data) {
+export function checkProductSize(data) {
   const bytes = new Blob([JSON.stringify(data)]).size;
   const kb    = (bytes / 1024).toFixed(0);
   const cloud = isInCloudMode();
@@ -314,7 +314,7 @@ export function saveEstimateAsProduct({ asNew = false } = {}) {
 //
 // Light-weight totals for a product: filament grams + cost, BOM total/count.
 // Used by the catalog list, print spec sheet, and CSV export.
-function computeProductTotals(p) {
+export function computeProductTotals(p) {
   const filGrams = (p.filaments || []).reduce((s, f) => s + num(f.grams), 0);
   const filCost  = (p.filaments || []).reduce((s, f) => s + (num(f.grams) / 1000) * num(f.costPerKg), 0);
   const bom = p.bom || [];
@@ -332,7 +332,7 @@ function computeProductTotals(p) {
 // Inputs are the workspace `settings` and the product's `printerId` (which
 // supplies wattage and hourly rate). Falls back to zero on missing printer
 // so the breakdown still renders something sensible.
-function computeProductBreakdown(p) {
+export function computeProductBreakdown(p) {
   const printer = loadPrinters().find(x => String(x.id) === String(p.printerId));
   const watts        = printer ? num(printer.watts)       : 0;
   const hourlyRate   = printer ? num(printer.hourlyRate)  : 0;
