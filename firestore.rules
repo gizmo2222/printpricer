@@ -2,9 +2,11 @@ rules_version = '2';
 
 // Print Pricer — Firestore security rules.
 // Paste these into Firebase console → Firestore → Rules tab, then publish.
+// docs/RULES-REVIEW.md explains each rule and lists Rules Playground checks.
 //
 // Model:
-//   users/{uid}                       — per-user record (email, currentGroupId)
+//   users/{uid}                       — per-user record (email, currentGroupId,
+//                                       joinCode = the code last used to join)
 //   joinCodes/{code}                  — { gid } lookup for joining by code
 //   groups/{gid}                      — group doc (name, joinCode, ownerUid,
 //                                       members[], memberEmails{uid: email})
@@ -15,9 +17,10 @@ rules_version = '2';
 //   groups/{gid}/settings/main        — shared defaults
 //   groups/{gid}/activity/{id}        — group activity feed
 //
-// Joining: a group's ID is random and only members can read the group, so the
-// only way to learn it is to know the join code and read joinCodes/{code}.
-// Join codes can be read one at a time but never listed.
+// Joining: a non-member must prove the group's *current* join code. The app
+// writes the code to users/{uid}.joinCode in the same batch as the group
+// update, and the rule compares it with getAfter(). Rotating the code (owner
+// only) locks out anyone who knows only the old code or the group ID.
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -27,12 +30,46 @@ service cloud.firestore {
         && request.auth.token.firebase.sign_in_provider != 'anonymous';
     }
 
+    function tokenEmail() {
+      return request.auth.token.get('email', '');
+    }
+
+    function groupPath(gid) {
+      return /databases/$(database)/documents/groups/$(gid);
+    }
+
     function groupData(gid) {
-      return get(/databases/$(database)/documents/groups/$(gid)).data;
+      return get(groupPath(gid)).data;
     }
 
     function isMember(gid) {
       return signedIn() && request.auth.uid in groupData(gid).members;
+    }
+
+    function isGroupOwner(gid) {
+      return isMember(gid) && groupData(gid).ownerUid == request.auth.uid;
+    }
+
+    function isCode(c) {
+      // ABCD-EFGH (current) or ABC-DEF (groups made before codes grew to 8)
+      return c is string && c.matches('[A-Z0-9]{4}-[A-Z0-9]{4}|[A-Z0-9]{3}-[A-Z0-9]{3}');
+    }
+
+    function str(v, max) {
+      return v is string && v.size() <= max;
+    }
+
+    // Form fields that the app stores as typed strings or as numbers.
+    function strOrNum(v) {
+      return (v is string && v.size() <= 64) || v is number;
+    }
+
+    function listMax(v, max) {
+      return v is list && v.size() <= max;
+    }
+
+    function validName(n) {
+      return n is string && n.size() > 0 && n.size() <= 100;
     }
 
     // ---------- users ----------
@@ -47,13 +84,21 @@ service cloud.firestore {
       allow list: if false;
 
       // Only the group's owner can register its code, and only the code the
-      // group actually has. Codes are never changed or reused.
+      // group has once this write lands (getAfter, so rotating the code in one
+      // batch works). A taken code makes the write an update, which is refused.
       allow create: if signedIn()
+        && isCode(code)
         && request.resource.data.keys().hasOnly(['gid'])
-        && groupData(request.resource.data.gid).ownerUid == request.auth.uid
-        && groupData(request.resource.data.gid).joinCode == code;
+        && request.resource.data.gid is string
+        && getAfter(groupPath(request.resource.data.gid)).data.ownerUid == request.auth.uid
+        && getAfter(groupPath(request.resource.data.gid)).data.joinCode == code;
       allow update: if false;
-      allow delete: if signedIn() && groupData(resource.data.gid).ownerUid == request.auth.uid;
+      // The owner deletes old codes when rotating. Anyone may clear a code
+      // whose group no longer exists, so it does not stay taken forever.
+      allow delete: if signedIn() && (
+        !exists(groupPath(resource.data.gid))
+        || groupData(resource.data.gid).ownerUid == request.auth.uid
+      );
     }
 
     // ---------- groups ----------
@@ -61,38 +106,160 @@ service cloud.firestore {
       allow read: if signedIn() && request.auth.uid in resource.data.members;
 
       allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['name', 'joinCode', 'ownerUid', 'members', 'memberEmails', 'createdAt'])
+        && validName(request.resource.data.name)
+        && isCode(request.resource.data.joinCode)
         && request.resource.data.ownerUid == request.auth.uid
-        && request.resource.data.members == [request.auth.uid];
+        && request.resource.data.members == [request.auth.uid]
+        && request.resource.data.memberEmails is map
+        && request.resource.data.memberEmails.keys().hasOnly([request.auth.uid])
+        && request.resource.data.memberEmails.get(request.auth.uid, '') == tokenEmail()
+        && request.resource.data.createdAt == request.time;
 
-      // Members may update freely. A non-member may only add themselves
-      // (members + their own memberEmails entry) — which requires knowing the
-      // group's ID, i.e. having looked up its join code.
-      allow update: if signedIn() && (
-        request.auth.uid in resource.data.members
-        || (
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'memberEmails'])
-          && request.resource.data.members.hasAll(resource.data.members)
+      function changed() {
+        return request.resource.data.diff(resource.data).affectedKeys();
+      }
+      function emailsChanged() {
+        return request.resource.data.get('memberEmails', {})
+          .diff(resource.data.get('memberEmails', {})).affectedKeys();
+      }
+      function wasMember() {
+        return request.auth.uid in resource.data.members;
+      }
+
+      // Owner: rename, change the join code, remove members, hand the group to
+      // another member. The owner never adds members (people join themselves)
+      // and the owner must stay a member, so the group always has one.
+      function ownerUpdate() {
+        let removed = resource.data.members.toSet().difference(request.resource.data.members.toSet());
+        return resource.data.ownerUid == request.auth.uid
+          && changed().hasOnly(['name', 'joinCode', 'ownerUid', 'members', 'memberEmails'])
+          && validName(request.resource.data.name)
+          && isCode(request.resource.data.joinCode)
+          && resource.data.members.toSet().hasAll(request.resource.data.members.toSet())
+          && request.resource.data.ownerUid in request.resource.data.members
+          && emailsChanged().difference(removed).size() == 0;
+      }
+
+      // Member (owner included): rename the group, or refresh your own
+      // memberEmails entry, which must be your signed-in email.
+      function memberUpdate() {
+        return wasMember()
+          && changed().hasOnly(['name', 'memberEmails'])
+          && validName(request.resource.data.name)
+          && (!('memberEmails' in changed()) || (
+            emailsChanged().hasOnly([request.auth.uid])
+            && request.resource.data.memberEmails.get(request.auth.uid, '') == tokenEmail()
+          ));
+      }
+
+      // Member other than the owner: leave (remove only yourself).
+      function leaving() {
+        return wasMember()
+          && resource.data.ownerUid != request.auth.uid
+          && changed().hasOnly(['members', 'memberEmails'])
+          && request.resource.data.members.toSet() == resource.data.members.toSet().difference([request.auth.uid].toSet())
+          && emailsChanged().hasOnly([request.auth.uid])
+          && !(request.auth.uid in request.resource.data.get('memberEmails', {}));
+      }
+
+      // Non-member: add yourself, with your own email, proving the current
+      // join code via users/{uid}.joinCode written in the same batch.
+      function joining() {
+        return !wasMember()
+          && changed().hasOnly(['members', 'memberEmails'])
+          && request.resource.data.members.toSet() == resource.data.members.toSet().union([request.auth.uid].toSet())
           && request.resource.data.members.size() == resource.data.members.size() + 1
-          && request.auth.uid in request.resource.data.members
-          && request.resource.data.get('memberEmails', {})
-               .diff(resource.data.get('memberEmails', {}))
-               .affectedKeys().hasOnly([request.auth.uid])
-        )
-      );
+          && emailsChanged().hasOnly([request.auth.uid])
+          && request.resource.data.memberEmails.get(request.auth.uid, '') == tokenEmail()
+          && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('joinCode', '') == resource.data.joinCode;
+      }
 
+      allow update: if signedIn() && (ownerUpdate() || memberUpdate() || leaving() || joining());
+
+      // The app has no delete-group action. If one is added, delete the join
+      // code and the sub-collections first: they are unreachable afterwards.
       allow delete: if signedIn() && resource.data.ownerUid == request.auth.uid;
 
       // ---------- group sub-collections ----------
-      match /spools/{id}   { allow read, write: if isMember(gid); }
-      match /archive/{id}  { allow read, write: if isMember(gid); }
-      match /settings/{id} { allow read, write: if isMember(gid); }
-      match /printers/{id} { allow read, write: if isMember(gid); }
-      match /products/{id} { allow read, write: if isMember(gid); }
+      // Members keep full create/update/delete on spools, printers and
+      // products: deleting them is everyday member work. Shapes and sizes
+      // are checked so one bad client cannot break the others' views.
 
-      // Activity entries are written by the member they describe, never edited.
+      match /spools/{id} {
+        allow read, delete: if isMember(gid);
+        allow create, update: if isMember(gid)
+          && request.resource.data.keys().hasOnly(['name', 'material', 'color', 'costPerKg', 'spoolGrams', 'remainingGrams', 'notes', 'refillHistory'])
+          && str(request.resource.data.name, 200)
+          && str(request.resource.data.get('material', ''), 100)
+          && str(request.resource.data.get('color', ''), 100)
+          && strOrNum(request.resource.data.get('costPerKg', 0))
+          && strOrNum(request.resource.data.get('spoolGrams', 0))
+          && strOrNum(request.resource.data.get('remainingGrams', 0))
+          && str(request.resource.data.get('notes', ''), 10000)
+          && listMax(request.resource.data.get('refillHistory', []), 1000);
+      }
+
+      match /printers/{id} {
+        allow read, delete: if isMember(gid);
+        allow create, update: if isMember(gid)
+          && request.resource.data.keys().hasOnly(['name', 'preset', 'watts', 'hourlyRate', 'gramsPerHour', 'swapPct'])
+          && str(request.resource.data.name, 200)
+          && str(request.resource.data.get('preset', ''), 200)
+          && strOrNum(request.resource.data.get('watts', ''))
+          && strOrNum(request.resource.data.get('hourlyRate', ''))
+          && strOrNum(request.resource.data.get('gramsPerHour', ''))
+          && strOrNum(request.resource.data.get('swapPct', ''));
+      }
+
+      match /products/{id} {
+        allow read, delete: if isMember(gid);
+        // `photo` is the single-photo field of products saved before `photos`.
+        allow create, update: if isMember(gid)
+          && request.resource.data.keys().hasOnly(['name', 'notes', 'sellPrice', 'photos', 'photo', 'printerId', 'hours', 'laborMinutes', 'packagingCost', 'shippingCost', 'filaments', 'bom'])
+          && str(request.resource.data.name, 500)
+          && str(request.resource.data.get('notes', ''), 20000)
+          && strOrNum(request.resource.data.get('sellPrice', ''))
+          && listMax(request.resource.data.get('photos', []), 24)
+          && request.resource.data.get('photo', '') is string
+          && strOrNum(request.resource.data.get('printerId', ''))
+          && strOrNum(request.resource.data.get('hours', 0))
+          && strOrNum(request.resource.data.get('laborMinutes', ''))
+          && strOrNum(request.resource.data.get('packagingCost', ''))
+          && strOrNum(request.resource.data.get('shippingCost', ''))
+          && listMax(request.resource.data.get('filaments', []), 64)
+          && listMax(request.resource.data.get('bom', []), 200);
+      }
+
+      // Archive: members stamp, delete, undo and clear (all app flows), but
+      // only the owner can edit an estimate in place.
+      match /archive/{id} {
+        allow read, create, delete: if isMember(gid);
+        allow update: if isGroupOwner(gid);
+      }
+
+      // Settings: the single `main` doc. Never deleted by the app.
+      match /settings/{id} {
+        allow read: if isMember(gid);
+        allow create, update: if isMember(gid) && id == 'main';
+      }
+
+      // Activity: written by the member it describes, with their own email and
+      // a time no later than now (+5 min clock skew). Never edited; the owner
+      // can delete entries (e.g. a spoofed or noisy one).
       match /activity/{id} {
         allow read: if isMember(gid);
-        allow create: if isMember(gid) && request.resource.data.uid == request.auth.uid;
+        allow create: if isMember(gid)
+          && request.resource.data.keys().hasOnly(['uid', 'email', 'action', 'timestamp'])
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.get('email', '') == tokenEmail()
+          && request.resource.data.action is string
+          && request.resource.data.action.size() > 0
+          && request.resource.data.action.size() <= 600
+          && request.resource.data.timestamp is int
+          && request.resource.data.timestamp > 0
+          && request.resource.data.timestamp <= request.time.toMillis() + 300000;
+        allow delete: if isGroupOwner(gid);
       }
     }
   }

@@ -52,11 +52,20 @@ export function rafDebounce(fn) {
 }
 
 // 6-char join-code generator (no easily-confused characters).
+// 8 characters from a 31-letter alphabet (no I, L, O, 0, 1), formatted
+// ABCD-EFGH: about 8.5e11 codes. Uses crypto.getRandomValues with rejection
+// sampling so every letter is equally likely.
 export function generateJoinCode() {
   const alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  const limit = 256 - (256 % alphabet.length); // 248: bytes at or above are biased
   let s = '';
-  for (let i = 0; i < 6; i++) s += alphabet[Math.floor(Math.random() * alphabet.length)];
-  return s.slice(0, 3) + '-' + s.slice(3);
+  while (s.length < 8) {
+    const bytes = crypto.getRandomValues(new Uint8Array(16));
+    for (const b of bytes) {
+      if (b < limit && s.length < 8) s += alphabet[b % alphabet.length];
+    }
+  }
+  return s.slice(0, 4) + '-' + s.slice(4);
 }
 
 // Convert an array of objects to a CSV string. Headers are the union of all
