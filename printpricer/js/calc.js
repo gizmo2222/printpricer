@@ -35,7 +35,8 @@ function computeFees(price) {
   let preset = MARKETPLACE_PRESETS[presetKey] || MARKETPLACE_PRESETS.none;
   if (presetKey === 'custom') {
     preset = {
-      listingFee:  num(settings.marketplaceCustomListing),
+      label:       'Custom',
+      listingFee: num(settings.marketplaceCustomListing),
       txnPct:      num(settings.marketplaceCustomTxnPct),
       paymentPct:  num(settings.marketplaceCustomPaymentPct),
       paymentFlat: num(settings.marketplaceCustomPaymentFlat),
@@ -102,7 +103,9 @@ export function recalc() {
   setValue('bd-failure',   fmt(failureAmt));
   setValue('bd-margin',    fmt(marginAmt));
   setValue('bd-total',     fmt(total));
-  setValue('bd-fees',      '−' + fmt(feeAmt));
+  // fmt() signs negatives itself, so only prefix a real fee; a negative fee
+  // (credit) shows as +$x instead of a double sign.
+  setValue('bd-fees',      feeAmt < 0 ? '+' + fmt(-feeAmt) : '−' + fmt(feeAmt));
   setValue('bd-net',       fmt(net));
   setValue('sticky-total-value', fmt(total));
 

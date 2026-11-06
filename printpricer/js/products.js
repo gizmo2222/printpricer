@@ -185,8 +185,9 @@ function loadProductIntoEstimate(id) {
   document.dispatchEvent(new CustomEvent('photo:render'));
 
   // Time
-  const hrs  = Math.floor(+p.hours || 0);
-  const mins = Math.round(((+p.hours || 0) - hrs) * 60);
+  const totalMins = Math.round((+p.hours || 0) * 60);
+  const hrs  = Math.floor(totalMins / 60);
+  const mins = totalMins % 60;
   document.getElementById('time-h').value = hrs || '';
   document.getElementById('time-m').value = mins || '';
 

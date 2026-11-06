@@ -5,8 +5,20 @@ export function num(v) {
   return isFinite(n) ? n : 0;
 }
 
+// Dollars with 2 decimals, rounding half up on the decimal representation
+// (1.005 → $1.01, where toFixed gives $1.00). Negative amounts render as
+// "-$0.45". Callers must not add their own sign in front of a negative value.
 export function fmt(n) {
-  return '$' + n.toFixed(2);
+  if (!isFinite(n)) return '$' + n.toFixed(2);
+  const abs = Math.abs(n);
+  const cents = Math.round(Number(abs + 'e2'));
+  // Exponent forms (tiny or huge magnitudes) fall back to toFixed.
+  if (!isFinite(cents) || String(cents).includes('e')) {
+    return (n < 0 ? '-$' : '$') + abs.toFixed(2);
+  }
+  const digits = String(cents).padStart(3, '0');
+  const text = digits.slice(0, -2) + '.' + digits.slice(-2);
+  return (n < 0 && cents > 0 ? '-$' : '$') + text;
 }
 
 export function escapeHtml(s) {
@@ -16,9 +28,8 @@ export function escapeHtml(s) {
 }
 
 export function formatHours(h) {
-  const hrs = Math.floor(h);
-  const mins = Math.round((h - hrs) * 60);
-  return `${hrs}h ${mins}m`;
+  const total = Math.round(h * 60);
+  return `${Math.floor(total / 60)}h ${total % 60}m`;
 }
 
 // Parse "1d 2h 3m 4s" or "1:23:45" → hours.
@@ -70,7 +81,7 @@ export function toCsv(rows, columns) {
   const escape = v => {
     if (v == null) return '';
     const s = String(v);
-    if (/[",\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+    if (/[",\r\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
     return s;
   };
   const header = cols.map(escape).join(',');
