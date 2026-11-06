@@ -242,16 +242,65 @@ service cloud.firestore {
       }
 
       // Archive: members stamp, delete, undo and clear (all app flows), but
-      // only the owner can edit an estimate in place.
+      // only the owner can edit an estimate in place. Fields are the `entry`
+      // built in archive.js (`id` only on docs from the old single-file app).
+      // addons, breakdown and settingsSnapshot are maps of computed numbers.
+      function validArchive(d) {
+        let addons = d.get('addons', {});
+        return d.keys().hasOnly(['id', 'name', 'date', 'hours', 'grams', 'printerId', 'printerName', 'filaments', 'addons', 'breakdown', 'settingsSnapshot'])
+          && str(d.get('name', ''), 500)
+          && str(d.get('date', ''), 64)
+          && strOrNum(d.get('hours', 0))
+          && strOrNum(d.get('grams', 0))
+          && (d.get('printerId', null) == null || strOrNum(d.printerId))
+          && (d.get('printerName', null) == null || str(d.printerName, 200))
+          && listMax(d.get('filaments', []), 64)
+          && addons is map
+          && str(addons.get('notes', ''), 20000)
+          && listMax(addons.get('photos', []), 24)
+          && listMax(addons.get('bom', []), 200)
+          && d.get('breakdown', {}) is map
+          && d.get('settingsSnapshot', {}) is map;
+      }
       match /archive/{id} {
-        allow read, create, delete: if isMember(gid);
-        allow update: if isGroupOwner(gid);
+        allow read, delete: if isMember(gid);
+        allow create: if isMember(gid) && validArchive(request.resource.data);
+        allow update: if isGroupOwner(gid) && validArchive(request.resource.data);
       }
 
-      // Settings: the single `main` doc. Never deleted by the app.
+      // Settings: the single `main` doc. Never deleted by the app. Keys are
+      // defaultSettings in state.js plus five from the old single-file app
+      // (estGramsPerHour, estSwapPct, hourlyRate, printerPreset, watts), which
+      // older browsers still carry in localStorage and send back on save.
+      function validSettings(d) {
+        return d.keys().hasOnly(['filamentCost', 'kwh', 'failurePct', 'marginPct', 'estDensity', 'estFillPct', 'laborRate',
+            'marketplacePreset', 'marketplaceCustomListing', 'marketplaceCustomTxnPct', 'marketplaceCustomPaymentPct', 'marketplaceCustomPaymentFlat',
+            'businessName', 'businessEmail', 'businessNotes',
+            'estGramsPerHour', 'estSwapPct', 'hourlyRate', 'printerPreset', 'watts'])
+          && strOrNum(d.get('filamentCost', ''))
+          && strOrNum(d.get('kwh', ''))
+          && strOrNum(d.get('failurePct', ''))
+          && strOrNum(d.get('marginPct', ''))
+          && strOrNum(d.get('estDensity', ''))
+          && strOrNum(d.get('estFillPct', ''))
+          && strOrNum(d.get('laborRate', ''))
+          && strOrNum(d.get('marketplacePreset', ''))
+          && strOrNum(d.get('marketplaceCustomListing', ''))
+          && strOrNum(d.get('marketplaceCustomTxnPct', ''))
+          && strOrNum(d.get('marketplaceCustomPaymentPct', ''))
+          && strOrNum(d.get('marketplaceCustomPaymentFlat', ''))
+          && str(d.get('businessName', ''), 500)
+          && str(d.get('businessEmail', ''), 320)
+          && str(d.get('businessNotes', ''), 2000)
+          && strOrNum(d.get('estGramsPerHour', ''))
+          && strOrNum(d.get('estSwapPct', ''))
+          && strOrNum(d.get('hourlyRate', ''))
+          && strOrNum(d.get('printerPreset', ''))
+          && strOrNum(d.get('watts', ''));
+      }
       match /settings/{id} {
         allow read: if isMember(gid);
-        allow create, update: if isMember(gid) && id == 'main';
+        allow create, update: if isMember(gid) && id == 'main' && validSettings(request.resource.data);
       }
 
       // Activity: written by the member it describes, with their own email and

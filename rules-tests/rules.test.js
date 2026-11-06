@@ -39,7 +39,18 @@ const PRODUCT = { name: 'Vase', notes: '', sellPrice: '', photos: [], printerId:
 const SPOOL = { name: 'Black PLA', material: 'PLA', color: '#222222', costPerKg: 25, spoolGrams: 1000, remainingGrams: 800, notes: '',
   refillHistory: [{ date: 1, grams: 200 }] };
 const PRINTER = { name: 'My Printer', preset: '', watts: '120', hourlyRate: '', gramsPerHour: '', swapPct: '' };
-const ARCH = { id: 1, name: 'x', total: 3 };
+// Real shapes: `entry` in archive.js saveQuote (id stripped by pushDiff), and defaultSettings in state.js.
+const SETTINGS = { filamentCost: '25', kwh: '0.15', failurePct: '5', marginPct: '30', estDensity: '', estFillPct: '', laborRate: '20',
+  marketplacePreset: 'etsy', marketplaceCustomListing: '', marketplaceCustomTxnPct: '', marketplaceCustomPaymentPct: '',
+  marketplaceCustomPaymentFlat: '', businessName: 'Shop', businessEmail: 'hi@x.com', businessNotes: 'Portland' };
+const LEGACY_SETTINGS = { ...SETTINGS, estGramsPerHour: '', estSwapPct: '', hourlyRate: '1.5', printerPreset: 'Bambu X1C', watts: 120 };
+const ARCH = { name: 'Vase', date: '2026-11-05T12:00:00.000Z', hours: 2.5, grams: 40, printerId: 1730000000000, printerName: 'My Printer',
+  filaments: [{ name: 'PLA', grams: 40, spoolId: 's' }],
+  addons: { laborMinutes: 10, packagingCost: 0, shippingCost: 0, notes: '', sellPrice: '', photos: [], bom: [{ name: 'Magnet', qty: 2, unitCost: 0.1 }] },
+  breakdown: { filament: 1, electricity: 0.1, time: 0.5, labor: 3, packaging: 0, bom: 0.2, shipping: 0, subtotal: 4.8, failure: 0.2, margin: 1.5, total: 6.5, fees: 0, net: 6.5 },
+  settingsSnapshot: SETTINGS };
+const LEGACY_ARCH = { id: 1700000000000, name: 'Old', date: '2025-01-01T00:00:00.000Z', hours: 1, grams: 10, printerId: null, printerName: null,
+  filaments: [], breakdown: { total: 3 }, settingsSnapshot: LEGACY_SETTINGS };
 
 async function seed() {
   await env.withSecurityRulesDisabled(async ctx => {
@@ -55,7 +66,7 @@ async function seed() {
     await setDoc(gref(d, 'printers/p'), PRINTER);
     await setDoc(gref(d, 'products/p'), PRODUCT);
     await setDoc(gref(d, 'archive/a'), ARCH);
-    await setDoc(gref(d, 'settings/main'), { currency: '$' });
+    await setDoc(gref(d, 'settings/main'), SETTINGS);
     await setDoc(gref(d, 'activity/a'), ACT);
   });
 }
@@ -317,15 +328,46 @@ describe('groups/{gid}/archive', () => {
       await no(setDoc(gref(db, 'archive/n'), ARCH)); await no(updateDoc(gref(db, 'archive/a'), ARCH)); await no(deleteDoc(gref(db, 'archive/a')));
     }
   });
+  it('accepts entries from the old single-file app and from group seeding', async () => {
+    await ok(setDoc(gref(who.member(), 'archive/old'), LEGACY_ARCH));
+    await ok(setDoc(gref(who.member(), 'archive/min'), { name: 'x' }));
+  });
+  // Finding 9 (RULES-REVIEW.md): archive docs have a schema and size caps.
+  it('rejects forged / oversize archive fields, on create and on owner update', async () => {
+    const bad = [{ ...ARCH, evil: 1 }, { ...ARCH, name: 'x'.repeat(501) }, { ...ARCH, name: 5 }, { ...ARCH, date: 'x'.repeat(65) },
+      { ...ARCH, hours: { a: 1 } }, { ...ARCH, printerId: [1] }, { ...ARCH, printerName: 'x'.repeat(201) },
+      { ...ARCH, filaments: Array(65).fill({}) }, { ...ARCH, addons: 'x' }, { ...ARCH, addons: { notes: 'x'.repeat(20001) } },
+      { ...ARCH, addons: { photos: Array(25).fill('') } }, { ...ARCH, addons: { bom: Array(201).fill({}) } },
+      { ...ARCH, breakdown: 'x'.repeat(5000) }, { ...ARCH, settingsSnapshot: [] }];
+    for (const d of bad) {
+      await no(setDoc(gref(who.member(), 'archive/n'), d));
+      await no(setDoc(gref(who.owner(), 'archive/a'), d));
+    }
+  });
 });
 
 describe('groups/{gid}/settings', () => {
   it('member can get, list, create main, update main', async () => {
     const db = who.member();
     await ok(getDoc(gref(db, 'settings/main'))); await ok(getDocs(collection(db, 'groups/G/settings')));
-    await ok(updateDoc(gref(db, 'settings/main'), { currency: 'EUR' }));
+    await ok(setDoc(gref(db, 'settings/main'), { ...SETTINGS, marginPct: '40' }));
     await env.withSecurityRulesDisabled(c => deleteDoc(gref(c.firestore(), 'settings/main')));
-    await ok(setDoc(gref(db, 'settings/main'), { currency: '$' }));
+    await ok(setDoc(gref(db, 'settings/main'), SETTINGS));
+  });
+  it('accepts Reset (all blank), numbers, and old single-file-app keys', async () => {
+    const db = who.member(), blank = Object.fromEntries(Object.keys(SETTINGS).map(k => [k, '']));
+    await ok(setDoc(gref(db, 'settings/main'), blank));
+    await ok(setDoc(gref(db, 'settings/main'), { ...SETTINGS, filamentCost: 25, kwh: 0.15 }));
+    await ok(setDoc(gref(db, 'settings/main'), LEGACY_SETTINGS));
+    await ok(setDoc(gref(db, 'settings/main'), {}));
+  });
+  // Finding 9 (RULES-REVIEW.md): settings has a schema and size caps.
+  it('rejects forged / oversize settings fields', async () => {
+    const bad = [{ ...SETTINGS, currency: '$' }, { ...SETTINGS, kwh: 'x'.repeat(65) }, { ...SETTINGS, kwh: [1] },
+      { ...SETTINGS, businessName: 'x'.repeat(501) }, { ...SETTINGS, businessEmail: 'x'.repeat(321) },
+      { ...SETTINGS, businessNotes: 'x'.repeat(2001) }, { ...SETTINGS, businessNotes: 5 }, { ...SETTINGS, watts: { a: 1 } }];
+    for (const d of bad) await no(setDoc(gref(who.member(), 'settings/main'), d));
+    await no(updateDoc(gref(who.owner(), 'settings/main'), { blob: 'x'.repeat(5000) }));
   });
   it('member cannot write another doc id', async () => {
     await no(setDoc(gref(who.member(), 'settings/other'), { a: 1 }));
@@ -337,7 +379,7 @@ describe('groups/{gid}/settings', () => {
   it('non-member denied', async () => {
     for (const db of [who.outsider(), who.anonMember(), who.unauth()]) {
       await no(getDoc(gref(db, 'settings/main'))); await no(getDocs(collection(db, 'groups/G/settings')));
-      await no(updateDoc(gref(db, 'settings/main'), { currency: 'x' })); await no(setDoc(gref(db, 'settings/main'), { a: 1 }));
+      await no(updateDoc(gref(db, 'settings/main'), { kwh: '1' })); await no(setDoc(gref(db, 'settings/main'), SETTINGS));
     }
   });
 });

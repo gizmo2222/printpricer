@@ -126,13 +126,13 @@ const PRINTER = { name: 'My Printer', preset: '', watts: '120', hourlyRate: '', 
 sub('18g member saves printer', 'ALLOW', 'printers/p', 'create', PRINTER);
 sub('18h printer extra key', 'DENY', 'printers/p', 'create', { ...PRINTER, admin: true });
 sub('18i member deletes product', 'ALLOW', 'products/p', 'delete', undefined, MEMBER, PRODUCT);
-const ARCH = { id: 1, name: 'x', total: 3 };
+const ARCH = { name: 'x', date: '2026-11-05T12:00:00.000Z', hours: 1, grams: 10, printerId: null, printerName: null, filaments: [], breakdown: { total: 3 } };
 sub('19 member edits archive entry', 'DENY', 'archive/a', 'update', ARCH, MEMBER, ARCH);
 sub('19b owner edits archive entry', 'ALLOW', 'archive/a', 'update', ARCH, OWNER, ARCH);
 sub('20 member deletes archive entry', 'ALLOW', 'archive/a', 'delete', undefined, MEMBER, ARCH);
 sub('20b member stamps archive entry', 'ALLOW', 'archive/a', 'create', ARCH);
 sub('21 member writes settings/other', 'DENY', 'settings/other', 'create', { a: 1 });
-sub('21b member writes settings/main', 'ALLOW', 'settings/main', 'update', { currency: '$' }, MEMBER, {});
+sub('21b member writes settings/main', 'ALLOW', 'settings/main', 'update', { kwh: '0.15' }, MEMBER, {});
 sub('21c member deletes settings/main', 'DENY', 'settings/main', 'delete', undefined, MEMBER, {});
 sub('22 outsider reads spool', 'DENY', 'spools/s', 'get', undefined, OUT, SPOOL);
 sub('22b member reads spool', 'ALLOW', 'spools/s', 'get', undefined, MEMBER, SPOOL);

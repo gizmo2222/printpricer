@@ -2,7 +2,7 @@
 
 The first review compared `firestore.rules` with `printpricer/js/firebase.js` at commit `810a5a8`. It found holes 1-7 below, and all seven are now fixed in `firestore.rules` and the app. `rules-tests/rules.test.js` proves them on the Firestore emulator: every rule path, plus one regression test per hole (see [Automated checks](#automated-checks)).
 
-**Status (2026-11-06):** holes 1-7 are live; finding 8 is fixed in the repo but not published, so the live rules now differ from `firestore.rules` until you publish it. The app went first (main `6b3024d`, `?v=36`). The rules were published at 05:22 UTC as ruleset `1be5e97d-bb38-44b9-a93b-97c05ea9753f`, and the published source matches `firestore.rules`.
+**Status (2026-11-06):** holes 1-7 are live; findings 8 and 9 are fixed in the repo but not published, so the live rules now differ from `firestore.rules` until you publish it. The app went first (main `6b3024d`, `?v=36`). The rules were published at 05:22 UTC as ruleset `1be5e97d-bb38-44b9-a93b-97c05ea9753f`, and the published source matches `firestore.rules`.
 
 The ruleset before this change was `296503e1-650e-4c7e-ac77-fa9ef6cdd8b3` (2026-10-08). To roll back, open Firebase console → Firestore → Rules → history and restore that version.
 
@@ -18,7 +18,7 @@ Cross-group isolation still holds. Every sub-collection rule calls `isMember(gid
 | 6 | Low | Activity could never be deleted; join codes were orphaned when their group was deleted | Fixed |
 | 7 | Low | Join codes could be guessed (6 chars, `Math.random`) | Fixed |
 | 8 | Low | `users/{uid}` was open to anonymous accounts and had no schema | Fixed in the repo, not yet published (see 8) |
-| 9 | Low | `archive` and `settings` docs still have no schema or size limits | Open, your call (see 9) |
+| 9 | Low | `archive` and `settings` docs had no schema or size limits | Fixed in the repo, not yet published (see 9) |
 | — | OK | One group cannot reach another group's data | Still holds |
 
 ---
@@ -120,9 +120,16 @@ Optional extra steps: turn on App Check so only the real site can call Firestore
 
 **To publish:** paste `firestore.rules` into Firebase console → Firestore → Rules, then publish. No app change is needed first.
 
-## 9. Archive and settings have no schema (Low, open)
+## 9. Archive and settings have schemas (was Low)
 
-Hole 5 covered spools, printers and products. `groups/{gid}/archive/{id}` and `groups/{gid}/settings/main` still accept any fields of any size from any member (up to 1 MiB per doc). Only members can write, so the risk is a bad or hostile member bloating or breaking the shared archive and defaults. A schema needs the exact archive entry and settings shapes from `printpricer/js/`; a wrong guess would block real saves on the live app. Left for you to decide.
+**Was:** hole 5 covered spools, printers and products only. `archive` and `settings/main` accepted any fields of any size from any member (up to 1 MiB per doc), so a bad or hostile member could bloat or break the shared archive and defaults.
+
+**Now:** both have `keys().hasOnly([...])` with type and size checks.
+
+- **archive** (the `entry` built in `archive.js`): `name` up to 500 chars, `date` up to 64. `hours` and `grams` are a number or short string. `printerId` is null or a number or short string; `printerName` is null or up to 200 chars. `filaments` up to 64 entries. `addons` is a map whose `notes` is up to 20000 chars, `photos` up to 24 and `bom` up to 200. `breakdown` and `settingsSnapshot` must be maps. `id` is allowed because the old single-file app stored it. Owner edits get the same checks.
+- **settings** (`defaultSettings` in `state.js`): each number field is a number or a string of up to 64 chars, `businessName` up to 500, `businessEmail` up to 320 and `businessNotes` up to 2000. Five keys from the old single-file app are also allowed (`estGramsPerHour`, `estSwapPct`, `hourlyRate`, `printerPreset`, `watts`). `loadSettings()` keeps every key it finds in localStorage, so long-time users still send them on every save, and refusing them would block those users' saves.
+
+The key lists were collected from every version of `printpricer.html` and `printpricer/js/` in git history. Existing docs that don't match are untouched: the app only rewrites an archive entry when it changes, and archive entries are never edited in the app. The rules can't cap the contents of the `breakdown` and `settingsSnapshot` maps; Firestore's 1 MiB doc limit still applies to them.
 
 ---
 
