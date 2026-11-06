@@ -257,36 +257,92 @@ async function registerJoinCode(groupRef) {
   throw new Error('Could not create a join code — try again');
 }
 
+// Normalise what the user typed to the stored form: 8 characters as
+// ABCD-EFGH, or 6 as ABC-DEF for groups made before codes grew. Accepts
+// "abcdefgh", "ABCD EFGH", "abcd-efgh", ... Returns null if neither length.
+export function normalizeJoinCode(code) {
+  const chars = String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (chars.length === 8) return `${chars.slice(0, 4)}-${chars.slice(4)}`;
+  if (chars.length === 6) return `${chars.slice(0, 3)}-${chars.slice(3)}`;
+  return null;
+}
+
 export async function joinGroupByCode(code) {
   if (!fb || !state.user || state.user.isAnonymous) throw new Error('Sign in first');
-  // Codes are stored as ABC-DEF; accept "abcdef", "ABC DEF", "abc-def", ...
-  const chars = code.toUpperCase().replace(/[^A-Z0-9]/g, '');
-  if (chars.length !== 6) throw new Error('Join codes are 6 characters, like ABC-DEF');
-  const snap = await fb.getDoc(fb.doc(fb.db, 'joinCodes', `${chars.slice(0, 3)}-${chars.slice(3)}`)).catch(() => null);
+  const joinCode = normalizeJoinCode(code);
+  if (!joinCode) throw new Error('Join codes are 8 characters, like ABCD-EFGH (older groups: ABC-DEF)');
+  const snap = await fb.getDoc(fb.doc(fb.db, 'joinCodes', joinCode)).catch(() => null);
   if (!snap?.exists()) throw new Error('No group found with that code');
   const gid = snap.data().gid;
+  // The rules only let a non-member in if users/{uid}.joinCode equals the
+  // group's current code in the same batch. A repeat join by an existing
+  // member leaves members unchanged.
+  const batch = fb.writeBatch(fb.db);
   if (state.groupId !== gid) {
-    // Adding yourself is allowed for anyone who knows the group's ID; a repeat
-    // join by an existing member leaves members unchanged.
-    await fb.updateDoc(fb.doc(fb.db, 'groups', gid), {
+    batch.update(fb.doc(fb.db, 'groups', gid), {
       members: fb.arrayUnion(state.user.uid),
       [`memberEmails.${state.user.uid}`]: state.user.email || '',
     });
   }
-  await fb.updateDoc(fb.doc(fb.db, 'users', state.user.uid), { currentGroupId: gid });
+  batch.set(fb.doc(fb.db, 'users', state.user.uid), { currentGroupId: gid, joinCode }, { merge: true });
+  try {
+    await batch.commit();
+  } catch (e) {
+    if (e?.code === 'permission-denied') {
+      throw new Error('Could not join: that code may have just been changed. Ask the group owner for the current code.');
+    }
+    throw e;
+  }
   await subscribeToGroup(gid);
   await logActivity(`joined the group`);
 }
 
+// Owner only: replace the join code. One batch updates the group, deletes
+// the old joinCodes doc and creates the new one, so the old code (and the
+// group ID alone) stop letting anyone in. Members already in are unaffected.
+export async function rotateJoinCode() {
+  if (!fb || !state.groupId || !state.user) throw new Error('Join a group first');
+  if (state.groupDoc?.ownerUid !== state.user.uid) throw new Error('Only the group owner can change the join code');
+  const gid = state.groupId;
+  const oldCode = state.groupDoc.joinCode;
+  const oldRef = oldCode ? fb.doc(fb.db, 'joinCodes', oldCode) : null;
+  const oldSnap = oldRef ? await fb.getDoc(oldRef).catch(() => null) : null;
+  // Deleting a code doc that is missing or belongs to another group would
+  // fail the whole batch, so only delete our own.
+  const deleteOld = oldSnap?.exists() && oldSnap.data().gid === gid;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const code = generateJoinCode();
+    const batch = fb.writeBatch(fb.db);
+    batch.update(fb.doc(fb.db, 'groups', gid), { joinCode: code });
+    if (deleteOld) batch.delete(oldRef);
+    batch.set(fb.doc(fb.db, 'joinCodes', code), { gid });
+    try {
+      await batch.commit();
+      await logActivity(`changed the join code`);
+      return code;
+    } catch (e) {
+      // A taken code turns the set into an update, which the rules refuse;
+      // try another code. Anything else is a real failure.
+      if (e?.code !== 'permission-denied') throw e;
+    }
+  }
+  throw new Error('Could not change the join code. Check that the latest firestore.rules are published, then try again.');
+}
+
 export async function leaveGroup() {
   if (!fb || !state.groupId || !state.user) return;
+  if (state.groupDoc?.ownerUid === state.user.uid) {
+    throw new Error('You own this group, so you can’t leave it: there is no way to hand it over yet. Members can leave at any time.');
+  }
   await logActivity(`left the group`);
   const gid = state.groupId;
-  await fb.updateDoc(fb.doc(fb.db, 'groups', gid), {
+  const batch = fb.writeBatch(fb.db);
+  batch.update(fb.doc(fb.db, 'groups', gid), {
     members: fb.arrayRemove(state.user.uid),
     [`memberEmails.${state.user.uid}`]: fb.deleteField(),
   });
-  await fb.updateDoc(fb.doc(fb.db, 'users', state.user.uid), { currentGroupId: null });
+  batch.set(fb.doc(fb.db, 'users', state.user.uid), { currentGroupId: null, joinCode: fb.deleteField() }, { merge: true });
+  await batch.commit();
   clearListeners();
   state.groupId = null;
   state.groupDoc = null;

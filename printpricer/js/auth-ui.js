@@ -2,7 +2,7 @@
 
 import { CLOUD_ENABLED, state } from './state.js?v=35';
 import { toast } from './ui.js?v=35';
-import { doSignIn, doSignUp, doSignOut, createGroup, joinGroupByCode, leaveGroup } from './firebase.js?v=35';
+import { doSignIn, doSignUp, doSignOut, createGroup, joinGroupByCode, leaveGroup, rotateJoinCode } from './firebase.js?v=35';
 
 export function updateAccountUI() {
   const cell = document.getElementById('account-pill');
@@ -68,6 +68,8 @@ export function renderGroupSection() {
     noGroup.style.display = 'none';
     inGroup.style.display = '';
     document.getElementById('group-code-display').textContent = state.groupDoc.joinCode || '——';
+    document.getElementById('btn-rotate-code').style.display =
+      state.groupDoc.ownerUid === state.user.uid ? '' : 'none';
     const list = document.getElementById('group-member-list');
     list.innerHTML = '';
     state.members.forEach(m => {
@@ -162,9 +164,16 @@ export function initAuthUI() {
     catch (e) { toast(e.message || 'Could not join', true); }
   });
   document.getElementById('btn-leave-group').addEventListener('click', async () => {
-    if (!confirm('Leave this group? Your local cache stays in this browser.')) return;
+    // Owners can't leave; skip the confirm so leaveGroup's error shows at once.
+    const isOwner = state.groupDoc?.ownerUid === state.user?.uid;
+    if (!isOwner && !confirm('Leave this group? Your local cache stays in this browser.')) return;
     try { await leaveGroup(); toast('Left the group'); }
     catch (e) { toast(e.message || 'Could not leave', true); }
+  });
+  document.getElementById('btn-rotate-code').addEventListener('click', async () => {
+    if (!confirm('Change the join code? The current code stops working at once. Everyone already in the group stays in.')) return;
+    try { const code = await rotateJoinCode(); toast(`New join code: ${code}`); }
+    catch (e) { toast(e.message || 'Could not change the join code', true); }
   });
   document.getElementById('group-code-display').addEventListener('click', e => {
     const code = e.target.textContent.trim();

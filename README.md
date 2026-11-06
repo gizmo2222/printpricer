@@ -189,19 +189,20 @@ The app runs in **local mode** by default — everything stays in `localStorage`
    - Replace its contents with your copied config.
    - Commit and push — deploys automatically.
 
-Whenever `firestore.rules` changes, publish it again (step 4) — the app and the rules must match. For example, products and the activity feed only sync once their rules are published.
+Whenever `firestore.rules` changes, publish it again (step 4) — the app and the rules must match. For example, products and the activity feed only sync once their rules are published. When an app change and a rules change ship together, deploy the app first, then publish the rules; members on an old cached copy just need to reload. `docs/RULES-REVIEW.md` lists Rules Playground checks to run before publishing.
 
 That's it. The account pill in the top-right will switch from "Local only" to "Local mode" (signed-out cloud) and clicking it opens sign-in.
 
 ### How groups work
 
 - Sign in (or create an account) with email + password.
-- In **Defaults → Account & Group**, **Create group** (give it a name) — you'll get a 6-char join code like `PR4-9XK`.
+- In **Defaults → Account & Group**, **Create group** (give it a name) — you'll get an 8-char join code like `PR4K-9XMT`. Groups made before codes grew keep their 6-char `PR4-9XK` codes, which still work.
 - Share the code with anyone you want in the group. They sign in, paste the code into **Join with code** (dashes and spaces optional), and they're in.
-- The code really is the key: only members can see a group, and the only way for anyone else to find it is to look up its exact code. Codes can't be listed or browsed.
-- The member list shows each member's email, which is stored on the group when they join.
+- The code really is the key: only members can see a group, and joining needs the group's *current* code. Codes can't be listed or browsed.
+- The group's creator is its owner. Only the owner can **Change join code**: the old code stops working at once, and everyone already in stays in. Do this after removing someone (the owner can remove a member's uid from `members` and `memberEmails` in the Firebase console), or if the code leaked.
+- The member list shows each member's email, which is the email of the account they signed in with.
 - Once in a group, **spools, printers, products, archive, and defaults are all shared** — everyone sees real-time updates as anyone uses up filament or stamps an estimate. An activity feed records who did what.
-- **Leave group** removes you from the group; your local cache stays in your browser.
+- **Leave group** removes you from the group; your local cache stays in your browser. The owner can't leave, since there is no way to hand a group over yet.
 
 ### What's shared vs personal
 

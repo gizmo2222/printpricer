@@ -144,15 +144,27 @@ describe('rafDebounce', () => {
 });
 
 describe('generateJoinCode', () => {
-  it('makes XXX-XXX codes from the unambiguous alphabet', () => {
+  it('makes XXXX-XXXX codes from the unambiguous alphabet', () => {
     for (let i = 0; i < 200; i++) {
-      assert.match(generateJoinCode(), /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{3}-[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{3}$/);
+      assert.match(generateJoinCode(), /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{4}-[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{4}$/);
     }
   });
 
   it('never uses I, L, O, 0 or 1', () => {
     const all = Array.from({ length: 500 }, generateJoinCode).join('');
     assert.doesNotMatch(all, /[ILO01]/);
+  });
+
+  it('draws from crypto.getRandomValues, not Math.random', () => {
+    const realRandom = Math.random;
+    Math.random = () => { throw new Error('Math.random used'); };
+    try { assert.match(generateJoinCode(), /^.{4}-.{4}$/); }
+    finally { Math.random = realRandom; }
+  });
+
+  it('rarely repeats a code', () => {
+    const codes = new Set(Array.from({ length: 2000 }, generateJoinCode));
+    assert.equal(codes.size, 2000);
   });
 });
 
