@@ -2,9 +2,9 @@
 
 The first review compared `firestore.rules` with `printpricer/js/firebase.js` at commit `810a5a8`. It found holes 1-7 below, and all seven are now fixed in `firestore.rules` and the app. `rules-tests/rules.test.js` proves them on the Firestore emulator: every rule path, plus one regression test per hole (see [Automated checks](#automated-checks)).
 
-**Status (2026-11-06):** holes 1-7 are live; findings 8 and 9 are fixed in the repo but not published, so the live rules now differ from `firestore.rules` until you publish it. The app went first (main `6b3024d`, `?v=36`). The rules were published at 05:22 UTC as ruleset `1be5e97d-bb38-44b9-a93b-97c05ea9753f`, and the published source matches `firestore.rules`.
+**Status (2026-11-06):** holes 1-7 and findings 8-9 are live. The app went first (main `6b3024d`, `?v=36`). Holes 1-7 were published at 05:22 UTC as ruleset `1be5e97d-bb38-44b9-a93b-97c05ea9753f`. Findings 8-9 were deployed at 08:01 UTC with `firebase deploy --only firestore:rules` as ruleset `777fe7c2-4bae-47e9-aa73-38c88be93465`, and the published source matches `firestore.rules`.
 
-The ruleset before this change was `296503e1-650e-4c7e-ac77-fa9ef6cdd8b3` (2026-10-08). To roll back, open Firebase console → Firestore → Rules → history and restore that version.
+Rollback targets: to undo only findings 8-9, restore `1be5e97d-bb38-44b9-a93b-97c05ea9753f`. To undo holes 1-7 as well, restore `296503e1-650e-4c7e-ac77-fa9ef6cdd8b3` (2026-10-08). Both are in Firebase console → Firestore → Rules → history.
 
 Cross-group isolation still holds. Every sub-collection rule calls `isMember(gid)` with the `gid` from the path, and reading a group requires membership.
 
@@ -17,8 +17,8 @@ Cross-group isolation still holds. Every sub-collection rule calls `isMember(gid
 | 5 | Low | Sub-collection documents had no schema or size limits | Fixed |
 | 6 | Low | Activity could never be deleted; join codes were orphaned when their group was deleted | Fixed |
 | 7 | Low | Join codes could be guessed (6 chars, `Math.random`) | Fixed |
-| 8 | Low | `users/{uid}` was open to anonymous accounts and had no schema | Fixed in the repo, not yet published (see 8) |
-| 9 | Low | `archive` and `settings` docs had no schema or size limits | Fixed in the repo, not yet published (see 9) |
+| 8 | Low | `users/{uid}` was open to anonymous accounts and had no schema | Fixed, live 2026-11-06 (see 8) |
+| 9 | Low | `archive` and `settings` docs had no schema or size limits | Fixed, live 2026-11-06 (see 9) |
 | — | OK | One group cannot reach another group's data | Still holds |
 
 ---

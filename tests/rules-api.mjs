@@ -126,7 +126,8 @@ const PRINTER = { name: 'My Printer', preset: '', watts: '120', hourlyRate: '', 
 sub('18g member saves printer', 'ALLOW', 'printers/p', 'create', PRINTER);
 sub('18h printer extra key', 'DENY', 'printers/p', 'create', { ...PRINTER, admin: true });
 sub('18i member deletes product', 'ALLOW', 'products/p', 'delete', undefined, MEMBER, PRODUCT);
-const ARCH = { name: 'x', date: '2026-11-05T12:00:00.000Z', hours: 1, grams: 10, printerId: null, printerName: null, filaments: [], breakdown: { total: 3 } };
+// No `date`: this API reads an ISO string as a timestamp. The emulator suite covers the real string.
+const ARCH = { name: 'x', hours: 1, grams: 10, printerId: null, printerName: null, filaments: [], breakdown: { total: 3 } };
 sub('19 member edits archive entry', 'DENY', 'archive/a', 'update', ARCH, MEMBER, ARCH);
 sub('19b owner edits archive entry', 'ALLOW', 'archive/a', 'update', ARCH, OWNER, ARCH);
 sub('20 member deletes archive entry', 'ALLOW', 'archive/a', 'delete', undefined, MEMBER, ARCH);
