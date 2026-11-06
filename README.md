@@ -57,17 +57,17 @@ Drop a `.gcode`, `.gco`, or `.3mf` file onto the upload zone and it pulls out th
 | PrusaSlicer / OrcaSlicer / SuperSlicer | `.gcode` | Reads `; estimated printing time` and `; filament used [g]` |
 | Bambu Studio / OrcaSlicer | `.3mf` (sliced) | Reads `slice_info.config` and `plate_*.json` for prediction time and per-filament `used_g` |
 | Bambu Studio / PrusaSlicer | `.gcode.3mf` | Reads the embedded gcode |
-| Cura | `.gcode` | Reads `;TIME:` and filament data |
+| Cura | `.gcode` | Reads `;TIME:` and `;Filament used: 1.23m` (per extruder), converted to grams. Uses `material_diameter` and the material type if the file states them, else 1.75 mm and the **Density** from Defaults (a known material uses its own density: PLA 1.24, PETG 1.27, ABS 1.04, ASA 1.07, TPU 1.21, PC 1.20, nylon 1.14) |
 | **Any slicer** | `.3mf` (model-only) | Falls back to **geometry-based estimation** — see below |
 
-Multi-material prints split into separate filament rows automatically.
+Multi-material prints split into separate filament rows automatically. Extruders that used 0 g are left out.
 
 ### Geometry-based estimation (model-only 3MFs)
 
 If you drop a 3MF that has no slicing data — a Bambu/Orca project saved before slicing, or a model downloaded from MakerWorld / Printables — Print Pricer falls back to a rough estimate:
 
-1. Parses the mesh from `3D/3dmodel.model` (vertices + triangles + build-item transforms)
-2. Computes the mesh **volume** via the divergence theorem
+1. Parses the meshes from `3D/3dmodel.model` and any `3D/Objects/*.model` files (vertices + triangles; triangles that point at a missing vertex are skipped)
+2. Computes the mesh **volume** via the divergence theorem, then counts it once per `<build><item>` on the plate, scaled by the item's `transform` and any `<component transform>`s on the way down (mirrored copies count as positive volume). Objects used only as components are not counted on their own. A file with no `<build>` counts each mesh object once
 3. Mass ≈ `volume × density × fill fraction`
 4. Time ≈ `mass ÷ throughput`
 

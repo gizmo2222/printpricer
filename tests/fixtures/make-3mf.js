@@ -94,10 +94,11 @@ function cubeMesh({ colorOf = () => '', badIndex = false } = {}) {
   return `<mesh><vertices>${verts}</vertices><triangles>${tris.join('')}</triangles></mesh>`;
 }
 
+// build: the <build> contents, or null to leave the element out.
 function model(objects, build = '') {
   return '<?xml version="1.0" encoding="UTF-8"?>\n'
     + '<model unit="millimeter" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">'
-    + `<resources>${objects}</resources><build>${build}</build></model>`;
+    + `<resources>${objects}</resources>${build === null ? '' : `<build>${build}</build>`}</model>`;
 }
 
 const cubeObject = (opts) => `<object id="1" type="model">${cubeMesh(opts)}</object>`;
@@ -185,6 +186,21 @@ const fixtures = {
   // Same cube, placed twice: 2 cm^3 on the plate.
   'two-copies.3mf': modelOnly(model(cubeObject(),
     '<item objectid="1" transform="1 0 0 0 1 0 0 0 1 0 0 0"/><item objectid="1" transform="1 0 0 0 1 0 0 0 1 20 0 0"/>')),
+
+  // Placed mirrored in X (determinant -1): still 1 cm^3.
+  'mirrored-build.3mf': modelOnly(model(cubeObject(), '<item objectid="1" transform="-1 0 0 0 1 0 0 0 1 10 0 0"/>')),
+
+  // Nested components: item (x1) -> object 3 -> object 2 (scale 2 in X) ->
+  // cube (scale 3 in Z): 6 cm^3. Objects 1 and 2 are only components, so
+  // they are not counted on their own.
+  'nested-components.3mf': modelOnly(model(
+    cubeObject()
+    + '<object id="2" type="model"><components><component objectid="1" transform="1 0 0 0 1 0 0 0 3 0 0 0"/></components></object>'
+    + '<object id="3" type="model"><components><component objectid="2" transform="2 0 0 0 1 0 0 0 1 5 5 0"/></components></object>',
+    '<item objectid="3"/>')),
+
+  // No <build> element at all: each mesh object is counted once.
+  'no-build.3mf': modelOnly(model(cubeObject(), null)),
 
   // One triangle points at vertex 99, which does not exist.
   'bad-vertex-index.3mf': modelOnly(model(cubeObject({ badIndex: true }), '<item objectid="1"/>')),

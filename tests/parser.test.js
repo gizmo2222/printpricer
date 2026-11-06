@@ -45,8 +45,21 @@ describe('parseGcode', () => {
     close(parseGcode(gcode('cura.gcode')).hours, 5025 / 3600);
   });
 
-  it('reads Cura filament usage', { todo: 'BUG: README promises Cura filament data, but ";Filament used: 1.23456m" is ignored (no grams, no metres)' }, () => {
-    assert.ok(parseGcode(gcode('cura.gcode')).filaments.length > 0);
+  it('reads Cura filament length as grams (1.75 mm, default density)', () => {
+    // 1234.56 mm × π × 0.875² mm² = 2.969 cm³ × 1.24 g/cm³ = 3.68 g
+    assert.deepEqual(rows(parseGcode(gcode('cura.gcode')).filaments), [{ name: '', grams: '3.68' }]);
+  });
+
+  it('uses the Defaults density for Cura files that name no material', () => {
+    settings.estDensity = '2';
+    assert.equal(parseGcode(gcode('cura.gcode')).filaments[0].grams, '5.94');
+  });
+
+  it('uses the diameter and material a Cura file states', () => {
+    // Extruder 1 is 0 m and dropped; extruder 2: 2500 mm × π × 1.425² × 1.27 (PETG)
+    const r = parseGcode(gcode('cura-285-petg.gcode'));
+    assert.deepEqual(rows(r.filaments), [{ name: 'PETG', grams: '20.25' }]);
+    close(r.hours, 600 / 3600);
   });
 
   it('gives the same result for CRLF line endings', () => {
@@ -55,7 +68,7 @@ describe('parseGcode', () => {
     assert.deepEqual(crlf, lf);
   });
 
-  it('keeps names aligned with extruders when one weight is zero', { todo: 'BUG: zero weights are filtered before names are paired, so extruder 2 (PETG, 7.25 g) is labelled PLA' }, () => {
+  it('keeps names aligned with extruders when one weight is zero', () => {
     const r = parseGcode(gcode('zero-weight.gcode'));
     assert.deepEqual(rows(r.filaments), [{ name: 'PETG', grams: '7.25' }]);
   });
@@ -166,17 +179,33 @@ describe('parse3mf: geometry estimator', () => {
     close(r.hours, (0.372 / 18) * 1.25);
   });
 
-  it('applies the build-item scale transform', { todo: 'BUG: <item transform> is ignored, so a 2x-scaled cube counts as 1 cm³ instead of 8' }, async () => {
+  it('applies the build-item scale transform', async () => {
     const r = await parse3mf(fixture('scaled-build.3mf'));
     close(r.meshVolumeCm3, 8);
   });
 
-  it('counts each build item (copies on the plate)', { todo: 'BUG: objects are summed once from resources, so two placed copies count as 1 cm³ instead of 2' }, async () => {
+  it('counts a mirrored item (negative determinant) as positive volume', async () => {
+    const r = await parse3mf(fixture('mirrored-build.3mf'));
+    close(r.meshVolumeCm3, 1);
+  });
+
+  it('compounds component transforms through nested components', async () => {
+    // 2 (X) × 3 (Z) = 6 cm³; objects used only as components are not counted again.
+    const r = await parse3mf(fixture('nested-components.3mf'));
+    close(r.meshVolumeCm3, 6);
+  });
+
+  it('counts each build item (copies on the plate)', async () => {
     const r = await parse3mf(fixture('two-copies.3mf'));
     close(r.meshVolumeCm3, 2);
   });
 
-  it('handles a triangle with an out-of-range vertex index', { todo: 'BUG: throws a raw TypeError ("Cannot read properties of undefined") instead of skipping the triangle or giving a clear error' }, async () => {
+  it('counts each mesh object once when there is no <build>', async () => {
+    const r = await parse3mf(fixture('no-build.3mf'));
+    close(r.meshVolumeCm3, 1);
+  });
+
+  it('skips a triangle with an out-of-range vertex index', async () => {
     const r = await parse3mf(fixture('bad-vertex-index.3mf'));
     assert.ok(r.meshVolumeCm3 > 0);
   });
