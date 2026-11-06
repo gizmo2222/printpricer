@@ -2,7 +2,7 @@
 
 The first review compared `firestore.rules` with `printpricer/js/firebase.js` at commit `810a5a8`. It found holes 1-7 below, and all seven are now fixed in `firestore.rules` and the app. `rules-tests/rules.test.js` proves them on the Firestore emulator: every rule path, plus one regression test per hole (see [Automated checks](#automated-checks)).
 
-**Status (2026-11-06):** both parts are live. The app went first (main `6b3024d`, `?v=36`). The rules were published at 05:22 UTC as ruleset `1be5e97d-bb38-44b9-a93b-97c05ea9753f`, and the published source matches `firestore.rules`.
+**Status (2026-11-06):** holes 1-7 are live; finding 8 is fixed in the repo but not published, so the live rules now differ from `firestore.rules` until you publish it. The app went first (main `6b3024d`, `?v=36`). The rules were published at 05:22 UTC as ruleset `1be5e97d-bb38-44b9-a93b-97c05ea9753f`, and the published source matches `firestore.rules`.
 
 The ruleset before this change was `296503e1-650e-4c7e-ac77-fa9ef6cdd8b3` (2026-10-08). To roll back, open Firebase console → Firestore → Rules → history and restore that version.
 
@@ -17,7 +17,9 @@ Cross-group isolation still holds. Every sub-collection rule calls `isMember(gid
 | 5 | Low | Sub-collection documents had no schema or size limits | Fixed |
 | 6 | Low | Activity could never be deleted; join codes were orphaned when their group was deleted | Fixed |
 | 7 | Low | Join codes could be guessed (6 chars, `Math.random`) | Fixed |
-| 8 | OK | One group cannot reach another group's data | Still holds |
+| 8 | Low | `users/{uid}` was open to anonymous accounts and had no schema | Fixed in the repo, not yet published (see 8) |
+| 9 | Low | `archive` and `settings` docs still have no schema or size limits | Open, your call (see 9) |
+| — | OK | One group cannot reach another group's data | Still holds |
 
 ---
 
@@ -109,6 +111,18 @@ Deleting a group still leaves its sub-collections behind. The app has no delete-
 **Now:** `generateJoinCode()` uses `crypto.getRandomValues`, with rejection sampling so it has no modulo bias. It makes 8 characters from the 31-letter alphabet (no I, L, O, 0, 1), formatted `ABCD-EFGH`, so there are about 8.5×10¹¹ codes. `joinGroupByCode()` still accepts 6-char `ABC-DEF` codes from older groups. `isCode()` in the rules accepts both forms.
 
 Optional extra steps: turn on App Check so only the real site can call Firestore, and set a budget alert.
+
+## 8. `users/{uid}` open to anonymous accounts, no schema (Low, found by the emulator suite)
+
+**Was:** `allow read, write: if request.auth != null && request.auth.uid == uid`. Anonymous sign-in is on (local mode), and anyone can make any number of anonymous accounts. Each one could store a doc of any shape up to 1 MiB, which costs storage and writes. Signed-in users could do the same with their own doc. The first review called the anonymous case harmless; it isn't, because it is free, unlimited storage.
+
+**Now:** read and delete need `signedIn()` and your own uid. Create and update also need `keys().hasOnly(['email', 'createdAt', 'currentGroupId', 'joinCode'])`, which are the only fields the app writes (`ensureUserDoc`, join, leave, switch group): `email` a string up to 320 chars, `createdAt` a timestamp, `currentGroupId` null or a string up to 128, `joinCode` passing `isCode()`. `ensureUserDoc` already skips anonymous users, so the app is unaffected. Tests: the `users/{uid}` block in `rules-tests/rules.test.js`.
+
+**To publish:** paste `firestore.rules` into Firebase console → Firestore → Rules, then publish. No app change is needed first.
+
+## 9. Archive and settings have no schema (Low, open)
+
+Hole 5 covered spools, printers and products. `groups/{gid}/archive/{id}` and `groups/{gid}/settings/main` still accept any fields of any size from any member (up to 1 MiB per doc). Only members can write, so the risk is a bad or hostile member bloating or breaking the shared archive and defaults. A schema needs the exact archive entry and settings shapes from `printpricer/js/`; a wrong guess would block real saves on the live app. Left for you to decide.
 
 ---
 

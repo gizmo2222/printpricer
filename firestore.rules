@@ -73,8 +73,18 @@ service cloud.firestore {
     }
 
     // ---------- users ----------
+    // Private to its owner. Anonymous (local-mode) accounts never use it, and
+    // anyone can make one, so they get no storage here. Only the fields the
+    // app writes: email, createdAt, currentGroupId, joinCode (see joining()).
     match /users/{uid} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+      allow read, delete: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['email', 'createdAt', 'currentGroupId', 'joinCode'])
+        && str(request.resource.data.get('email', ''), 320)
+        && request.resource.data.get('createdAt', request.time) is timestamp
+        && (request.resource.data.get('currentGroupId', null) == null
+            || str(request.resource.data.currentGroupId, 128))
+        && (!('joinCode' in request.resource.data) || isCode(request.resource.data.joinCode));
     }
 
     // ---------- join codes ----------

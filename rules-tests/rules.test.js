@@ -95,13 +95,32 @@ describe('users/{uid}', () => {
     const db = who.unauth(), r = doc(db, 'users', MEMBER);
     await no(getDoc(r)); await no(setDoc(r, { a: 1 })); await no(deleteDoc(r));
   });
-  it('anonymous account cannot read/write own user doc', { todo: 'HOLE: anonymous account can read/write its own users/{uid} (firestore.rules:77 uses auth != null, not signedIn())' }, async () => {
-    const db = who.anonOutsider(), r = doc(db, 'users', OUT);
-    await no(setDoc(r, { a: 1 })); await no(getDoc(r));
+  it('self can write the exact docs the app writes (ensureUserDoc, join, leave)', async () => {
+    const r = doc(who.outsider(), 'users', OUT);
+    await ok(setDoc(r, { email: EMAIL[OUT], createdAt: serverTimestamp(), currentGroupId: null }));
+    await ok(updateDoc(r, { email: EMAIL[OUT] }));
+    await ok(setDoc(r, { currentGroupId: G, joinCode: CODE }, { merge: true }));
+    await ok(updateDoc(r, { currentGroupId: 'other' }));
+    await ok(setDoc(r, { currentGroupId: null, joinCode: deleteField() }, { merge: true }));
   });
-  it('users doc rejects extra key / oversize value', { todo: 'HOLE: users/{uid} has no schema or size check (firestore.rules:77); self can write any key/size' }, async () => {
+  // Finding 8 (RULES-REVIEW.md): anyone can make an anonymous account, so it must get no storage here.
+  it('anonymous account cannot read/write/delete even its own user doc', async () => {
+    const db = who.anonOutsider(), r = doc(db, 'users', OUT);
+    await no(setDoc(r, { currentGroupId: null })); await no(getDoc(r));
+    await no(getDoc(doc(who.anonMember(), 'users', MEMBER)));
+    await no(updateDoc(doc(who.anonMember(), 'users', MEMBER), { currentGroupId: null }));
+    await no(deleteDoc(doc(who.anonMember(), 'users', MEMBER)));
+  });
+  it('users doc rejects forged / oversize fields', async () => {
     const r = doc(who.outsider(), 'users', OUT);
     await no(setDoc(r, { evil: 'x'.repeat(5000) }));
+    await no(setDoc(r, { email: 'x'.repeat(321) }));
+    await no(setDoc(r, { email: 1 }));
+    await no(setDoc(r, { createdAt: 'yesterday' }));
+    await no(setDoc(r, { currentGroupId: 'x'.repeat(129) }));
+    await no(setDoc(r, { currentGroupId: 5 }));
+    await no(setDoc(r, { joinCode: 'not a code' }));
+    await no(updateDoc(doc(who.member(), 'users', MEMBER), { blob: 'x' }));
   });
 });
 
