@@ -1,6 +1,7 @@
 {
   "type": "module",
   "scripts": {
-    "test": "node --import ./tests/setup.js --test \"tests/**/*.test.js\""
+    "test": "node --import ./tests/setup.js --test \"tests/**/*.test.js\"",
+    "test:rules": "node tests/rules-api.mjs firestore.rules"
   }
 }
