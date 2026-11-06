@@ -1,8 +1,10 @@
 # firestore.rules review
 
-The first review compared `firestore.rules` with `printpricer/js/firebase.js` at commit `810a5a8`. It found holes 1-7 below, and all seven are now fixed in `firestore.rules` and the app. The Firebase emulator needs Java, which this machine doesn't have, so the new rules have **not** been run in the emulator. Run the [manual checks](#manual-checks) in the Rules Playground before relying on them.
+The first review compared `firestore.rules` with `printpricer/js/firebase.js` at commit `810a5a8`. It found holes 1-7 below, and all seven are now fixed in `firestore.rules` and the app. The Firebase emulator needs Java, which this machine doesn't have. Instead, `tests/rules-api.mjs` runs 73 cases against Google's Rules test API, and all 73 pass (see [Automated checks](#automated-checks)).
 
-**The rules are not published.** Deploy the app first, then paste `firestore.rules` into Firebase console → Firestore → Rules and publish (see [Deploy order](#deploy-order)).
+**Status (2026-11-06):** both parts are live. The app went first (main `6b3024d`, `?v=36`). The rules were published at 05:22 UTC as ruleset `1be5e97d-bb38-44b9-a93b-97c05ea9753f`, and the published source matches `firestore.rules`.
+
+The ruleset before this change was `296503e1-650e-4c7e-ac77-fa9ef6cdd8b3` (2026-10-08). To roll back, open Firebase console → Firestore → Rules → history and restore that version.
 
 Cross-group isolation still holds. Every sub-collection rule calls `isMember(gid)` with the `gid` from the path, and reading a group requires membership.
 
@@ -117,9 +119,35 @@ Optional extra steps: turn on App Check so only the real site can call Firestore
 
 Clients still running the old app will fail to join under the new rules, because they don't write `users/{uid}.joinCode`. After a reload they work. **Change join code** fails until the new rules are published, because the old `joinCodes` rule refuses the batch.
 
+## Automated checks
+
+`tests/rules-api.mjs` sends `firestore.rules` and 73 test cases to the Firebase Rules test API (`projects/printpricer:test`). It uses no emulator and doesn't touch real data: `get`, `exists` and `getAfter` are mocked per case. It covers the 24 checks below plus:
+
+- owner rotate, hand-over and remove;
+- joins that try to add a friend, rename the group, sign in anonymously, or use a legacy 6-char code;
+- group create;
+- `joinCodes` create, update and delete;
+- activity with an extra key, a 601-char action, or sent by an outsider;
+- spool, printer and product shapes;
+- archive, settings and `users` docs.
+
+It needs a Google login with access to the project:
+
+```powershell
+gcloud auth login
+```
+
+```powershell
+$env:TOKEN = (gcloud auth print-access-token); npm run test:rules
+```
+
+The run prints `cases 73, results 73, fail 0` and exits with 0. To prove the API really evaluates each case, set `$env:INVERT = '1'`, which flips every expectation; all 73 cases must then fail. Both runs were done on 2026-11-06.
+
+The suite is not part of `npm test`, because it needs network access and a login. Run it after any change to `firestore.rules`.
+
 ## Manual checks
 
-Use Firebase console → Firestore → Rules → **Rules Playground** with the new rules pasted in (don't publish yet). The Playground simulates one request against the real data, with "Authenticated" set to a uid and an email (provider `password`). Make two test accounts, OWNER and MEMBER, and one group G where OWNER is owner and MEMBER is a member. Let OUTSIDER be a third uid.
+These are the same cases, by hand. Use Firebase console → Firestore → Rules → **Rules Playground** with the new rules pasted in (don't publish yet). The Playground simulates one request against the real data, with "Authenticated" set to a uid and an email (provider `password`). Make two test accounts, OWNER and MEMBER, and one group G where OWNER is owner and MEMBER is a member. Let OUTSIDER be a third uid.
 
 | # | As | Operation | Expect |
 |---|----|-----------|--------|
@@ -155,4 +183,4 @@ Then, in the real app after publishing:
 - As owner, click **Leave group**: an error explains that owners can't leave.
 - A group made before this change still accepts its 6-char code.
 
-Once Java is installed, port these to `@firebase/rules-unit-testing` with `firebase emulators:exec --only firestore`.
+Those real-app checks still need doing; they need two or three real accounts. Once Java is installed, the suite can move to `@firebase/rules-unit-testing` with `firebase emulators:exec --only firestore`, which also tests multi-doc batches end to end.
