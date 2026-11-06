@@ -18,6 +18,8 @@ const RE_TRIANGLE_FULL = /<triangle\b([^>]*?)\/?>/gi;
 const RE_FILAMENT_TAG = /<filament\b[^>]*?>/gi;
 const RE_PLATE        = /<plate\b[^>]*>([\s\S]*?)<\/plate>/gi;
 const RE_PART_BLOCK   = /<(part|object)\b[^>]*\bid\s*=\s*"([^"]+)"[^>]*>([\s\S]*?)<\/\1>/gi;
+const RE_COMPONENT    = /<component\b([^>]*?)\/?>/gi;
+const RE_ITEM         = /<item\b([^>]*?)\/?>/gi;
 
 // ---------- gcode ----------
 
@@ -38,24 +40,62 @@ export function parseGcode(text) {
     if (t) result.hours = parseInt(t[1]) / 3600;
   }
 
+  // One entry per extruder, zeros included, so names stay aligned.
   let weights = [];
-  const fm = search.match(/;\s*(?:total\s+)?filament[\s_]used\s*\[g\]\s*=\s*([\d.,\s]+)/i)
-          || search.match(/;\s*filament[\s_]weight\s*[:=]\s*([\d.,\s]+)/i);
-  if (fm) {
-    weights = fm[1].split(',').map(s => parseFloat(s.trim())).filter(n => isFinite(n) && n > 0);
-  }
-
   let types = [];
   const tm = search.match(/;\s*filament_type\s*=\s*([^\r\n]+)/i);
   if (tm) types = tm[1].split(/[,;]/).map(s => s.trim()).filter(Boolean);
 
-  result.filaments = weights.map((w, i) => ({
-    name: types[i] || types[0] || '',
-    grams: w.toFixed(2),
-    costPerKg: settings.filamentCost || '',
-  }));
+  const fm = search.match(/;\s*(?:total\s+)?filament[\s_]used\s*\[g\]\s*=\s*([\d.,\s]+)/i)
+          || search.match(/;\s*filament[\s_]weight\s*[:=]\s*([\d.,\s]+)/i);
+  if (fm) {
+    weights = fm[1].split(',').map(s => parseFloat(s.trim()));
+  } else {
+    const cura = curaWeights(search);
+    weights = cura.weights;
+    if (!types.length) types = cura.types;
+  }
+
+  result.filaments = weights
+    .map((w, i) => ({ w, name: types[i] || types[0] || '' }))
+    .filter(({ w }) => isFinite(w) && w > 0)
+    .map(({ w, name }) => ({
+      name,
+      grams: w.toFixed(2),
+      costPerKg: settings.filamentCost || '',
+    }));
 
   return result;
+}
+
+// Cura states filament as length (";Filament used: 1.2m, 0.5m"). Convert to
+// grams with the diameter and material from the file when it gives them,
+// else 1.75 mm and the estimator density from Defaults.
+const MATERIAL_DENSITY = [
+  [/PETG/i, 1.27], [/PLA/i, 1.24], [/ABS/i, 1.04], [/ASA/i, 1.07],
+  [/TPU|TPE|FLEX/i, 1.21], [/\bPC\b|POLYCARBONATE/i, 1.20], [/NYLON|\bPA\d*\b/i, 1.14],
+];
+
+function curaWeights(search) {
+  const um = search.match(/;\s*Filament used\s*:\s*([^\r\n]+)/i);
+  if (!um) return { weights: [], types: [] };
+  const metres = um[1].split(',').map(s => {
+    const m = s.match(/^\s*([\d.]+)\s*m\b/i);
+    return m ? parseFloat(m[1]) : NaN;
+  });
+  const dm = search.match(/material_diameter\s*=\s*([\d.]+)/i)
+          || search.match(/;\s*filament[\s_]diameter\s*[:=]\s*([\d.]+)/i);
+  const diameter = dm && parseFloat(dm[1]) > 0 ? parseFloat(dm[1]) : 1.75;
+  const area = Math.PI * (diameter / 2) ** 2; // mm²
+  const mt = search.match(/;\s*(?:(?:material|filament)[\s_]?(?:type|name)|material)\s*[:=]\s*([A-Za-z][^\r\n]*)/i);
+  const types = mt ? mt[1].split(/[,;]/).map(s => s.trim()).filter(Boolean) : [];
+  const fallback = +settings.estDensity || 1.24;
+  const weights = metres.map((len, i) => {
+    const name = types[i] || types[0] || '';
+    const density = MATERIAL_DENSITY.find(([re]) => re.test(name))?.[1] || fallback;
+    return len * 1000 * area / 1000 * density; // mm × mm² → cm³ → g
+  });
+  return { weights, types };
 }
 
 // ---------- 3mf ----------
@@ -210,22 +250,24 @@ function plateMassG(p) {
 
 // ---------- geometry estimator ----------
 
-function applyTransform3MF(p, t) {
-  if (!t || t.length < 12) return p;
-  return {
-    x: t[0]*p.x + t[3]*p.y + t[6]*p.z + t[9],
-    y: t[1]*p.x + t[4]*p.y + t[7]*p.z + t[10],
-    z: t[2]*p.x + t[5]*p.y + t[8]*p.z + t[11],
-  };
+// A 3MF transform is 12 numbers: a 3×3 matrix (row-major) plus translation.
+// Volume scales by |det| of the 3×3 part; a missing or bad transform is 1.
+function transformScale(str) {
+  if (!str) return 1;
+  const t = str.trim().split(/\s+/).map(Number);
+  if (t.length !== 12 || !t.every(isFinite)) return 1;
+  return Math.abs(
+    t[0] * (t[4] * t[8] - t[5] * t[7])
+    - t[1] * (t[3] * t[8] - t[5] * t[6])
+    + t[2] * (t[3] * t[7] - t[4] * t[6])
+  );
 }
 
-function meshVolumeMm3(verts, tris, transform) {
+function meshVolumeMm3(verts, tris) {
   let v = 0;
   for (let i = 0; i < tris.length; i++) {
     const t = tris[i];
-    const a = applyTransform3MF(verts[t.v1], transform);
-    const b = applyTransform3MF(verts[t.v2], transform);
-    const c = applyTransform3MF(verts[t.v3], transform);
+    const a = verts[t.v1], b = verts[t.v2], c = verts[t.v3];
     const cx = b.y * c.z - b.z * c.y;
     const cy = b.z * c.x - b.x * c.z;
     const cz = b.x * c.y - b.y * c.x;
@@ -291,8 +333,12 @@ async function estimateFromGeometry(zip) {
 
   const partExtruder = await readPartExtruderMap(zip);
 
-  function objectsWithMesh(xml) {
-    const out = [];
+  const normPath = (p) => p.replace(/^\/+/, '').toLowerCase();
+
+  // Every <object> in every model file, keyed "path#id": its mesh (if any)
+  // and the components it places, each with its transform's volume scale.
+  const objects = new Map();
+  function readObjects(xml, path) {
     let om;
     while ((om = RE_OBJECT.exec(xml))) {
       const objId = om[1];
@@ -309,6 +355,8 @@ async function estimateFromGeometry(zip) {
         const v2 = attrs.match(/\bv2\s*=\s*"(\d+)"/i);
         const v3 = attrs.match(/\bv3\s*=\s*"(\d+)"/i);
         if (!v1 || !v2 || !v3) continue;
+        // Skip triangles that point past the vertex list.
+        if (+v1[1] >= verts.length || +v2[1] >= verts.length || +v3[1] >= verts.length) continue;
         const paint    = attrs.match(/\bpaint_color\s*=\s*"([^"]+)"/i)?.[1];
         const extruder = attrs.match(/\bextruder\s*=\s*"([^"]+)"/i)?.[1];
         const pindex   = attrs.match(/\bpindex\s*=\s*"([^"]+)"/i)?.[1];
@@ -317,42 +365,94 @@ async function estimateFromGeometry(zip) {
         tris.push({ v1: +v1[1], v2: +v2[1], v3: +v3[1], color: colorKey });
       }
       RE_TRIANGLE_FULL.lastIndex = 0;
-      if (verts.length && tris.length) out.push({ id: objId, verts, tris });
+      const comps = [];
+      let cm;
+      while ((cm = RE_COMPONENT.exec(body))) {
+        const ref = instanceRef(cm[1], path);
+        if (ref) comps.push(ref);
+      }
+      RE_COMPONENT.lastIndex = 0;
+      objects.set(`${path}#${objId}`, { id: objId, verts, tris, comps });
     }
     RE_OBJECT.lastIndex = 0;
-    return out;
+  }
+  // <item> and <component> share objectid / p:path / transform.
+  function instanceRef(attrs, path) {
+    const id = attrs.match(/\bobjectid\s*=\s*"([^"]+)"/i)?.[1];
+    if (!id) return null;
+    const p = attrs.match(/(?:^|\s)(?:\w+:)?path\s*=\s*"([^"]+)"/i)?.[1];
+    const transform = attrs.match(/\btransform\s*=\s*"([^"]+)"/i)?.[1];
+    return { key: `${p ? normPath(p) : path}#${id}`, scale: transformScale(transform) };
   }
 
-  let totalMm3 = 0;
-  let totalObjects = 0;
-  const volByColor = new Map();
-  function add(map, key, val) { map.set(key, (map.get(key) || 0) + val); }
-
+  let rootPath = null;
+  let rootXml = null;
+  const rels = paths.find(p => /^_rels\/\.rels$/i.test(p));
+  if (rels) {
+    try {
+      const t = (await zip.file(rels).async('string')).match(/\bTarget\s*=\s*"([^"]+\.model)"/i);
+      if (t) rootPath = normPath(t[1]);
+    } catch { /* fall through */ }
+  }
   for (const mp of modelPaths) {
     let xml;
     try { xml = await zip.file(mp).async('string'); }
     catch { continue; }
-    const objs = objectsWithMesh(xml);
-    for (const o of objs) {
-      const objVol = meshVolumeMm3(o.verts, o.tris, null);
-      if (!isFinite(objVol) || objVol <= 0) continue;
-      totalMm3 += objVol;
-      totalObjects++;
-      const objAreaByColor = new Map();
-      for (const t of o.tris) {
-        const a = o.verts[t.v1], b = o.verts[t.v2], c = o.verts[t.v3];
-        add(objAreaByColor, t.color, triArea(a, b, c));
-      }
-      if (objAreaByColor.size === 1) {
-        const color = [...objAreaByColor.keys()][0];
-        add(volByColor, color, objVol);
-      } else {
-        const totalObjArea = [...objAreaByColor.values()].reduce((s, a) => s + a, 0) || 1;
-        for (const [color, area] of objAreaByColor) {
-          add(volByColor, color, objVol * (area / totalObjArea));
-        }
-      }
+    readObjects(xml, normPath(mp));
+    if (normPath(mp) === rootPath || (!rootPath && /(^|\/)3dmodel\.model$/i.test(mp))) {
+      rootPath = normPath(mp);
+      rootXml = xml;
     }
+  }
+
+  let totalMm3 = 0;
+  const volByColor = new Map();
+  function add(map, key, val) { map.set(key, (map.get(key) || 0) + val); }
+
+  // Volume and per-colour surface area of a mesh, computed once per object.
+  const meshStats = new Map();
+  function addMesh(o, scale) {
+    let s = meshStats.get(o);
+    if (!s) {
+      const areaByColor = new Map();
+      for (const t of o.tris) add(areaByColor, t.color, triArea(o.verts[t.v1], o.verts[t.v2], o.verts[t.v3]));
+      s = { vol: meshVolumeMm3(o.verts, o.tris), areaByColor };
+      meshStats.set(o, s);
+    }
+    const objVol = s.vol * scale;
+    if (!isFinite(objVol) || objVol <= 0) return;
+    totalMm3 += objVol;
+    if (s.areaByColor.size === 1) {
+      add(volByColor, [...s.areaByColor.keys()][0], objVol);
+    } else {
+      const totalObjArea = [...s.areaByColor.values()].reduce((sum, a) => sum + a, 0) || 1;
+      for (const [color, area] of s.areaByColor) add(volByColor, color, objVol * (area / totalObjArea));
+    }
+  }
+  const hasMesh = (o) => o.verts.length > 0 && o.tris.length > 0;
+
+  // Count what the <build> places: once per item, through nested components,
+  // with the transforms' scales multiplied together.
+  function addInstance(key, scale, stack) {
+    const o = objects.get(key);
+    if (!o || stack.has(key)) return; // missing, or a component cycle
+    stack.add(key);
+    if (hasMesh(o)) addMesh(o, scale);
+    for (const c of o.comps) addInstance(c.key, scale * c.scale, stack);
+    stack.delete(key);
+  }
+  if (rootXml && /<build\b/i.test(rootXml)) {
+    const body = rootXml.match(/<build\b[^>]*>([\s\S]*?)<\/build>/i)?.[1] || '';
+    let im;
+    while ((im = RE_ITEM.exec(body))) {
+      const ref = instanceRef(im[1], rootPath);
+      if (ref) addInstance(ref.key, ref.scale, new Set());
+    }
+    RE_ITEM.lastIndex = 0;
+  }
+  // No <build> (or nothing on it resolved): count each mesh object once.
+  if (totalMm3 <= 0) {
+    for (const o of objects.values()) if (hasMesh(o)) addMesh(o, 1);
   }
 
   if (!isFinite(totalMm3) || totalMm3 <= 0) return null;
