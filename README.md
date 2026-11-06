@@ -251,6 +251,36 @@ How it works:
 - Known bugs are marked `{ todo: 'BUG: ...' }`. They show as `todo` in the summary and do not fail the run (Node still prints them under "failing tests"). When you fix one, remove its `todo`.
 - `checkProductSize`, `computeProductTotals`, `computeProductBreakdown` (products.js) and `forecastSpoolDays` (spools.js) are exported for the tests. Nothing else changed in those files.
 
+### Firestore rules tests
+
+`rules-tests/rules.test.js` checks `firestore.rules` in the local Firestore emulator, using the `demo-printpricer` project ID. A `demo-` project can't reach a real Firebase project, so these tests never touch live data and never deploy rules. `rules-tests/` has its own `package.json` and `node_modules` (git-ignored). The deploy uploads only `printpricer/`, so none of this reaches the site.
+
+You need Java 21 or later and the Firebase CLI:
+
+```powershell
+winget install --id EclipseAdoptium.Temurin.21.JDK --exact
+```
+
+```powershell
+npm install -g firebase-tools
+```
+
+Install the test dependencies once:
+
+```powershell
+npm install --prefix rules-tests
+```
+
+Run the suite from the repo root. It starts the emulator on `127.0.0.1:8085` (set in `firebase.json`), runs the tests and stops the emulator:
+
+```powershell
+npm run test:rules
+```
+
+The tests cover each collection and role (allowed, another user, anonymous, a forged field), plus one regression test per hole in `docs/RULES-REVIEW.md`.
+
+`npm run test:rules-api` runs the older `tests/rules-api.mjs`, which sends the rules to Google's Rules test API without the emulator. It needs an access token: `$env:TOKEN = (gcloud auth print-access-token)`.
+
 ---
 
 ## Deploy

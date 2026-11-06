@@ -1,6 +1,6 @@
 # firestore.rules review
 
-The first review compared `firestore.rules` with `printpricer/js/firebase.js` at commit `810a5a8`. It found holes 1-7 below, and all seven are now fixed in `firestore.rules` and the app. The Firebase emulator needs Java, which this machine doesn't have. Instead, `tests/rules-api.mjs` runs 73 cases against Google's Rules test API, and all 73 pass (see [Automated checks](#automated-checks)).
+The first review compared `firestore.rules` with `printpricer/js/firebase.js` at commit `810a5a8`. It found holes 1-7 below, and all seven are now fixed in `firestore.rules` and the app. `rules-tests/rules.test.js` proves them on the Firestore emulator: every rule path, plus one regression test per hole (see [Automated checks](#automated-checks)).
 
 **Status (2026-11-06):** both parts are live. The app went first (main `6b3024d`, `?v=36`). The rules were published at 05:22 UTC as ruleset `1be5e97d-bb38-44b9-a93b-97c05ea9753f`, and the published source matches `firestore.rules`.
 
@@ -121,6 +121,16 @@ Clients still running the old app will fail to join under the new rules, because
 
 ## Automated checks
 
+### Emulator suite (main check)
+
+`rules-tests/rules.test.js` loads `firestore.rules` into the Firestore emulator under the offline project `demo-printpricer`, so it never touches live data or the live rules. For each collection it checks, per role: allowed, denied for another user, denied for an anonymous account, and denied for a forged field. Joining and code rotation run as the same `writeBatch` the app sends. Each of holes 1-7 has a `hole N regression` block that fails if the hole comes back. It needs Java 21 and the Firebase CLI (see README.md, "Firestore rules tests"):
+
+```powershell
+npm run test:rules
+```
+
+### Rules test API suite (optional)
+
 `tests/rules-api.mjs` sends `firestore.rules` and 73 test cases to the Firebase Rules test API (`projects/printpricer:test`). It uses no emulator and doesn't touch real data: `get`, `exists` and `getAfter` are mocked per case. It covers the 24 checks below plus:
 
 - owner rotate, hand-over and remove;
@@ -138,12 +148,12 @@ gcloud auth login
 ```
 
 ```powershell
-$env:TOKEN = (gcloud auth print-access-token); npm run test:rules
+$env:TOKEN = (gcloud auth print-access-token); npm run test:rules-api
 ```
 
 The run prints `cases 73, results 73, fail 0` and exits with 0. To prove the API really evaluates each case, set `$env:INVERT = '1'`, which flips every expectation; all 73 cases must then fail. Both runs were done on 2026-11-06.
 
-The suite is not part of `npm test`, because it needs network access and a login. Run it after any change to `firestore.rules`.
+Neither suite is part of `npm test`: the emulator suite needs Java, and this one needs network access and a login. Run `npm run test:rules` after any change to `firestore.rules`.
 
 ## Manual checks
 
@@ -183,4 +193,4 @@ Then, in the real app after publishing:
 - As owner, click **Leave group**: an error explains that owners can't leave.
 - A group made before this change still accepts its 6-char code.
 
-Those real-app checks still need doing; they need two or three real accounts. Once Java is installed, the suite can move to `@firebase/rules-unit-testing` with `firebase emulators:exec --only firestore`, which also tests multi-doc batches end to end.
+Those real-app checks still need doing; they need two or three real accounts. The emulator suite already covers the multi-doc batches end to end.

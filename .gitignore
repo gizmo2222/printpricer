@@ -4,3 +4,10 @@ Thumbs.db
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
 .claude/worktrees/
+
+# Firebase CLI / emulator debug output
+firebase-debug*.log
+firestore-debug.log
+
+# Dev-only rules test tools
+rules-tests/node_modules/

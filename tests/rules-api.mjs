@@ -1,5 +1,6 @@
 // Runs firestore.rules against the Firebase Rules test API (no emulator).
-// Usage (PowerShell): $env:TOKEN = (gcloud auth print-access-token); npm run test:rules
+// Usage (PowerShell): $env:TOKEN = (gcloud auth print-access-token); npm run test:rules-api
+// The emulator suite in rules-tests/ (npm run test:rules) is the main check; this one needs a live-project token.
 // $env:INVERT = '1' flips every expectation; all cases should then fail.
 import { readFileSync } from 'node:fs';
 
